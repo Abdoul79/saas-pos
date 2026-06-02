@@ -47,12 +47,34 @@ def dashboard():
     customers = OnlineCustomer.query.filter_by(tenant_id=_tid()).count()
     reviews   = ProductReview.query.filter_by(tenant_id=_tid(), is_approved=False).count()
 
+    # Vérifier stock pour commandes en attente
+    low_stock_products = []
+    for o in pending:
+        for item in o.items:
+            if item.variant_id:
+                from app.models import ProductVariant
+                v = ProductVariant.query.get(item.variant_id)
+                avail = v.stock_entrepot if v else 0
+            elif item.product_id:
+                p = Product.query.get(item.product_id)
+                avail = p.stock_entrepot if p else 0
+            else:
+                avail = 0
+            if avail < item.quantity:
+                low_stock_products.append({
+                    'name': item.designation,
+                    'requested': item.quantity,
+                    'available': avail,
+                    'order_ref': o.reference,
+                })
+
     return render_template('manager/online/dashboard.html',
                            orders=orders, pending=pending, confirmed=confirmed,
                            preparing=preparing, shipped=shipped, delivered=delivered,
                            total_ca=total_ca, today_ca=today_ca,
                            today_orders=today_orders,
                            nb_customers=customers, nb_pending_reviews=reviews,
+                           low_stock_products=low_stock_products,
                            OnlineOrderStatus=OnlineOrderStatus,
                            tenant=current_user.tenant)
 
@@ -85,13 +107,50 @@ def order_detail(oid):
 def update_status(oid):
     order = OnlineOrder.query.filter_by(id=oid, tenant_id=_tid()).first_or_404()
     new_status = request.form.get('status', '')
-    if new_status in OnlineOrderStatus.all():
-        order.status = new_status
-        note = request.form.get('note', '').strip()
-        if note:
-            order.note_manager = note
-        db.session.commit()
-        flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)}', 'success')
+    if new_status not in OnlineOrderStatus.all():
+        flash('Statut invalide.', 'danger')
+        return redirect(url_for('online.order_detail', oid=oid))
+
+    # Vérifier le stock ENTREPÔT avant de confirmer
+    if new_status == OnlineOrderStatus.CONFIRMED and order.status == OnlineOrderStatus.PENDING:
+        from app.models import ProductVariant
+        stock_errors = []
+        for item in order.items:
+            if item.variant_id:
+                v = ProductVariant.query.get(item.variant_id)
+                avail = v.stock_entrepot if v else 0
+                label = item.designation
+            elif item.product_id:
+                p = Product.query.get(item.product_id)
+                avail = p.stock_entrepot if p else 0
+                label = item.designation
+            else:
+                avail = 0
+                label = item.designation
+            if avail < item.quantity:
+                stock_errors.append(f"{label} : demandé {item.quantity}, entrepôt {avail}")
+
+        if stock_errors:
+            flash(f'Stock entrepôt insuffisant — impossible de confirmer : {" · ".join(stock_errors)}', 'danger')
+            return redirect(url_for('online.order_detail', oid=oid))
+
+        # Décrémenter le stock entrepôt à la confirmation
+        for item in order.items:
+            if item.variant_id:
+                v = ProductVariant.query.get(item.variant_id)
+                if v:
+                    v.stock_entrepot = max(0, v.stock_entrepot - item.quantity)
+            elif item.product_id:
+                p = Product.query.get(item.product_id)
+                if p:
+                    p.stock_entrepot = max(0, p.stock_entrepot - item.quantity)
+
+    order.status = new_status
+    note = request.form.get('note', '').strip()
+    if note:
+        order.note_manager = note
+    db.session.commit()
+    flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)}', 'success')
     return redirect(url_for('online.order_detail', oid=oid))
 
 
@@ -136,6 +195,46 @@ def delete_review(rid):
 
 
 # ── PARAMÈTRES BOUTIQUE EN LIGNE ───────────────────────────────────────────
+
+@online_bp.route('/commande/<int:oid>/qr')
+@_mgr
+def order_qr(oid):
+    """Génère un QR code pour la commande (à coller sur le colis)."""
+    import qrcode, io, base64
+    order = OnlineOrder.query.filter_by(id=oid, tenant_id=_tid()).first_or_404()
+    # QR contient la référence + URL de suivi
+    tenant = current_user.tenant
+    if tenant.shop_slug:
+        url = request.host_url.rstrip('/') + f'/shop/{tenant.shop_slug}/commande/{order.reference}'
+    else:
+        url = order.reference
+    qr = qrcode.make(url, box_size=6, border=2)
+    buf = io.BytesIO()
+    qr.save(buf, format='PNG')
+    buf.seek(0)
+    from flask import Response
+    return Response(buf.getvalue(), mimetype='image/png',
+                    headers={'Content-Disposition': f'inline; filename=qr_{order.reference}.png'})
+
+
+@online_bp.route('/commande/<int:oid>/etiquette')
+@_mgr
+def order_label(oid):
+    """Étiquette colis avec QR code + détails commande."""
+    order = OnlineOrder.query.filter_by(id=oid, tenant_id=_tid()).first_or_404()
+    import qrcode, io, base64
+    tenant = current_user.tenant
+    if tenant.shop_slug:
+        url = request.host_url.rstrip('/') + f'/shop/{tenant.shop_slug}/commande/{order.reference}'
+    else:
+        url = order.reference
+    qr = qrcode.make(url, box_size=5, border=2)
+    buf = io.BytesIO()
+    qr.save(buf, format='PNG')
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    return render_template('manager/online/label.html', order=order,
+                           qr_b64=qr_b64, tenant=tenant)
+
 
 @online_bp.route('/parametres', methods=['GET', 'POST'])
 @_mgr

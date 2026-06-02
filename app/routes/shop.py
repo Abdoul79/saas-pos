@@ -242,16 +242,7 @@ def checkout(slug):
                 subtotal=item['price'] * item['qty'],
             )
             db.session.add(oi)
-
-            # Décrémenter stock entrepôt
-            if item.get('variant_id'):
-                v = ProductVariant.query.get(item['variant_id'])
-                if v:
-                    v.stock_entrepot = max(0, v.stock_entrepot - item['qty'])
-            else:
-                p = Product.query.get(item['product_id'])
-                if p:
-                    p.stock_entrepot = max(0, p.stock_entrepot - item['qty'])
+            # Stock décrémenté uniquement à la confirmation par le manager
 
         db.session.commit()
         _save_cart(t.id, [])

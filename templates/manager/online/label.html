@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Étiquette — {{ order.reference }}</title>
+  <style>
+    * { box-sizing:border-box;margin:0;padding:0; }
+    body { font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#111; }
+    @page { size:100mm 150mm;margin:5mm; }
+    @media print { .no-print { display:none !important; } }
+
+    .label { width:90mm;margin:0 auto;padding:5mm;border:2px solid #111;border-radius:4mm; }
+    .label-header { display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:4mm;margin-bottom:4mm; }
+    .shop-name { font-size:14pt;font-weight:800; }
+    .shop-sub { font-size:7.5pt;color:#555;margin-top:1mm; }
+    .qr-box { text-align:center; }
+    .qr-box img { width:28mm;height:28mm; }
+
+    .ref-box { text-align:center;margin-bottom:4mm;padding:2mm;background:#f5f5f5;border-radius:2mm; }
+    .ref-box .ref { font-family:'Courier New',monospace;font-size:13pt;font-weight:800;letter-spacing:.5mm; }
+    .ref-box .date { font-size:7.5pt;color:#555;margin-top:1mm; }
+
+    .dest-box { border:1px solid #ddd;border-radius:2mm;padding:3mm;margin-bottom:4mm; }
+    .dest-title { font-size:7pt;text-transform:uppercase;letter-spacing:.5mm;color:#888;margin-bottom:2mm; }
+    .dest-name { font-size:11pt;font-weight:700;margin-bottom:1mm; }
+    .dest-addr { font-size:9pt;color:#333;line-height:1.5; }
+    .dest-phone { font-size:9pt;font-weight:600;margin-top:1.5mm; }
+
+    .items-box { border-top:1px dashed #ccc;padding-top:3mm;margin-bottom:3mm; }
+    .items-title { font-size:7pt;text-transform:uppercase;letter-spacing:.5mm;color:#888;margin-bottom:2mm; }
+    .item-row { display:flex;justify-content:space-between;font-size:8pt;padding:1mm 0;border-bottom:1px dotted #eee; }
+    .item-row:last-child { border-bottom:none; }
+
+    .total-box { text-align:center;padding:2.5mm;background:#111;color:#fff;border-radius:2mm;font-family:'Courier New',monospace;font-size:14pt;font-weight:800; }
+
+    .print-btn { display:block;margin:15px auto;padding:10px 30px;font-size:14px;font-weight:700;background:#f5a623;color:#111;border:none;border-radius:8px;cursor:pointer; }
+  </style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨 Imprimer l'étiquette</button>
+
+<div class="label">
+  <!-- En-tête boutique + QR -->
+  <div class="label-header">
+    <div>
+      <div class="shop-name">{{ tenant.nom_boutique or tenant.activite }}</div>
+      <div class="shop-sub">{{ tenant.adresse }}</div>
+      <div class="shop-sub">{{ tenant.ville }}{% if tenant.telephone_entreprise %} · {{ tenant.telephone_entreprise }}{% endif %}</div>
+    </div>
+    <div class="qr-box">
+      <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+      <div style="font-size:6pt;color:#888;margin-top:1mm;">Scanner pour suivre</div>
+    </div>
+  </div>
+
+  <!-- Référence -->
+  <div class="ref-box">
+    <div class="ref">{{ order.reference }}</div>
+    <div class="date">{{ order.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+  </div>
+
+  <!-- Destinataire -->
+  <div class="dest-box">
+    <div class="dest-title">📦 Destinataire</div>
+    <div class="dest-name">{{ order.customer.full_name }}</div>
+    <div class="dest-addr">{{ order.adresse_livraison }}</div>
+    <div class="dest-addr" style="font-weight:600;">{{ order.ville_livraison }}</div>
+    <div class="dest-phone">📞 {{ order.telephone_contact }}</div>
+  </div>
+
+  <!-- Articles -->
+  <div class="items-box">
+    <div class="items-title">Contenu du colis ({{ order.items|length }} article(s))</div>
+    {% for item in order.items %}
+    <div class="item-row">
+      <span>{{ item.quantity }}× {{ item.designation[:35] }}{% if item.designation|length > 35 %}…{% endif %}</span>
+      <span style="font-family:'Courier New',monospace;font-weight:600;">{{ item.subtotal|int }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Total -->
+  <div class="total-box">
+    TOTAL : {{ order.total_amount|int }} FCFA
+  </div>
+
+  {% if order.note_client %}
+  <div style="margin-top:3mm;font-size:7.5pt;color:#555;border:1px solid #eee;border-radius:2mm;padding:2mm;">
+    💬 {{ order.note_client }}
+  </div>
+  {% endif %}
+</div>
+
+</body>
+</html>
