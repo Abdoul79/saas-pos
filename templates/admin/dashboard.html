@@ -104,6 +104,7 @@
           <th style="text-align:center;">Mensuel (FCFA)</th>
           <th style="text-align:center;">Paiement<br><span style="font-weight:400;font-size:.68rem;">{{ mois_courant }}</span></th>
           <th style="text-align:center;">🏭 Gros</th>
+          <th style="text-align:center;">🌐 En ligne</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -176,6 +177,16 @@
               <button type="submit" class="btn btn-sm {% if t.vente_engros_active %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:80px;font-size:.72rem;"
                       onclick="return confirm('{% if t.vente_engros_active %}Désactiver{% else %}Activer{% endif %} la vente en gros ?')">
                 {% if t.vente_engros_active %}✓ ON{% else %}— OFF{% endif %}
+              </button>
+            </form>
+          </td>
+
+          <!-- Boutique en ligne -->
+          <td style="text-align:center;">
+            <form method="POST" action="{{ url_for('super_admin.toggle_online', tenant_id=t.id) }}">
+              <button type="submit" class="btn btn-sm {% if t.boutique_en_ligne_active %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:80px;font-size:.72rem;"
+                      onclick="return confirm('{% if t.boutique_en_ligne_active %}Désactiver{% else %}Activer{% endif %} la boutique en ligne ?')">
+                {% if t.boutique_en_ligne_active %}✓ ON{% else %}— OFF{% endif %}
               </button>
             </form>
           </td>

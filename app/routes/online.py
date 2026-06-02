@@ -142,7 +142,6 @@ def delete_review(rid):
 def settings():
     t = current_user.tenant
     if request.method == 'POST':
-        t.boutique_en_ligne_active = bool(request.form.get('active'))
         slug = request.form.get('slug', '').strip().lower()
         slug = ''.join(c for c in slug if c.isalnum() or c == '-')
         if slug:

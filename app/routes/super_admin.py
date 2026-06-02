@@ -207,6 +207,17 @@ def toggle_engros(tenant_id):
     return redirect(request.referrer or url_for('super_admin.tenants'))
 
 
+@super_admin_bp.route('/tenant/<int:tenant_id>/toggle-online', methods=['POST'])
+@_super_admin_only
+def toggle_online(tenant_id):
+    t = Tenant.query.get_or_404(tenant_id)
+    t.boutique_en_ligne_active = not t.boutique_en_ligne_active
+    db.session.commit()
+    state = 'activée' if t.boutique_en_ligne_active else 'désactivée'
+    flash(f'Boutique en ligne {state} pour {t.prenom} {t.nom}.', 'success')
+    return redirect(request.referrer or url_for('super_admin.tenants'))
+
+
 @super_admin_bp.route('/tenant/<int:tenant_id>/detail')
 @_super_admin_only
 def tenant_detail(tenant_id):
