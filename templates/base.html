@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}SaaS POS{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #0d0f14;
+      --surface:  #161a22;
+      --border:   #252b38;
+      --text:     #e8eaf0;
+      --muted:    #7a8099;
+      --accent:   #f5a623;
+      --accent2:  #3b82f6;
+      --danger:   #ef4444;
+      --success:  #22c55e;
+      --warning:  #f59e0b;
+      --mono:     'Space Mono', monospace;
+      --sans:     'DM Sans', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: .9rem;
+      color: var(--accent);
+      letter-spacing: .08em;
+      text-decoration: none;
+    }
+    .nav-brand span { color: var(--muted); }
+    .nav-links { display: flex; gap: .25rem; align-items: center; }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .82rem;
+      font-weight: 500;
+      padding: .4rem .75rem;
+      border-radius: 6px;
+      transition: all .15s;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      color: var(--text);
+      background: var(--border);
+    }
+    .nav-badge {
+      font-family: var(--mono);
+      font-size: .7rem;
+      padding: .15rem .5rem;
+      border-radius: 99px;
+      margin-left: .5rem;
+    }
+    .badge-admin  { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
+    .badge-mgr    { background: #0369a122; color: #38bdf8; border: 1px solid #0369a144; }
+    .badge-cashier{ background: #15803d22; color: #4ade80; border: 1px solid #15803d44; }
+
+    /* ── MAIN ── */
+    main { flex: 1; padding: 2rem; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+    /* ── ALERTS ── */
+    .alerts { margin-bottom: 1.25rem; }
+    .alert {
+      padding: .75rem 1rem;
+      border-radius: 8px;
+      font-size: .85rem;
+      margin-bottom: .5rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .alert-success { background: #16a34a22; border: 1px solid #16a34a44; color: #4ade80; }
+    .alert-danger  { background: #dc262622; border: 1px solid #dc262644; color: #f87171; }
+    .alert-warning { background: #d9770622; border: 1px solid #d9770644; color: #fbbf24; }
+    .alert-info    { background: #0284c722; border: 1px solid #0284c744; color: #38bdf8; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .card-header {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--muted);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+      padding-bottom: .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── PAGE TITLE ── */
+    .page-title {
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .page-title::before {
+      content: '';
+      display: inline-block;
+      width: 3px; height: 1.1rem;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .5rem 1.1rem;
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-size: .84rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: all .15s;
+    }
+    .btn-primary   { background: var(--accent);  color: #0d0f14; }
+    .btn-secondary { background: var(--border);  color: var(--text); }
+    .btn-danger    { background: #dc262622; color: #f87171; border: 1px solid #dc262655; }
+    .btn-success   { background: #16a34a22; color: #4ade80; border: 1px solid #16a34a55; }
+    .btn-sm { padding: .3rem .7rem; font-size: .78rem; }
+    .btn:hover { opacity: .85; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    /* ── FORMS ── */
+    .form-group { margin-bottom: 1rem; }
+    .form-label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: .35rem;
+      letter-spacing: .03em;
+    }
+    .form-control {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .6rem .9rem;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: .875rem;
+      transition: border-color .15s;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    select.form-control option { background: var(--surface); }
+
+    /* ── TABLES ── */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+    }
+    th {
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .08em;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: .65rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: .7rem 1rem;
+      border-bottom: 1px solid #1e2330;
+      vertical-align: middle;
+    }
+    tr:hover td { background: #ffffff05; }
+
+    /* ── STAT CARDS ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .stat-label { font-size: .75rem; color: var(--muted); margin-bottom: .35rem; }
+    .stat-value { font-family: var(--mono); font-size: 1.5rem; color: var(--text); }
+    .stat-sub   { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+
+    /* ── BADGE COLOURS ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: .2rem .6rem;
+      border-radius: 99px;
+      font-size: .72rem;
+      font-family: var(--mono);
+    }
+    .badge-green   { background: #16a34a22; color: #4ade80; border: 1px solid #16a34a44; }
+    .badge-orange  { background: #d9770622; color: #fbbf24; border: 1px solid #d9770644; }
+    .badge-red     { background: #dc262622; color: #f87171; border: 1px solid #dc262644; }
+    .badge-blue    { background: #0284c722; color: #38bdf8; border: 1px solid #0284c744; }
+    .badge-purple  { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
+
+    /* ── GRID ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+    /* ── UTIL ── */
+    .flex { display: flex; }
+    .gap-1 { gap: .5rem; }
+    .gap-2 { gap: 1rem; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .mb-1 { margin-bottom: .5rem; }
+    .mb-2 { margin-bottom: 1rem; }
+    .mb-3 { margin-bottom: 1.5rem; }
+    .text-muted { color: var(--muted); font-size: .82rem; }
+    .text-mono  { font-family: var(--mono); }
+    .text-right { text-align: right; }
+    .text-success { color: var(--success); }
+    .text-danger  { color: var(--danger); }
+    .text-warning { color: var(--warning); }
+    .text-accent  { color: var(--accent); }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+{% if current_user.is_authenticated %}
+<nav>
+  <a href="#" class="nav-brand">▣ SaaS<span>POS</span>
+    {% if current_user.is_super_admin %}
+      <span class="nav-badge badge-admin">SUPER ADMIN</span>
+    {% elif current_user.is_manager %}
+      <span class="nav-badge badge-mgr">GÉRANT</span>
+    {% else %}
+      <span class="nav-badge badge-cashier">CAISSIER</span>
+    {% endif %}
+  </a>
+
+  <div class="nav-links">
+    {% if current_user.is_super_admin %}
+      <a href="{{ url_for('super_admin.dashboard') }}" {% if request.endpoint == 'super_admin.dashboard' %}class="active"{% endif %}>Tableau de bord</a>
+      <a href="{{ url_for('super_admin.settings') }}" {% if request.endpoint == 'super_admin.settings' %}class="active"{% endif %}>⚙ Paramètres</a>
+      <a href="{{ url_for('super_admin.tenants') }}" {% if request.endpoint == 'super_admin.tenants' %}class="active"{% endif %}>Commerçants</a>
+    {% elif current_user.is_manager %}
+      <a href="{{ url_for('manager.dashboard') }}"  {% if request.endpoint == 'manager.dashboard' %}class="active"{% endif %}>Dashboard</a>
+      <a href="{{ url_for('manager.products') }}"   {% if 'product' in request.endpoint %}class="active"{% endif %}>Entrepôt</a>
+      <a href="{{ url_for('manager.transfers') }}"  {% if 'transfer' in request.endpoint %}class="active"{% endif %}>Transferts</a>
+      <a href="{{ url_for('suppliers.index') }}"   {% if 'supplier' in request.endpoint %}class="active"{% endif %}>Fournisseurs</a>
+      <a href="{{ url_for('orders.index') }}"   {% if 'order' in request.endpoint %}class="active"{% endif %}>Commandes</a>
+      <a href="{{ url_for('categories.index') }}" {% if 'categor' in request.endpoint %}class="active"{% endif %}>Catégories</a>
+      <a href="{{ url_for('pos.interface') }}" {% if request.endpoint == 'pos.interface' %}class="active"{% endif %}>Caisse Détail</a>
+      {% if current_user.is_authenticated and not current_user.is_super_admin and current_user.tenant and current_user.tenant.vente_engros_active %}
+      <a href="{{ url_for('pos.engros') }}" {% if request.endpoint == 'pos.engros' %}class="active"{% endif %} style="color:var(--success);">🏭 Caisse Gros</a>
+      {% endif %}
+      <a href="{{ url_for('manager.sales') }}"      {% if request.endpoint == 'manager.sales' %}class="active"{% endif %}>Ventes</a>
+      <a href="{{ url_for('online.dashboard') }}"   {% if 'online' in request.endpoint %}class="active"{% endif %} style="color:#06b6d4;">🌐 En ligne</a>
+      <a href="{{ url_for('manager.losses') }}"     {% if 'loss' in request.endpoint %}class="active"{% endif %}>Casse</a>
+      <a href="{{ url_for('manager.users') }}"      {% if 'user' in request.endpoint %}class="active"{% endif %}>Employés</a>
+      <a href="{{ url_for('manager.settings') }}"   {% if 'settings' in request.endpoint %}class="active"{% endif %}>Paramètres</a>
+    {% else %}
+      <a href="{{ url_for('pos.interface') }}" {% if request.endpoint == 'pos.interface' %}class="active"{% endif %}>Caisse Détail</a>
+      {% if current_user.is_authenticated and not current_user.is_super_admin and current_user.tenant and current_user.tenant.vente_engros_active %}
+      <a href="{{ url_for('pos.engros') }}" {% if request.endpoint == 'pos.engros' %}class="active"{% endif %} style="color:var(--success);">🏭 Caisse Gros</a>
+      {% endif %}
+      <a href="{{ url_for('cashier.stock') }}"     {% if 'cashier.stock' == request.endpoint %}class="active"{% endif %}>Stock Rayon</a>
+      <a href="{{ url_for('cashier.casse') }}"     {% if 'cashier.casse' == request.endpoint %}class="active"{% endif %}>Casse</a>
+      <a href="{{ url_for('cashier.my_history') }}" {% if 'cashier.my_history' == request.endpoint %}class="active"{% endif %}>Mon Historique</a>
+    {% endif %}
+    <a href="{{ url_for('auth.logout') }}" style="color:var(--danger)">Déconnexion</a>
+  </div>
+</nav>
+{% endif %}
+
+<main>
+  <div class="alerts">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+  {% block content %}{% endblock %}
+</main>
+
+<script>
+  // Auto-dismiss alerts
+  setTimeout(() => {
+    document.querySelectorAll('.alert').forEach(el => {
+      el.style.transition = 'opacity .4s';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 400);
+    });
+  }, 5000);
+</script>
+
+{% if current_user.is_authenticated %}
+<script>
+  // ── Ping présence + état caisse — actif sur toutes les pages ────────────
+  (function() {
+    function getCartState() {
+      // Récupérer l'état du panier depuis le contexte POS si disponible
+      if (typeof cart === 'undefined') return null;
+      const items = Object.values(cart);
+      if (!items.length) return {items: [], total: 0, count: 0};
+      const total = items.reduce((s, i) => s + i.prix_vente * i.qty, 0);
+      const count = items.reduce((s, i) => s + i.qty, 0);
+      return {
+        items: items.map(i => ({
+          name: i.designation,
+          qty: i.qty,
+          price: Math.round(i.prix_vente * i.qty)
+        })),
+        total: Math.round(total),
+        count: count,
+        method: typeof method !== 'undefined' ? method : 'especes'
+      };
+    }
+
+    async function ping() {
+      const state = getCartState();
+      try {
+        await fetch('/pos/api/ping', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+          body: JSON.stringify({state: state})
+        });
+      } catch(e) {
+        try { await fetch('/pos/api/ping'); } catch(e2) {}
+      }
+    }
+
+    ping();
+    setInterval(ping, 5000); // Toutes les 5 secondes pour état temps réel
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) ping();
+    });
+  })();
+</script>
+{% endif %}
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

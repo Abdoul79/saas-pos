@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Facture {{ num_facture }}</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      font-family:'Helvetica Neue',Arial,sans-serif;
+      font-size:10pt; color:#1a1a2e; background:#fff;
+    }
+    @page {
+      size: A4; margin: 16mm 16mm 20mm 16mm;
+      @bottom-center {
+        content: "Page " counter(page) " / " counter(pages);
+        font-size: 7.5pt; color: #aaa;
+      }
+    }
+
+    /* ── Header ── */
+    .header {
+      display:flex; justify-content:space-between; align-items:flex-start;
+      padding-bottom:14px; margin-bottom:20px;
+      border-bottom:3px solid #1a1a2e;
+    }
+    .company-block h1 {
+      font-size:18pt; font-weight:900; color:#1a1a2e; letter-spacing:-.5px;
+    }
+    .company-block .sub { font-size:8.5pt; color:#666; margin-top:2px; line-height:1.6; }
+
+    .doc-block { text-align:right; }
+    .doc-type {
+      font-size:15pt; font-weight:800; color:#16a34a;
+      text-transform:uppercase; letter-spacing:1px;
+    }
+    .doc-sub { font-size:8.5pt; color:#555; margin-top:3px; line-height:1.7; }
+    .doc-num  { font-family:'Courier New',monospace; font-size:9.5pt; font-weight:700; color:#1a1a2e; }
+
+    /* Logo */
+    .logo { max-height:52px; max-width:140px; object-fit:contain; display:block; margin-bottom:6px; }
+
+    /* ── Parties ── */
+    .parties { display:flex; gap:16px; margin-bottom:20px; }
+    .party {
+      flex:1; border:1px solid #ddd; border-radius:6px; padding:11px 14px;
+    }
+    .party .label {
+      font-size:7pt; font-weight:700; text-transform:uppercase;
+      letter-spacing:.8px; color:#888; margin-bottom:6px;
+    }
+    .party .name { font-size:11pt; font-weight:700; color:#1a1a2e; margin-bottom:3px; }
+    .party .info { font-size:8.5pt; color:#555; line-height:1.7; }
+
+    /* ── Meta bar ── */
+    .meta-bar {
+      display:flex; gap:0; margin-bottom:20px;
+      border:1px solid #ddd; border-radius:6px; overflow:hidden;
+    }
+    .meta-item { flex:1; padding:8px 12px; border-right:1px solid #ddd; }
+    .meta-item:last-child { border-right:none; }
+    .meta-item .ml { font-size:6.5pt; text-transform:uppercase; letter-spacing:.6px; color:#999; margin-bottom:2px; }
+    .meta-item .mv { font-size:9pt; font-weight:600; color:#1a1a2e; font-family:'Courier New',monospace; }
+
+    /* ── Table articles ── */
+    .items-table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+    .items-table thead tr { background:#1a1a2e; color:#fff; }
+    .items-table thead th {
+      padding:7px 10px; font-size:7.5pt; font-weight:600;
+      text-transform:uppercase; letter-spacing:.5px; text-align:left;
+    }
+    .items-table thead th.r { text-align:right; }
+    .items-table tbody tr { border-bottom:1px solid #eee; }
+    .items-table tbody tr:nth-child(even) { background:#fafafa; }
+    .items-table tbody td { padding:8px 10px; font-size:9pt; vertical-align:middle; }
+    .items-table tbody td.r { text-align:right; font-family:'Courier New',monospace; }
+    .items-table tfoot tr { border-top:2px solid #1a1a2e; }
+    .items-table tfoot td { padding:7px 10px; }
+
+    /* TVA badge */
+    .tva-b {
+      display:inline-block; padding:1px 5px; border-radius:3px;
+      font-size:7pt; font-weight:700; background:#f3e8fd; color:#6a1b9a;
+      margin-left:4px;
+    }
+
+    /* ── Totaux ── */
+    .totals-wrap { display:flex; justify-content:flex-end; margin-bottom:20px; }
+    .totals-table { width:280px; border-collapse:collapse; }
+    .totals-table td { padding:5px 10px; font-size:9pt; border-bottom:1px solid #eee; }
+    .totals-table .lbl { color:#555; }
+    .totals-table .val { text-align:right; font-family:'Courier New',monospace; font-weight:600; }
+    .totals-table .grand td {
+      background:#1a1a2e; color:#fff; font-size:12pt;
+      font-weight:800; border-bottom:none; padding:9px 10px;
+    }
+    .totals-table .grand .lbl { color:#ccc; }
+    .totals-table .grand .val { color:#4ade80; }
+
+    /* ── Paiement ── */
+    .pay-block {
+      background:#f0fdf4; border:1px solid #bbf7d0;
+      border-radius:6px; padding:10px 14px;
+      display:flex; gap:20px; flex-wrap:wrap;
+      margin-bottom:16px; font-size:9pt;
+    }
+    .pay-block .pk { color:#166534; font-weight:700; margin-bottom:2px; font-size:7.5pt; text-transform:uppercase; }
+    .pay-block .pv { color:#1a1a2e; font-weight:600; }
+
+    /* ── Signature + QR ── */
+    .bottom-row {
+      display:flex; justify-content:space-between;
+      align-items:flex-end; margin-top:24px;
+    }
+    .sig-box { text-align:center; }
+    .sig-box .sig-lbl { font-size:8pt; color:#666; margin-bottom:40px; }
+    .sig-box .sig-line {
+      width:140px; border-top:1px solid #bbb;
+      margin:0 auto; padding-top:4px;
+      font-size:7pt; color:#aaa;
+    }
+    .qr-block { text-align:center; }
+    .qr-block img { width:80px; height:80px; }
+    .qr-block .qr-lbl { font-size:6.5pt; color:#aaa; margin-top:3px; }
+
+    /* Footer */
+    .footer {
+      margin-top:16px; padding-top:10px; border-top:1px solid #eee;
+      display:flex; justify-content:space-between;
+      font-size:7pt; color:#bbb;
+    }
+
+    /* Print */
+    @media print { .no-print { display:none !important; } }
+  </style>
+</head>
+<body>
+
+  <!-- ── En-tête ── -->
+  <div class="header">
+    <div class="company-block">
+      {% if tenant.logo_url %}
+      <img src="{{ tenant.logo_url }}" class="logo" alt="Logo">
+      {% endif %}
+      <h1>{{ tenant.nom_boutique or tenant.activite }}</h1>
+      <div class="sub">
+        {{ tenant.activite }}<br>
+        {{ tenant.adresse }}{% if tenant.adresse and tenant.ville %}, {% endif %}{{ tenant.ville }}
+        {% if tenant.telephone_entreprise %}<br>Tél : {{ tenant.telephone_entreprise }}{% endif %}
+        {% if tenant.email %}<br>{{ tenant.email }}{% endif %}
+      </div>
+    </div>
+    <div class="doc-block">
+      <div class="doc-type">Facture — Vente en Gros</div>
+      <div class="doc-sub">
+        <div class="doc-num">{{ num_facture }}</div>
+        Date : {{ sale.created_at.strftime('%d/%m/%Y') }}<br>
+        Heure : {{ sale.created_at.strftime('%H:%M') }}<br>
+        <span style="background:#dcfce7;color:#166534;padding:2px 7px;border-radius:3px;font-size:7.5pt;font-weight:700;">
+          ✓ VENTE EN GROS
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Vendeur / Caissier ── -->
+  <div class="parties">
+    <div class="party">
+      <div class="label">Vendeur</div>
+      <div class="name">{{ tenant.nom_boutique or tenant.activite }}</div>
+      <div class="info">
+        {{ tenant.activite }}<br>
+        {{ tenant.adresse }}{% if tenant.adresse and tenant.ville %}, {% endif %}{{ tenant.ville }}
+        {% if tenant.telephone_entreprise %}<br>Tél : {{ tenant.telephone_entreprise }}{% endif %}
+      </div>
+    </div>
+    <div class="party">
+      <div class="label">Caissier / Agent de vente</div>
+      <div class="name">{{ sale.cashier.full_name if sale.cashier else '—' }}</div>
+      <div class="info">
+        Vente enregistrée le {{ sale.created_at.strftime('%d/%m/%Y à %H:%M') }}<br>
+        Référence : <span style="font-family:'Courier New',monospace;font-weight:700;">{{ num_facture }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Méta ── -->
+  <div class="meta-bar">
+    <div class="meta-item">
+      <div class="ml">N° Facture</div>
+      <div class="mv">{{ num_facture }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="ml">Date</div>
+      <div class="mv">{{ sale.created_at.strftime('%d/%m/%Y') }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="ml">Nb articles</div>
+      <div class="mv">{{ sale.items | sum(attribute='quantity') }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="ml">Nb lignes</div>
+      <div class="mv">{{ sale.items | list | length }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="ml">Mode paiement</div>
+      <div class="mv">
+        {% if sale.payment_method == 'especes' %}Espèces
+        {% elif sale.payment_method == 'carte' %}Carte
+        {% else %}Mobile Money{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Liste articles ── -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width:28px;">#</th>
+        <th>Désignation</th>
+        <th style="width:42px;text-align:center;">TVA</th>
+        <th class="r" style="width:60px;">Qté</th>
+        <th class="r" style="width:100px;">Prix unit. HT</th>
+        <th class="r" style="width:100px;">Prix unit. TTC</th>
+        <th class="r" style="width:110px;">Sous-total TTC</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in sale.items %}
+      <tr>
+        <td style="color:#bbb;font-size:8pt;">{{ loop.index }}</td>
+        <td>
+          <strong>{{ item.designation }}</strong>
+          {% if item.taux_tva > 0 %}
+          <span class="tva-b">TVA {{ item.taux_tva|int }}%</span>
+          {% endif %}
+        </td>
+        <td style="text-align:center;font-size:8pt;color:#888;">
+          {{ item.taux_tva|int }}%
+        </td>
+        <td class="r" style="font-weight:700;">{{ item.quantity }}</td>
+        <td class="r" style="color:#555;">
+          {% set ht = item.prix_vente / (1 + item.taux_tva / 100) %}
+          {{ "%.0f"|format(ht) }}
+        </td>
+        <td class="r">{{ "%.0f"|format(item.prix_vente) }}</td>
+        <td class="r" style="font-weight:700;color:#16a34a;">{{ "%.0f"|format(item.subtotal) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5"></td>
+        <td style="font-weight:600;font-size:9pt;padding:8px 10px;">TOTAL TTC</td>
+        <td style="text-align:right;font-family:'Courier New',monospace;font-size:11pt;font-weight:900;color:#16a34a;padding:8px 10px;">
+          {{ "%.0f"|format(sale.total_amount) }} FCFA
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- ── Totaux ── -->
+  <div class="totals-wrap">
+    <table class="totals-table">
+      <tr>
+        <td class="lbl">Sous-total HT</td>
+        <td class="val">{{ "%.0f"|format(sale.total_ht) }} FCFA</td>
+      </tr>
+      {% if sale.total_tva and sale.total_tva > 0 %}
+      <tr>
+        <td class="lbl">Total TVA</td>
+        <td class="val">{{ "%.0f"|format(sale.total_tva) }} FCFA</td>
+      </tr>
+      {% endif %}
+      <tr class="grand">
+        <td class="lbl">TOTAL TTC</td>
+        <td class="val">{{ "%.0f"|format(sale.total_amount) }} FCFA</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── Règlement ── -->
+  <div class="pay-block">
+    <div>
+      <div class="pk">Mode de règlement</div>
+      <div class="pv">
+        {% if sale.payment_method == 'especes' %}💵 Espèces
+        {% elif sale.payment_method == 'carte' %}💳 Carte bancaire
+        {% else %}📱 Mobile Money{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="pk">Montant réglé</div>
+      <div class="pv">{{ "%.0f"|format(sale.amount_given or sale.total_amount) }} FCFA</div>
+    </div>
+    {% if sale.change_given and sale.change_given > 0 %}
+    <div>
+      <div class="pk">Monnaie rendue</div>
+      <div class="pv" style="color:#16a34a;">{{ "%.0f"|format(sale.change_given) }} FCFA</div>
+    </div>
+    {% endif %}
+    <div>
+      <div class="pk">Statut</div>
+      <div class="pv" style="color:#16a34a;">✓ PAYÉE</div>
+    </div>
+  </div>
+
+  <!-- ── Signatures + QR ── -->
+  <div class="bottom-row">
+    <div class="sig-box">
+      <div class="sig-lbl">L'Acheteur</div>
+      <div class="sig-line">Signature &amp; Cachet</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-lbl">Le Vendeur</div>
+      <div class="sig-line">Signature &amp; Cachet</div>
+    </div>
+    {% if qr_b64 %}
+    <div class="qr-block">
+      <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+      <div class="qr-lbl">Vérification facture</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Pied de page ── -->
+  <div class="footer">
+    <div>{{ tenant.nom_boutique or tenant.activite }} — Facture Vente en Gros</div>
+    <div>{{ num_facture }} · {{ sale.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+  </div>
+
+  <!-- Bouton impression (écran seulement) -->
+  <div class="no-print" style="margin-top:1.5rem;text-align:center;">
+    <button onclick="window.print()"
+            style="padding:.65rem 2rem;cursor:pointer;border:1px solid #ccc;border-radius:8px;background:#f5f5f5;font-size:.95rem;">
+      🖨 Imprimer la facture
+    </button>
+    <button onclick="window.close()"
+            style="padding:.65rem 1.5rem;cursor:pointer;border:1px solid #ccc;border-radius:8px;background:#f5f5f5;font-size:.95rem;margin-left:.5rem;">
+      ✕ Fermer
+    </button>
+  </div>
+
+</body>
+</html>

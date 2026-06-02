@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.nom }} — Fournisseur{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">{{ supplier.nom }}</div>
+  <div class="flex gap-1">
+    <a href="{{ url_for('suppliers.edit', sid=supplier.id) }}" class="btn btn-secondary">Modifier</a>
+    <a href="{{ url_for('suppliers.index') }}" class="btn btn-secondary">← Retour</a>
+  </div>
+</div>
+
+<div class="grid-2 mb-2">
+  <!-- Info card -->
+  <div class="card">
+    <div class="card-header">// Fiche fournisseur</div>
+    <table style="width:100%;font-size:.875rem;">
+      <tr>
+        <td style="padding:.5rem .75rem;color:var(--muted);width:40%;">Contact</td>
+        <td style="padding:.5rem .75rem;"><strong>{{ supplier.contact or '—' }}</strong></td>
+      </tr>
+      <tr style="background:#ffffff04;">
+        <td style="padding:.5rem .75rem;color:var(--muted);">Téléphone</td>
+        <td style="padding:.5rem .75rem;" class="text-mono">{{ supplier.telephone or '—' }}</td>
+      </tr>
+      <tr>
+        <td style="padding:.5rem .75rem;color:var(--muted);">Email</td>
+        <td style="padding:.5rem .75rem;">{{ supplier.email or '—' }}</td>
+      </tr>
+      <tr style="background:#ffffff04;">
+        <td style="padding:.5rem .75rem;color:var(--muted);">Ville</td>
+        <td style="padding:.5rem .75rem;">{{ supplier.ville or '—' }}</td>
+      </tr>
+      <tr>
+        <td style="padding:.5rem .75rem;color:var(--muted);">Adresse</td>
+        <td style="padding:.5rem .75rem;">{{ supplier.adresse or '—' }}</td>
+      </tr>
+      <tr style="background:#ffffff04;">
+        <td style="padding:.5rem .75rem;color:var(--muted);">Statut</td>
+        <td style="padding:.5rem .75rem;">
+          {% if supplier.is_active %}
+            <span class="badge badge-green">Actif</span>
+          {% else %}
+            <span class="badge badge-red">Inactif</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:.5rem .75rem;color:var(--muted);">Enregistré le</td>
+        <td style="padding:.5rem .75rem;">{{ supplier.created_at.strftime('%d/%m/%Y') }}</td>
+      </tr>
+    </table>
+    {% if supplier.notes %}
+    <div style="margin-top:1rem;padding:1rem;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:.84rem;color:var(--muted);">
+      <div style="font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;margin-bottom:.4rem;">NOTES</div>
+      {{ supplier.notes }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Stats -->
+  <div class="card">
+    <div class="card-header">// Statistiques</div>
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0;">
+      <div class="stat-card">
+        <div class="stat-label">Produits référencés</div>
+        <div class="stat-value text-accent">{{ products|length }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Stock Entrepôt total</div>
+        <div class="stat-value">{{ products|sum(attribute='stock_entrepot') }}</div>
+        <div class="stat-sub">toutes références</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Products list -->
+<div class="card">
+  <div class="card-header flex justify-between items-center" style="margin-bottom:0;border-bottom:0;padding-bottom:0;">
+    <span>// Produits de ce fournisseur ({{ products|length }})</span>
+    <a href="{{ url_for('manager.create_product') }}" class="btn btn-primary btn-sm">+ Ajouter un produit</a>
+  </div>
+  <div style="margin-top:1rem;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th></th><th>Désignation</th><th>Prix Achat</th><th>Prix HT</th><th>TVA</th><th>Prix TTC</th><th>Entrepôt</th><th>Rayon</th></tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          <tr>
+            <td style="width:48px;">
+              {% if p.image_url %}
+                <img src="{{ p.image_url }}" alt="{{ p.designation }}"
+                     style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+              {% else %}
+                <div style="width:40px;height:40px;background:var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.1rem;">□</div>
+              {% endif %}
+            </td>
+            <td><strong>{{ p.designation }}</strong></td>
+            <td class="text-mono">{{ "%.0f"|format(p.prix_achat) }}</td>
+            <td class="text-mono">{{ "%.0f"|format(p.prix_vente_ht) }}</td>
+            <td>
+              {% if p.taux_tva > 0 %}
+                <span class="badge badge-purple">{{ "%.0f"|format(p.taux_tva) }}%</span>
+              {% else %}
+                <span class="text-muted">0%</span>
+              {% endif %}
+            </td>
+            <td class="text-accent text-mono">{{ "%.0f"|format(p.prix_vente_ttc) }}</td>
+            <td>
+              <span class="badge {% if p.stock_entrepot == 0 %}badge-red{% elif p.stock_entrepot <= 10 %}badge-orange{% else %}badge-green{% endif %}">
+                {{ p.stock_entrepot }}
+              </span>
+            </td>
+            <td>
+              <span class="badge {% if p.stock_magasin == 0 %}badge-red{% elif p.stock_magasin <= 5 %}badge-orange{% else %}badge-blue{% endif %}">
+                {{ p.stock_magasin }}
+              </span>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" class="text-muted" style="text-align:center;padding:2rem;">
+              Aucun produit associé à ce fournisseur.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

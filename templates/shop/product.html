@@ -1,0 +1,84 @@
+{% extends "shop/base.html" %}
+{% block title %}{{ product.designation }} — {{ tenant.nom_boutique }}{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2rem;">
+  <div>
+    {% if product.image_url %}
+    <img src="{{ product.image_url }}" style="width:100%;border-radius:14px;aspect-ratio:1;object-fit:cover;">
+    {% else %}
+    <div style="width:100%;aspect-ratio:1;background:var(--surface);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:5rem;color:var(--border);">📦</div>
+    {% endif %}
+  </div>
+  <div>
+    {% if product.category %}
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem;">{{ product.category.icone }} {{ product.category.nom }}</div>
+    {% endif %}
+    <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:.5rem;">{{ product.designation }}</h1>
+
+    <div class="stars" style="margin-bottom:.75rem;">
+      {% for i in range(1,6) %}{% if i <= avg_rating|round %}★{% else %}<span class="stars-empty">★</span>{% endif %}{% endfor %}
+      <span style="color:var(--muted);font-size:.82rem;margin-left:.25rem;">({{ reviews|length }} avis)</span>
+    </div>
+
+    <div style="font-size:2rem;font-weight:800;color:var(--accent);margin-bottom:1rem;">{{ (product.prix_vente_ttc or 0)|int }} FCFA</div>
+
+    {% if product.description %}
+    <p style="color:var(--muted);font-size:.9rem;line-height:1.7;margin-bottom:1.25rem;">{{ product.description }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('shop.add_to_cart', slug=tenant.shop_slug) }}">
+      <input type="hidden" name="product_id" value="{{ product.id }}">
+      {% if variants %}
+      <div class="form-group">
+        <label class="form-label">Variante</label>
+        <select name="variant_id" class="form-control" required>
+          {% for v in variants %}
+          <option value="{{ v.id }}">{{ v.attributs_display }} — {{ v.prix_vente_ttc|int }} FCFA (Stock: {{ v.stock_magasin + v.stock_entrepot }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="form-group">
+        <label class="form-label">Quantité</label>
+        <input type="number" name="quantity" value="1" min="1" class="form-control" style="width:100px;">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:.75rem;font-size:1rem;">🛒 Ajouter au panier</button>
+    </form>
+  </div>
+</div>
+
+<!-- Avis -->
+<div style="margin-top:2rem;">
+  <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;">Avis clients ({{ reviews|length }})</h2>
+
+  {% if customer %}
+  <form method="POST" action="{{ url_for('shop.add_review', slug=tenant.shop_slug, pid=product.id) }}" class="card" style="padding:1.25rem;margin-bottom:1.5rem;">
+    <div class="form-group">
+      <label class="form-label">Votre note</label>
+      <select name="rating" class="form-control" style="width:120px;">
+        <option value="5">★★★★★</option><option value="4">★★★★</option>
+        <option value="3">★★★</option><option value="2">★★</option><option value="1">★</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Commentaire</label>
+      <textarea name="comment" class="form-control" rows="3" placeholder="Votre avis..."></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Envoyer mon avis</button>
+  </form>
+  {% endif %}
+
+  {% for r in reviews %}
+  <div class="card" style="padding:1rem;margin-bottom:.75rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+      <strong style="font-size:.88rem;">{{ r.customer.full_name }}</strong>
+      <span class="stars" style="font-size:.85rem;">{% for i in range(r.rating) %}★{% endfor %}</span>
+    </div>
+    {% if r.comment %}<p style="color:var(--muted);font-size:.85rem;">{{ r.comment }}</p>{% endif %}
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">{{ r.created_at.strftime('%d/%m/%Y') }}</div>
+  </div>
+  {% else %}
+  <p style="color:var(--muted);">Aucun avis pour ce produit.</p>
+  {% endfor %}
+</div>
+{% endblock %}

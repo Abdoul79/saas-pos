@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% block title %}Mon Historique — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  /* ── Print styles ── */
+  @media print {
+    nav, .no-print { display:none !important; }
+    main { padding:0 !important; }
+    .card { border:1px solid #ccc !important; background:#fff !important; }
+    .page-title { color:#000 !important; }
+    body { background:#fff !important; color:#000 !important; }
+    .badge { border:1px solid #999 !important; color:#000 !important; background:#eee !important; }
+    .print-header { display:block !important; }
+    .stat-card { border:1px solid #ccc !important; background:#f9f9f9 !important; }
+  }
+  .print-header { display:none; text-align:center; margin-bottom:1.5rem; }
+
+  /* ── Ticket row expandable ── */
+  .ticket-row { cursor:pointer; transition:background .1s; }
+  .ticket-row:hover td { background:#ffffff08; }
+  .ticket-detail-row { display:none; }
+  .ticket-detail-row.open { display:table-row; }
+  .ticket-detail-inner {
+    padding:.65rem 1rem .65rem 3rem;
+    background:#0d0f1a;
+    border-bottom:1px solid var(--border);
+  }
+  .ticket-item-line {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:.8rem; padding:.2rem 0;
+    border-bottom:1px solid #1e2330;
+  }
+  .ticket-item-line:last-child { border-bottom:none; }
+
+  /* ── Method colors ── */
+  .method-especes { background:#16a34a22;border:1px solid #16a34a55;color:#4ade80; }
+  .method-carte   { background:#0284c722;border:1px solid #0284c755;color:#38bdf8; }
+  .method-mobile  { background:#7c3aed22;border:1px solid #7c3aed55;color:#a78bfa; }
+
+  /* ── Navigation days ── */
+  .day-nav { display:flex; gap:.4rem; align-items:center; }
+  .day-btn {
+    padding:.3rem .65rem; border-radius:7px;
+    background:var(--surface); border:1px solid var(--border);
+    color:var(--muted); text-decoration:none; font-size:.8rem;
+    transition:all .12s;
+  }
+  .day-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .day-btn.today { border-color:var(--accent); color:var(--accent); background:#f5a62315; }
+
+  /* ── Timeline bar ── */
+  .timeline-bar {
+    height:6px; border-radius:99px;
+    background: linear-gradient(90deg, var(--accent) var(--pct), var(--border) var(--pct));
+    margin-top:.35rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Print header (hidden on screen) -->
+<div class="print-header">
+  <h2>Rapport de Caisse — {{ filter_date.strftime('%d/%m/%Y') }}</h2>
+  <p>Caissier : {{ current_user.full_name }} · Imprimé le {{ today }}</p>
+  <hr>
+</div>
+
+<!-- ── Header ── -->
+<div class="flex justify-between items-center mb-3 no-print">
+  <div class="page-title" style="margin-bottom:0;">
+    Historique de Caisse
+    <span class="text-muted" style="font-size:.75rem;font-family:var(--mono);margin-left:.5rem;">
+      {{ filter_date.strftime('%A %d %B %Y').capitalize() }}
+    </span>
+  </div>
+  <div class="flex gap-1 items-center">
+    <!-- Navigation journalière -->
+    <div class="day-nav">
+      <a class="day-btn" href="?date={{ prev_date }}">‹ Hier</a>
+      <form method="GET" class="flex gap-1 items-center">
+        <input type="date" name="date" class="form-control" value="{{ date_filter }}" style="width:160px;">
+        <button type="submit" class="btn btn-secondary btn-sm">Go</button>
+      </form>
+      {% if date_filter != today %}
+      <a class="day-btn today" href="?date={{ today }}">Aujourd'hui</a>
+      {% endif %}
+    </div>
+    <a href="{{ url_for('cashier.history_pdf') }}?date={{ date_filter }}"
+       class="btn btn-secondary btn-sm"
+       title="Télécharger le rapport en PDF">
+      📄 PDF
+    </a>
+    <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Imprimer</button>
+  </div>
+</div>
+
+{% if not sales %}
+<!-- Empty state -->
+<div class="card" style="text-align:center;padding:3.5rem;">
+  <div style="font-size:3rem;margin-bottom:.75rem;opacity:.3;">🧾</div>
+  <div style="font-weight:600;margin-bottom:.4rem;">Aucune vente ce jour</div>
+  <div class="text-muted" style="font-size:.85rem;">
+    {{ filter_date.strftime('%d/%m/%Y') }} — Pas de transactions enregistrées.
+  </div>
+</div>
+
+{% else %}
+
+<!-- ── Stats principales ── -->
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1rem;">
+  <div class="stat-card">
+    <div class="stat-label">Transactions</div>
+    <div class="stat-value text-accent">{{ sales|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total encaissé (TTC)</div>
+    <div class="stat-value">{{ "%.0f"|format(total) }} <small style="font-size:.45em;color:var(--muted);">FCFA</small></div>
+    {% if total_tva > 0 %}
+    <div class="stat-sub">HT : {{ "%.0f"|format(total_ht) }} · TVA : {{ "%.0f"|format(total_tva) }}</div>
+    {% endif %}
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Ticket moyen</div>
+    <div class="stat-value">{{ "%.0f"|format(ticket_moyen) }} <small style="font-size:.45em;color:var(--muted);">FCFA</small></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Articles vendus</div>
+    <div class="stat-value">
+      {{ total_articles }}
+      <small style="font-size:.45em;color:var(--muted);">lignes</small>
+    </div>
+  </div>
+</div>
+
+<!-- ── Répartition modes de paiement + Top produits ── -->
+<div class="grid-2 mb-2">
+
+  <!-- Modes de paiement -->
+  <div class="card">
+    <div class="card-header">// Répartition des encaissements</div>
+    {% set method_labels = {'especes': ('💵 Espèces', 'method-especes'), 'carte': ('💳 Carte', 'method-carte'), 'mobile_money': ('📱 Mobile Money', 'method-mobile')} %}
+    {% if by_method %}
+    <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:.75rem;">
+      {% for method, data in by_method.items() %}
+      {% set lbl, cls = method_labels.get(method, (method, '')) %}
+      {% set pct = (data.total / total * 100) if total > 0 else 0 %}
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.2rem;">
+          <div>
+            <span class="badge {{ cls }}" style="font-size:.75rem;">{{ lbl }}</span>
+            <span class="text-muted" style="font-size:.75rem;margin-left:.4rem;">{{ data.count }} ticket(s)</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:.88rem;font-weight:600;">{{ "%.0f"|format(data.total) }} FCFA</div>
+        </div>
+        <div class="timeline-bar" style="--pct:{{ "%.0f"|format(pct) }}%;"></div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:.15rem;">{{ "%.1f"|format(pct) }}% du total</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted" style="padding:1.5rem;text-align:center;">—</div>
+    {% endif %}
+  </div>
+
+  <!-- Top produits -->
+  <div class="card">
+    <div class="card-header">// Top 5 Articles vendus</div>
+    {% if top_produits %}
+    <div style="display:flex;flex-direction:column;gap:0;margin-top:.5rem;">
+      {% for name, qty in top_produits %}
+      {% set max_qty = top_produits[0][1] %}
+      {% set pct = (qty / max_qty * 100) if max_qty > 0 else 0 %}
+      <div style="padding:.5rem 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
+          <div style="font-size:.84rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%;">
+            {{ loop.index }}. {{ name }}
+          </div>
+          <span class="text-accent text-mono" style="font-size:.84rem;font-weight:700;">× {{ qty }}</span>
+        </div>
+        <div class="timeline-bar" style="--pct:{{ "%.0f"|format(pct) }}%;height:4px;"></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted" style="padding:1.5rem;text-align:center;">—</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Liste des tickets (expandables) ── -->
+<div class="card">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>// Détail des transactions ({{ sales|length }})</span>
+    <button class="btn btn-secondary btn-sm no-print" onclick="toggleAll()">Tout déplier</button>
+  </div>
+  <div class="table-wrap">
+    <table id="salesTable">
+      <thead>
+        <tr>
+          <th style="width:24px;"></th>
+          <th>#</th>
+          <th>Heure</th>
+          <th>Nb articles</th>
+          <th>Mode</th>
+          <th>Total TTC</th>
+          {% if total_tva > 0 %}<th>TVA</th>{% endif %}
+          <th>Monnaie</th>
+          <th class="no-print">Ticket</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sales %}
+        {% set nb_articles = s.items|sum(attribute='quantity') %}
+        {# Toggle row #}
+        <tr class="ticket-row" onclick="toggleTicket({{ loop.index0 }})">
+          <td style="text-align:center;color:var(--muted);font-size:.75rem;" id="arr-{{ loop.index0 }}">▶</td>
+          <td class="text-mono text-muted" style="font-size:.75rem;">#{{ s.id }}</td>
+          <td style="font-family:var(--mono);font-size:.84rem;">{{ s.created_at.strftime('%H:%M:%S') }}</td>
+          <td>
+            <span class="badge badge-blue">{{ nb_articles }} art.</span>
+          </td>
+          <td>
+            {% if s.payment_method == 'especes' %}
+              <span class="badge method-especes">💵 Espèces</span>
+            {% elif s.payment_method == 'carte' %}
+              <span class="badge method-carte">💳 Carte</span>
+            {% else %}
+              <span class="badge method-mobile">📱 Mobile</span>
+            {% endif %}
+          </td>
+          <td class="text-accent text-mono" style="font-weight:700;">
+            {{ "%.0f"|format(s.total_amount) }}
+          </td>
+          {% if total_tva > 0 %}
+          <td class="text-muted text-mono" style="font-size:.78rem;">
+            {{ "%.0f"|format(s.total_tva) if s.total_tva else '—' }}
+          </td>
+          {% endif %}
+          <td class="text-muted text-mono" style="font-size:.82rem;">
+            {{ "%.0f"|format(s.change_given) if s.change_given else '—' }}
+          </td>
+          <td class="no-print">
+            <a href="{{ url_for('pos.ticket', sale_id=s.id) }}" target="_blank"
+               onclick="event.stopPropagation()"
+               class="btn btn-secondary btn-sm">🖨</a>
+          </td>
+        </tr>
+        {# Detail row #}
+        <tr class="ticket-detail-row" id="detail-{{ loop.index0 }}">
+          <td colspan="{% if total_tva > 0 %}9{% else %}8{% endif %}" style="padding:0;">
+            <div class="ticket-detail-inner">
+              <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-family:var(--mono);letter-spacing:.06em;">
+                DÉTAIL TICKET #{{ s.id }} — {{ s.created_at.strftime('%H:%M:%S') }}
+              </div>
+              {% for it in s.items %}
+              <div class="ticket-item-line">
+                <div>
+                  <span style="font-size:.82rem;font-weight:500;">{{ it.designation }}</span>
+                  {% if it.variant %}<span class="text-muted" style="font-size:.72rem;"> ↳ {{ it.variant.nom }}</span>{% endif %}
+                  {% if it.taux_tva > 0 %}<span class="badge badge-purple" style="font-size:.62rem;margin-left:.3rem;">TVA {{ it.taux_tva|int }}%</span>{% endif %}
+                </div>
+                <div style="display:flex;gap:1rem;align-items:center;">
+                  <span class="text-muted" style="font-size:.78rem;">{{ "%.0f"|format(it.prix_vente) }} × {{ it.quantity }}</span>
+                  <span class="text-accent text-mono" style="font-size:.82rem;">{{ "%.0f"|format(it.subtotal) }} FCFA</span>
+                </div>
+              </div>
+              {% endfor %}
+              <!-- Sous-total ticket -->
+              <div style="display:flex;justify-content:flex-end;gap:2rem;margin-top:.5rem;padding-top:.4rem;border-top:1px dashed var(--border);">
+                {% if s.total_tva and s.total_tva > 0 %}
+                <span class="text-muted" style="font-size:.75rem;">HT : {{ "%.0f"|format(s.total_ht) }} FCFA</span>
+                <span class="text-muted" style="font-size:.75rem;">TVA : {{ "%.0f"|format(s.total_tva) }} FCFA</span>
+                {% endif %}
+                <span style="font-family:var(--mono);font-weight:700;color:var(--accent);">TOTAL : {{ "%.0f"|format(s.total_amount) }} FCFA</span>
+              </div>
+              {% if s.payment_method == 'especes' and s.change_given %}
+              <div style="text-align:right;font-size:.75rem;color:var(--success);">
+                Reçu : {{ "%.0f"|format(s.amount_given) }} · Rendu : {{ "%.0f"|format(s.change_given) }} FCFA
+              </div>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <!-- Total footer -->
+      <tfoot>
+        <tr style="border-top:2px solid var(--border);">
+          <td colspan="4" style="padding:.75rem 1rem;font-weight:600;font-size:.88rem;">TOTAL JOURNÉE</td>
+          <td style="padding:.75rem 1rem;">
+            <span class="text-muted" style="font-size:.78rem;">{{ sales|length }} ticket(s)</span>
+          </td>
+          <td class="text-accent text-mono" style="font-size:1rem;font-weight:700;padding:.75rem 1rem;">
+            {{ "%.0f"|format(total) }} FCFA
+          </td>
+          {% if total_tva > 0 %}
+          <td class="text-muted text-mono" style="padding:.75rem 1rem;">{{ "%.0f"|format(total_tva) }}</td>
+          {% endif %}
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allOpen = false;
+
+function toggleTicket(idx) {
+  const detail = document.getElementById('detail-' + idx);
+  const arrow  = document.getElementById('arr-' + idx);
+  const isOpen = detail.classList.toggle('open');
+  arrow.textContent = isOpen ? '▼' : '▶';
+  arrow.style.color = isOpen ? 'var(--accent)' : '';
+}
+
+function toggleAll() {
+  allOpen = !allOpen;
+  const details = document.querySelectorAll('.ticket-detail-row');
+  const arrows  = document.querySelectorAll('[id^="arr-"]');
+  details.forEach((d, i) => {
+    d.classList.toggle('open', allOpen);
+    if (arrows[i]) {
+      arrows[i].textContent = allOpen ? '▼' : '▶';
+      arrows[i].style.color = allOpen ? 'var(--accent)' : '';
+    }
+  });
+  document.querySelector('[onclick="toggleAll()"]').textContent = allOpen ? 'Tout replier' : 'Tout déplier';
+}
+
+// Auto-expand if <= 5 tickets
+document.addEventListener('DOMContentLoaded', () => {
+  const count = document.querySelectorAll('.ticket-detail-row').length;
+  if (count > 0 && count <= 5) toggleAll();
+});
+</script>
+{% endblock %}

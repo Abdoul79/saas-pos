@@ -1,0 +1,22 @@
+{% extends "shop/base.html" %}
+{% block title %}Connexion — {{ tenant.nom_boutique }}{% endblock %}
+{% block content %}
+<div style="max-width:420px;margin:2rem auto;">
+  <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.5rem;text-align:center;">Connexion</h1>
+  <form method="POST" class="card" style="padding:1.5rem;">
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" name="email" class="form-control" required autofocus>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mot de passe</label>
+      <input type="password" name="password" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;">Se connecter</button>
+  </form>
+  <div style="text-align:center;margin-top:1rem;font-size:.88rem;color:var(--muted);">
+    Pas encore de compte ?
+    <a href="{{ url_for('shop.register', slug=tenant.shop_slug) }}" style="color:var(--accent);font-weight:600;">Créer un compte</a>
+  </div>
+</div>
+{% endblock %}

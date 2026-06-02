@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Activation Comptes — SaaS POS{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">
+    Activation des Comptes
+    <span class="badge badge-orange" style="font-size:.7rem;margin-left:.5rem;">Accès limité</span>
+  </div>
+  <span class="text-muted" style="font-size:.82rem;">Connecté : {{ current_user.full_name }}</span>
+</div>
+
+{% if pending_tenants %}
+<div class="card">
+  <div class="card-header" style="color:var(--warning);">
+    ⚠ Demandes en attente — {{ pending_tenants|length }}
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Commerçant</th><th>Email</th><th>Activité</th>
+          <th>Contacts</th><th>Adresse</th><th>Date</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in pending_tenants %}
+        <tr>
+          <td>
+            <strong>{{ t.prenom }} {{ t.nom }}</strong>
+            {% if t.nom_boutique %}
+            <div style="font-size:.74rem;color:var(--accent);">{{ t.nom_boutique }}</div>
+            {% endif %}
+          </td>
+          <td class="text-mono" style="font-size:.8rem;">{{ t.email }}</td>
+          <td>{{ t.activite }}</td>
+          <td>
+            {% if t.telephone_personnel %}
+            <div style="font-size:.78rem;font-family:var(--mono);">👤 {{ t.telephone_personnel }}</div>
+            {% endif %}
+            {% if t.telephone_entreprise %}
+            <div style="font-size:.78rem;font-family:var(--mono);">🏢 {{ t.telephone_entreprise }}</div>
+            {% endif %}
+          </td>
+          <td style="font-size:.8rem;">{{ t.adresse }}, {{ t.ville }}</td>
+          <td class="text-muted" style="font-size:.8rem;">{{ t.created_at.strftime('%d/%m/%Y') }}</td>
+          <td>
+            <div class="flex gap-1">
+              <form method="POST" action="{{ url_for('super_admin.activate_tenant', tenant_id=t.id) }}"
+                    style="display:inline-flex;gap:.3rem;align-items:center;">
+                <input name="days" type="number" value="30" min="1" max="365"
+                       style="width:55px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .4rem;color:var(--text);font-size:.78rem;">
+                <button type="submit" class="btn btn-success btn-sm">✓ Activer</button>
+              </form>
+              <form method="POST" action="{{ url_for('super_admin.reject_tenant', tenant_id=t.id) }}">
+                <button type="submit" class="btn btn-danger btn-sm"
+                        onclick="return confirm('Rejeter cette demande ?')">✕ Rejeter</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:3.5rem;">
+  <div style="font-size:3rem;margin-bottom:.75rem;opacity:.3;">✅</div>
+  <div style="font-weight:600;margin-bottom:.4rem;">Aucune demande en attente</div>
+  <div class="text-muted" style="font-size:.85rem;">Toutes les demandes ont été traitées.</div>
+</div>
+{% endif %}
+{% endblock %}

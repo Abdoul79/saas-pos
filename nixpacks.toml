@@ -1,0 +1,29 @@
+[phases.setup]
+aptPkgs = [
+  "python3-full",
+  "python3-pip",
+  "python3-venv",
+  "python3-dev",
+  "libglib2.0-0",
+  "libcairo2",
+  "libpango-1.0-0",
+  "libpangocairo-1.0-0",
+  "libfontconfig1",
+  "libfreetype6",
+  "libharfbuzz0b",
+  "libfribidi0",
+  "libgdk-pixbuf2.0-0",
+  "libjpeg-turbo8",
+  "libpng16-16",
+  "zlib1g",
+]
+
+[phases.install]
+cmds = [
+  "/usr/bin/python3 -m venv /app/venv",
+  "/app/venv/bin/pip install --upgrade pip",
+  "/app/venv/bin/pip install -r requirements.txt",
+]
+
+[start]
+cmd = "/app/venv/bin/gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"

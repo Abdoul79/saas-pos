@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Commande {{ order.reference }} — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Commande {{ order.reference }}</div>
+  <a href="{{ url_for('online.orders_list') }}" class="btn btn-secondary">← Retour</a>
+</div>
+
+<div class="grid-2" style="margin-bottom:1rem;">
+  <div class="card" style="padding:1.25rem;">
+    <div class="card-header">// Informations client</div>
+    <div style="margin-top:.5rem;font-size:.88rem;">
+      <div><strong>{{ order.customer.full_name }}</strong></div>
+      <div style="color:var(--muted);">{{ order.customer.email }}</div>
+      <div>📞 {{ order.telephone_contact }}</div>
+      <div>📍 {{ order.adresse_livraison }}, {{ order.ville_livraison }}</div>
+      {% if order.note_client %}<div style="margin-top:.5rem;background:var(--bg);padding:.5rem;border-radius:6px;font-size:.82rem;">💬 {{ order.note_client }}</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;">
+    <div class="card-header">// Statut actuel</div>
+    <div style="text-align:center;margin:1rem 0;">
+      <span style="font-size:2.5rem;">{{ OnlineOrderStatus.icon(order.status) }}</span>
+      <div style="font-size:1.1rem;font-weight:700;color:{{ OnlineOrderStatus.color(order.status) }};margin-top:.35rem;">
+        {{ OnlineOrderStatus.label(order.status) }}
+      </div>
+    </div>
+    <form method="POST" action="{{ url_for('online.update_status', oid=order.id) }}">
+      <div class="form-group">
+        <label class="form-label">Changer le statut</label>
+        <select name="status" class="form-control">
+          {% for s in OnlineOrderStatus.all() %}
+          <option value="{{ s }}" {% if order.status == s %}selected{% endif %}>{{ OnlineOrderStatus.icon(s) }} {{ OnlineOrderStatus.label(s) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note interne (optionnel)</label>
+        <input name="note" class="form-control" value="{{ order.note_manager or '' }}">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Mettre à jour</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Produit</th><th>Qté</th><th>Prix unit.</th><th>Sous-total</th></tr></thead>
+      <tbody>
+        {% for item in order.items %}
+        <tr>
+          <td>{{ item.designation }}</td>
+          <td class="text-mono">{{ item.quantity }}</td>
+          <td class="text-mono">{{ item.prix_vente|int }} FCFA</td>
+          <td class="text-accent text-mono" style="font-weight:700;">{{ item.subtotal|int }} FCFA</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid var(--border);">
+          <td colspan="3" style="font-weight:700;">TOTAL</td>
+          <td class="text-accent text-mono" style="font-weight:700;font-size:1.1rem;">{{ order.total_amount|int }} FCFA</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

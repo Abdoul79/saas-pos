@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Avis Clients — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">⭐ Avis Clients</div>
+  <a href="{{ url_for('online.dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+</div>
+{% for r in reviews %}
+<div class="card" style="padding:1rem;margin-bottom:.75rem;border-left:3px solid {% if r.is_approved %}var(--success){% else %}var(--warning){% endif %};">
+  <div class="flex justify-between items-center" style="margin-bottom:.35rem;">
+    <div>
+      <strong>{{ r.customer.full_name }}</strong>
+      <span style="color:var(--muted);font-size:.78rem;margin-left:.5rem;">sur {{ r.product.designation }}</span>
+    </div>
+    <div>
+      {% if not r.is_approved %}<span class="badge badge-orange">En attente</span>{% else %}<span class="badge badge-green">Approuvé</span>{% endif %}
+    </div>
+  </div>
+  <div style="color:#fbbf24;margin-bottom:.25rem;">{% for i in range(r.rating) %}★{% endfor %}{% for i in range(5-r.rating) %}<span style="color:var(--border);">★</span>{% endfor %}</div>
+  {% if r.comment %}<p style="color:var(--muted);font-size:.85rem;">{{ r.comment }}</p>{% endif %}
+  <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+    {% if not r.is_approved %}
+    <form method="POST" action="{{ url_for('online.approve_review', rid=r.id) }}"><button type="submit" class="btn btn-sm" style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a55;">✓ Approuver</button></form>
+    {% endif %}
+    <form method="POST" action="{{ url_for('online.delete_review', rid=r.id) }}"><button type="submit" class="btn btn-danger btn-sm">🗑 Supprimer</button></form>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:2rem;color:var(--muted);">Aucun avis.</div>
+{% endfor %}
+{% endblock %}

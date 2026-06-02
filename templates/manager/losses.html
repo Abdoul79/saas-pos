@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Fiches de Casse — SaaS POS{% endblock %}
+{% block content %}
+<div class="page-title">Fiches de Casse & Démarque</div>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Motif</th><th>Articles</th><th>Valeur perdue</th><th>Enregistré par</th></tr></thead>
+      <tbody>
+        {% for f in fiches %}
+        <tr>
+          <td style="font-size:.82rem;">{{ f.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td><span class="badge badge-orange">{{ f.motif }}</span></td>
+          <td>
+            {% for it in f.items %}
+              <div style="font-size:.8rem;">{{ it.designation }} × {{ it.quantity }}</div>
+            {% endfor %}
+          </td>
+          <td class="text-danger text-mono">
+            -{{ "%.0f"|format(f.items|sum(attribute='quantity')|float * 0) }}
+            {{ f.items|map(attribute='prix_vente')|list|string }}
+          </td>
+          <td>{{ f.recorded_by.full_name }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem;">Aucune fiche de casse.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

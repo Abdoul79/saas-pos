@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ tenant.nom }}{% endblock %}
+{% block content %}
+
+<!-- ── Header avec contact discret ── -->
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Tableau de bord</div>
+  <div class="flex gap-2 items-center">
+    {% if saas_telephone %}
+    <a href="tel:{{ saas_telephone }}" style="font-family:var(--mono);font-size:.8rem;color:var(--muted);text-decoration:none;" title="Support SaaS POS">
+      📞 {{ saas_telephone }}
+    </a>
+    {% endif %}
+    <span class="badge badge-{{ tenant.licence_badge }}">
+      {{ tenant.days_remaining }}j restants
+    </span>
+  </div>
+</div>
+
+<!-- ── Alerte abonnement (≤ 5 jours seulement) ── -->
+{% if tenant.days_remaining <= 5 %}
+<div style="background:#dc262218;border:1px solid #dc262244;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.85rem;">
+  <div style="font-size:1.4rem;flex-shrink:0;">⚠️</div>
+  <div>
+    <div style="font-size:.75rem;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.15rem;">
+      Abonnement expirant bientôt
+    </div>
+    <div style="font-size:.85rem;color:var(--text);">
+      Votre abonnement expire dans <strong style="color:#f87171;">{{ tenant.days_remaining }} jour(s)</strong>.
+      {% if montant_mensuel %}
+      Montant : <strong style="font-family:var(--mono);">{{ "%.0f"|format(montant_mensuel|float) }} FCFA</strong>.
+      {% endif %}
+      {% if saas_telephone %}
+      Contactez le support : <strong style="font-family:var(--mono);">{{ saas_telephone }}</strong>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Stats ── -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">CA Aujourd'hui</div>
+    <div class="stat-value text-accent">{{ "%.0f"|format(ca_today) }} <small style="font-size:.7em;">FCFA</small></div>
+    <div class="stat-sub">{{ tx_today }} transaction(s)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">CA Ce Mois</div>
+    <div class="stat-value">{{ "%.0f"|format(ca_month) }} <small style="font-size:.7em;">FCFA</small></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Caissiers Actifs</div>
+    <div class="stat-value" style="color:var(--success);">{{ active_cashiers|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Alertes Stock</div>
+    <div class="stat-value" style="color:{% if low_stock %}var(--danger){% else %}var(--success){% endif %};">
+      {{ low_stock|length }}
+    </div>
+    <div class="stat-sub">articles ≤ 5 en rayon</div>
+  </div>
+</div>
+
+<!-- ── Convertisseur de devises compact ── -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;">
+  <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+    <span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-family:var(--mono);flex-shrink:0;">
+      🌍 Convertisseur
+    </span>
+    <!-- Montant -->
+    <input type="number" id="convAmount" value="1" min="0" step="any"
+           style="width:100px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:.35rem .6rem;color:var(--text);font-family:var(--mono);font-size:.9rem;"
+           oninput="convert()">
+    <!-- Sélecteur devise -->
+    <select id="convCurrency" onchange="convert()"
+            style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:.35rem .6rem;color:var(--text);font-size:.85rem;">
+      <option value="USD">🇺🇸 USD — Dollar</option>
+      <option value="EUR">🇪🇺 EUR — Euro</option>
+      <option value="TRY">🇹🇷 TRY — Lire turque</option>
+      <option value="GBP">🇬🇧 GBP — Livre sterling</option>
+      <option value="CNY">🇨🇳 CNY — Yuan</option>
+      <option value="MAD">🇲🇦 MAD — Dirham</option>
+    </select>
+    <span style="color:var(--muted);font-size:.85rem;flex-shrink:0;">=</span>
+    <!-- Résultat -->
+    <div style="font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--accent);" id="convResult">—</div>
+    <span style="font-size:.82rem;color:var(--muted);">FCFA</span>
+    <span style="font-size:.7rem;color:var(--muted);margin-left:auto;" id="rateTimestamp">Chargement…</span>
+  </div>
+</div>
+
+<div class="grid-2">
+
+  <!-- ── Top Produits ── -->
+  <div class="card">
+    <div class="card-header">// Top 5 Produits (Volume Ventes)</div>
+    {% if top_products %}
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Produit</th>
+          <th style="text-align:center;">Qté</th>
+          <th style="text-align:center;">Rayon</th>
+          <th style="text-align:center;">Entrepôt</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in top_products %}
+        <tr>
+          <td class="text-muted text-mono" style="font-size:.75rem;">{{ loop.index }}</td>
+          <td>
+            {{ p.designation }}
+            {% if p.has_variants %}
+              <span class="badge badge-purple" style="font-size:.6rem;margin-left:.3rem;">Variantes</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center;"><span class="text-accent text-mono" style="font-weight:700;">{{ p.qty }}</span></td>
+          <td style="text-align:center;">
+            <span class="badge {% if p.stock_magasin == 0 %}badge-red{% elif p.stock_magasin <= 5 %}badge-orange{% else %}badge-blue{% endif %}">{{ p.stock_magasin }}</span>
+          </td>
+          <td style="text-align:center;">
+            <span class="badge {% if p.stock_entrepot == 0 %}badge-red{% elif p.stock_entrepot <= 10 %}badge-orange{% else %}badge-green{% endif %}">{{ p.stock_entrepot }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-muted" style="text-align:center;padding:2rem;">Aucune vente enregistrée.</div>
+    {% endif %}
+  </div>
+
+  <!-- ── Alertes Stock ── -->
+  <div class="card">
+    <div class="card-header" style="{% if low_stock %}color:var(--danger);{% endif %}">// Alertes Stock Rayon (≤ 5)</div>
+    {% if low_stock %}
+    <div style="display:flex;flex-direction:column;gap:0;">
+      {% for p in low_stock %}
+      <div style="padding:.6rem .5rem;border-bottom:1px solid var(--border);">
+        {% if not p.has_variants %}
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:.85rem;font-weight:500;">{{ p.designation }}</div>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <span class="badge {% if p.stock_magasin == 0 %}badge-red{% else %}badge-orange{% endif %}">🛒 {{ p.stock_magasin }}</span>
+            <span class="badge {% if p.stock_entrepot == 0 %}badge-red{% else %}badge-green{% endif %}" style="font-size:.68rem;">🏭 {{ p.stock_entrepot }}</span>
+            {% if p.stock_entrepot > 0 %}
+            <a href="{{ url_for('manager.transfers') }}" class="btn btn-sm" style="padding:.15rem .5rem;font-size:.7rem;background:#f5a62315;color:var(--accent);border:1px solid #f5a62444;">Transférer →</a>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
+          <div>
+            <span style="font-size:.85rem;font-weight:500;">{{ p.designation }}</span>
+            <span class="badge badge-purple" style="font-size:.6rem;margin-left:.3rem;">Variantes</span>
+          </div>
+          <div style="display:flex;gap:.4rem;align-items:center;">
+            <span style="font-size:.72rem;color:var(--muted);">Total rayon :</span>
+            <span class="badge {% if p.stock_magasin == 0 %}badge-red{% else %}badge-orange{% endif %}">{{ p.stock_magasin }}</span>
+          </div>
+        </div>
+        {% if p.variants_low %}
+        <div style="display:flex;flex-direction:column;gap:.2rem;padding-left:.75rem;border-left:2px solid var(--border);">
+          {% for v in p.variants_low %}
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:.78rem;">
+            <span style="color:var(--muted);">↳ {{ v.nom }}</span>
+            <div style="display:flex;gap:.4rem;align-items:center;">
+              <span class="badge {% if v.stock_magasin == 0 %}badge-red{% else %}badge-orange{% endif %}" style="font-size:.65rem;">🛒 {{ v.stock_magasin }}</span>
+              <span class="badge {% if v.stock_entrepot == 0 %}badge-red{% else %}badge-green{% endif %}" style="font-size:.65rem;">🏭 {{ v.stock_entrepot }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if p.stock_entrepot > 0 %}
+        <div style="margin-top:.35rem;">
+          <a href="{{ url_for('manager.transfers') }}" class="btn btn-sm" style="padding:.15rem .5rem;font-size:.7rem;background:#f5a62315;color:var(--accent);border:1px solid #f5a62444;">Transférer vers le rayon →</a>
+        </div>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted" style="text-align:center;padding:2rem;">✓ Tous les stocks sont corrects.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% if active_cashiers %}
+<div class="card" style="margin-top:1rem;">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>// Caissiers — État en Temps Réel</span>
+    <span id="onlineCount" style="font-size:.72rem;color:var(--muted);"></span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:.5rem;padding:.75rem;" id="cashiersList">
+    {% for c in active_cashiers %}
+    <div id="cashier-{{ c.id }}"
+         style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.65rem .9rem;transition:border-color .3s,background .3s;">
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.35rem;">
+        <span id="dot-{{ c.id }}" style="width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s;"></span>
+        <span style="font-weight:600;font-size:.88rem;">{{ c.full_name }}</span>
+        <span id="status-{{ c.id }}" style="font-size:.72rem;color:var(--muted);margin-left:auto;">Hors ligne</span>
+      </div>
+      <!-- État caisse temps réel -->
+      <div id="pos-{{ c.id }}" style="display:none;font-size:.75rem;">
+        <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.3rem;" id="cart-{{ c.id }}"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:var(--muted);" id="count-{{ c.id }}"></span>
+          <span style="font-family:monospace;font-weight:700;color:var(--accent);" id="total-{{ c.id }}"></span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let RATES = {};
+
+async function loadRates() {
+  try {
+    const r = await fetch('https://open.er-api.com/v6/latest/USD', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    RATES = d.rates;
+    const now = new Date();
+    document.getElementById('rateTimestamp').textContent =
+      'Mis à jour ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    convert();
+  } catch(e) {
+    document.getElementById('rateTimestamp').textContent = '⚠ Hors ligne';
+  }
+}
+
+function convert() {
+  const amount   = parseFloat(document.getElementById('convAmount').value) || 0;
+  const currency = document.getElementById('convCurrency').value;
+  const xof = RATES['XOF'] || 0;
+  const rate = RATES[currency] || 0;
+  const result = rate > 0 ? Math.round(amount * xof / rate) : null;
+  document.getElementById('convResult').textContent =
+    result !== null ? result.toLocaleString('fr-FR') : '—';
+}
+
+loadRates();
+setInterval(loadRates, 10 * 60 * 1000);
+
+// ── Présence caissiers en temps réel ─────────────────────────────────────
+async function refreshPresence() {
+  try {
+    const r = await fetch('/manager/api/cashiers/presence');
+    const d = await r.json();
+    let online = 0;
+    d.cashiers.forEach(c => {
+      const card   = document.getElementById('cashier-' + c.id);
+      const dot    = document.getElementById('dot-'      + c.id);
+      const status = document.getElementById('status-'   + c.id);
+      const posDiv = document.getElementById('pos-'      + c.id);
+      const cartEl = document.getElementById('cart-'     + c.id);
+      const countEl= document.getElementById('count-'    + c.id);
+      const totalEl= document.getElementById('total-'    + c.id);
+      if (!card) return;
+
+      if (c.is_online) {
+        online++;
+        dot.style.background   = '#22c55e';
+        dot.style.boxShadow    = '0 0 6px #22c55e88';
+        card.style.borderColor = '#22c55e44';
+        card.style.background  = '#22c55e06';
+        status.textContent     = '● En ligne';
+        status.style.color     = '#4ade80';
+
+        // Afficher état du panier
+        const s = c.pos_state;
+        if (s && posDiv) {
+          if (s.count > 0) {
+            posDiv.style.display = 'block';
+            // Articles
+            if (cartEl) {
+              cartEl.innerHTML = s.items.map(i =>
+                `<span style="background:var(--border);border:1px solid #2e3548;border-radius:4px;padding:.1rem .4rem;font-size:.7rem;">
+                  <span style="color:#f5a623;font-family:monospace;font-weight:700;">${i.qty}×</span>
+                  ${i.name.substring(0,20)}
+                  <span style="color:var(--muted);font-family:monospace;font-size:.65rem;">${i.price.toLocaleString('fr-FR')}</span>
+                </span>`
+              ).join('');
+            }
+            if (countEl) countEl.textContent = `${s.count} article(s)`;
+            if (totalEl) totalEl.textContent = `${s.total.toLocaleString('fr-FR')} FCFA`;
+          } else {
+            posDiv.style.display = 'block';
+            if (cartEl) cartEl.innerHTML = '<span style="color:var(--muted);font-style:italic;">Panier vide</span>';
+            if (countEl) countEl.textContent = '';
+            if (totalEl) totalEl.textContent = '';
+          }
+        } else if (posDiv) {
+          posDiv.style.display = 'block';
+          if (cartEl) cartEl.innerHTML = '<span style="color:var(--muted);font-style:italic;font-size:.72rem;">En dehors de la caisse</span>';
+          if (totalEl) totalEl.textContent = '';
+          if (countEl) countEl.textContent = '';
+        }
+      } else {
+        dot.style.background   = '#7a8099';
+        dot.style.boxShadow    = 'none';
+        card.style.borderColor = 'var(--border)';
+        card.style.background  = 'var(--bg)';
+        if (posDiv) posDiv.style.display = 'none';
+        if (c.last_seen) {
+          const diff = Math.round((Date.now() - new Date(c.last_seen + 'Z')) / 60000);
+          if (diff < 1) status.textContent = 'Vu à l\'instant';
+          else if (diff < 60) status.textContent = `Vu il y a ${diff} min`;
+          else {
+            const h = Math.floor(diff / 60);
+            const m = diff % 60;
+            status.textContent = m > 0 ? `Vu il y a ${h}h${m}min` : `Vu il y a ${h}h`;
+          }
+        } else {
+          status.textContent = 'Hors ligne';
+        }
+        status.style.color = 'var(--muted)';
+      }
+    });
+    const el = document.getElementById('onlineCount');
+    if (el) el.textContent = online > 0 ? `${online} en ligne` : '';
+  } catch(e) {}
+}
+
+refreshPresence();
+setInterval(refreshPresence, 3000); // Rafraîchir toutes les 3 secondes
+</script>
+{% endblock %}

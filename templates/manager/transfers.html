@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+{% block title %}Transferts Stock — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  .variant-selector {
+    background: #f5a62310;
+    border: 1px solid #f5a62344;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: .75rem;
+    animation: slideDown .2s ease;
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .variant-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: .5rem;
+    margin-top: .6rem;
+  }
+  .variant-card {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: .65rem .75rem;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    user-select: none;
+  }
+  .variant-card:hover { border-color: var(--accent); background: #f5a62308; }
+  .variant-card.selected {
+    border-color: var(--accent);
+    background: #f5a62318;
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .variant-card.no-stock {
+    opacity: .4; cursor: not-allowed; pointer-events: none;
+  }
+  .vc-label { font-weight: 600; font-size: .85rem; }
+  .vc-sku   { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+  .vc-stocks {
+    display: flex; gap: .4rem; margin-top: .15rem; flex-wrap: wrap;
+  }
+  .vc-stock-pill {
+    font-family: var(--mono); font-size: .68rem;
+    padding: .1rem .4rem; border-radius: 99px;
+  }
+  .pill-entrepot { background: #16a34a22; color: #4ade80; border: 1px solid #16a34a44; }
+  .pill-rayon    { background: #0284c722; color: #38bdf8; border: 1px solid #0284c744; }
+  .pill-zero     { background: #dc262622; color: #f87171; border: 1px solid #dc262644; }
+
+  /* Stock info bar when variant selected */
+  .stock-info-bar {
+    display: flex; gap: 1rem; align-items: center;
+    padding: .6rem .9rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: .75rem;
+    font-size: .83rem;
+  }
+  .stock-info-bar .label { color: var(--muted); font-size: .75rem; }
+  .stock-info-bar .val   { font-family: var(--mono); font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">Transferts Entrepôt → Rayon</div>
+<div class="grid-2">
+
+  <!-- ── Formulaire ── -->
+  <div class="card">
+    <div class="card-header">// Nouveau transfert</div>
+    <form method="POST" action="{{ url_for('manager.create_transfer') }}" id="transferForm">
+
+      <!-- Barre de recherche + sélection produit -->
+      <div class="form-group">
+        <label class="form-label">
+          Produit
+          <span id="productCount" style="margin-left:.4rem;font-size:.68rem;font-family:var(--mono);color:var(--muted);font-weight:400;">
+            {{ products|length }} article(s)
+          </span>
+        </label>
+
+        <!-- Recherche -->
+        <div style="position:relative;margin-bottom:.45rem;">
+          <input type="text" id="productSearch"
+                 class="form-control"
+                 placeholder="🔍 Rechercher un article…"
+                 autocomplete="off"
+                 oninput="filterProducts(this.value)"
+                 style="padding-right:2.2rem;">
+          <button type="button" id="searchClearBtn"
+                  onclick="clearSearch()"
+                  style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);
+                         background:none;border:none;color:var(--muted);cursor:pointer;
+                         font-size:.9rem;display:none;">✕</button>
+        </div>
+
+        <select class="form-control" name="product_id" id="productSel" required
+                size="6"
+                onchange="onProductChange(this)"
+                style="height:auto;min-height:140px;">
+          <option value="">— Sélectionner —</option>
+          {% for p in products %}
+          <option value="{{ p.id }}"
+                  data-has-variants="{{ 'true' if p.has_variants else 'false' }}"
+                  data-stock="{{ p.stock_entrepot }}"
+                  data-stock-ray="{{ p.stock_magasin }}"
+                  data-name="{{ p.designation|lower }}"
+                  data-name-display="{{ p.designation }}">
+            {% if p.has_variants %}⚙ {% endif %}{{ p.designation }}
+            {% if not p.has_variants %} — 🏭{{ p.stock_entrepot }} / 🛒{{ p.stock_magasin }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <div id="noResultMsg" style="display:none;font-size:.8rem;color:var(--muted);padding:.4rem .5rem;">
+          Aucun article trouvé.
+        </div>
+      </div>
+
+      <!-- Sélecteur de variante (apparaît dynamiquement) -->
+      <div id="variantSection" style="display:none;">
+        <input type="hidden" name="variant_id" id="variantId">
+
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem;">
+          Choisir la variante à transférer :
+        </div>
+        <div class="variant-cards" id="variantCards"></div>
+
+        <!-- Info stock variante sélectionnée -->
+        <div class="stock-info-bar" id="varStockBar" style="display:none;">
+          <div>
+            <div class="label">Variante</div>
+            <div class="val" id="varStockName">—</div>
+          </div>
+          <div>
+            <div class="label">Entrepôt</div>
+            <div class="val text-success" id="varStockEnt">—</div>
+          </div>
+          <div>
+            <div class="label">Rayon actuel</div>
+            <div class="val" style="color:var(--accent2);" id="varStockRay">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stock info produit simple -->
+      <div class="stock-info-bar" id="simpleStockBar" style="display:none;">
+        <div>
+          <div class="label">Stock Entrepôt</div>
+          <div class="val text-success" id="simpleStockEnt">—</div>
+        </div>
+        <div>
+          <div class="label">Stock Rayon actuel</div>
+          <div class="val" style="color:var(--accent2);" id="simpleStockRay">—</div>
+        </div>
+      </div>
+
+      <!-- Quantité -->
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label">Quantité à transférer</label>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <input class="form-control" type="number" name="quantity" id="qtyInput"
+                 min="1" value="1" required style="max-width:130px;">
+          <span class="text-muted" style="font-size:.8rem;" id="maxQtyHint"></span>
+        </div>
+        <!-- Boutons rapides -->
+        <div style="display:flex;gap:.35rem;margin-top:.45rem;flex-wrap:wrap;">
+          {% for q in [5, 10, 20, 50] %}
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="document.getElementById('qtyInput').value={{ q }}">{{ q }}</button>
+          {% endfor %}
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setMaxQty()" id="maxBtn" style="display:none;">
+            Tout transférer
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Note (optionnel)</label>
+        <input class="form-control" name="note" placeholder="ex: Réassort rayon 3, avant-fermeture…">
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="submitBtn">
+        Effectuer le transfert →
+      </button>
+    </form>
+  </div>
+
+  <!-- ── Historique ── -->
+  <div class="card">
+    <div class="card-header">// Historique (50 derniers)</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Produit</th><th>Variante</th><th>Qté</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          {% for t in transfers %}
+          <tr>
+            <td>
+              <strong>{{ t.product.designation }}</strong>
+              {% if t.product.category %}
+              <span style="font-size:.68rem;color:{{ t.product.category.couleur }};">
+                {{ t.product.category.icone }}
+              </span>
+              {% endif %}
+            </td>
+            <td>
+              {% if t.variant %}
+                <span class="badge badge-purple" style="font-size:.7rem;">{{ t.variant.nom }}</span>
+              {% else %}
+                <span class="text-muted" style="font-size:.75rem;">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="text-accent text-mono" style="font-weight:700;">+{{ t.quantity }}</span>
+            </td>
+            <td class="text-muted" style="font-size:.76rem;">
+              {{ t.transferred_at.strftime('%d/%m %H:%M') }}
+              {% if t.note %}
+              <div style="font-size:.7rem;color:var(--muted);">{{ t.note }}</div>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="text-muted" style="text-align:center;padding:2rem;">
+              Aucun transfert effectué.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Barre de recherche ────────────────────────────────────────────────────
+function filterProducts(q) {
+  const sel     = document.getElementById('productSel');
+  const options = sel.querySelectorAll('option[data-name]');
+  const hint    = document.getElementById('productCount');
+  const noRes   = document.getElementById('noResultMsg');
+  const clearBtn= document.getElementById('searchClearBtn');
+  const term    = q.trim().toLowerCase();
+  let   shown   = 0;
+
+  options.forEach(opt => {
+    const name  = opt.dataset.name || '';
+    const match = !term || name.includes(term);
+    opt.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+
+  // Reset selection if hidden
+  if (sel.value) {
+    const selOpt = sel.querySelector(`option[value="${sel.value}"]`);
+    if (selOpt && selOpt.style.display === 'none') {
+      sel.value = '';
+      onProductChange(sel);
+    }
+  }
+
+  hint.textContent   = shown + ' article(s)';
+  noRes.style.display= shown === 0 ? 'block' : 'none';
+  clearBtn.style.display = term ? 'block' : 'none';
+}
+
+function clearSearch() {
+  const inp = document.getElementById('productSearch');
+  inp.value = '';
+  filterProducts('');
+  inp.focus();
+}
+
+
+// ── Données des variantes injectées depuis le serveur ──────────────────────
+const VARIANTS_MAP = {{ variants_map_json|safe }};
+
+// Stocks produits simples (injectés inline)
+const PRODUCTS_DATA = {
+  {% for p in products %}
+  {% if not p.has_variants %}
+  {{ p.id }}: { stock_entrepot: {{ p.stock_entrepot }}, stock_magasin: {{ p.stock_magasin }} },
+  {% endif %}
+  {% endfor %}
+};
+
+let selectedVariantId   = null;
+let selectedVariantStock = 0;
+
+function onProductChange(sel) {
+  const opt       = sel.options[sel.selectedIndex];
+  const hasVar    = opt.dataset.hasVariants === 'true';
+  const pid       = parseInt(sel.value) || 0;
+
+  // Reset
+  selectedVariantId    = null;
+  selectedVariantStock = 0;
+  document.getElementById('variantId').value = '';
+  document.getElementById('varStockBar').style.display    = 'none';
+  document.getElementById('simpleStockBar').style.display = 'none';
+  document.getElementById('maxQtyHint').textContent       = '';
+  document.getElementById('maxBtn').style.display         = 'none';
+
+  if (!pid) {
+    document.getElementById('variantSection').style.display = 'none';
+    return;
+  }
+
+  if (hasVar) {
+    document.getElementById('variantSection').style.display = 'block';
+    document.getElementById('simpleStockBar').style.display = 'none';
+    renderVariantCards(pid);
+  } else {
+    document.getElementById('variantSection').style.display = 'none';
+    // Afficher stock produit simple
+    const pd = PRODUCTS_DATA[pid];
+    if (pd) {
+      document.getElementById('simpleStockEnt').textContent = pd.stock_entrepot + ' unités';
+      document.getElementById('simpleStockRay').textContent = pd.stock_magasin  + ' unités';
+      document.getElementById('simpleStockBar').style.display = 'flex';
+      selectedVariantStock = pd.stock_entrepot;
+      updateMaxHint(pd.stock_entrepot);
+    }
+  }
+}
+
+function renderVariantCards(pid) {
+  const variants = VARIANTS_MAP[pid] || [];
+  const grid     = document.getElementById('variantCards');
+  grid.innerHTML = '';
+
+  variants.forEach(v => {
+    const noStock = v.stock_entrepot <= 0;
+    const card    = document.createElement('div');
+    card.className = 'variant-card' + (noStock ? ' no-stock' : '');
+    card.dataset.vid = v.id;
+    card.innerHTML = `
+      <div class="vc-label">${v.attributs_str || v.nom}</div>
+      ${v.sku ? `<div class="vc-sku">${v.sku}</div>` : ''}
+      <div class="vc-stocks">
+        <span class="vc-stock-pill ${v.stock_entrepot > 0 ? 'pill-entrepot' : 'pill-zero'}">
+          🏭 ${v.stock_entrepot}
+        </span>
+        <span class="vc-stock-pill ${v.stock_magasin > 0 ? 'pill-rayon' : 'pill-zero'}">
+          🛒 ${v.stock_magasin}
+        </span>
+      </div>`;
+
+    if (!noStock) {
+      card.addEventListener('click', () => selectVariant(v, card));
+    }
+    grid.appendChild(card);
+  });
+}
+
+function selectVariant(v, card) {
+  // Désélectionner tout
+  document.querySelectorAll('.variant-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+
+  selectedVariantId    = v.id;
+  selectedVariantStock = v.stock_entrepot;
+  document.getElementById('variantId').value = v.id;
+
+  // Afficher info bar
+  document.getElementById('varStockName').textContent = v.attributs_str || v.nom;
+  document.getElementById('varStockEnt').textContent  = v.stock_entrepot + ' unités';
+  document.getElementById('varStockRay').textContent  = v.stock_magasin  + ' unités';
+  document.getElementById('varStockBar').style.display = 'flex';
+
+  updateMaxHint(v.stock_entrepot);
+}
+
+function updateMaxHint(maxStock) {
+  const hint = document.getElementById('maxQtyHint');
+  const maxBtn = document.getElementById('maxBtn');
+  hint.textContent = `Max disponible : ${maxStock}`;
+  hint.style.color = maxStock > 0 ? 'var(--success)' : 'var(--danger)';
+  maxBtn.style.display = maxStock > 0 ? 'inline-flex' : 'none';
+  // Cap la quantité
+  const qi = document.getElementById('qtyInput');
+  qi.max = maxStock;
+  if (parseInt(qi.value) > maxStock) qi.value = maxStock;
+}
+
+function setMaxQty() {
+  document.getElementById('qtyInput').value = selectedVariantStock || 1;
+}
+
+// Validation avant submit
+document.getElementById('transferForm').addEventListener('submit', e => {
+  const sel = document.getElementById('productSel');
+  const opt = sel.options[sel.selectedIndex];
+  if (!sel.value) return;
+
+  const hasVar = opt.dataset.hasVariants === 'true';
+  if (hasVar && !selectedVariantId) {
+    e.preventDefault();
+    // Flash visuel sur le sélecteur de variantes
+    const grid = document.getElementById('variantCards');
+    grid.style.boxShadow = '0 0 0 2px var(--danger)';
+    grid.style.borderRadius = '8px';
+    setTimeout(() => grid.style.boxShadow = '', 1500);
+    alert('Veuillez sélectionner une variante avant de continuer.');
+  }
+});
+</script>
+{% endblock %}

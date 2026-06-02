@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Code-barres — {{ variant.nom }}{% endblock %}
+{% block content %}
+<div style="max-width:500px;margin:0 auto;text-align:center;">
+  <div class="flex justify-between items-center mb-3">
+    <div class="page-title" style="margin-bottom:0;">Code-barres variante</div>
+    <a href="{{ url_for('variants.index', pid=variant.product_id) }}" class="btn btn-secondary btn-sm">← Variantes</a>
+  </div>
+  <div class="card">
+    <div style="font-weight:600;font-size:1rem;margin-bottom:.25rem;">
+      {{ variant.product.designation }}
+    </div>
+    <div class="text-muted" style="font-size:.85rem;margin-bottom:1rem;">
+      {{ variant.attributs_display or variant.nom }}
+      {% if variant.sku %} · <span class="text-mono">{{ variant.sku }}</span>{% endif %}
+    </div>
+
+    {% if bc_b64 %}
+      <img src="data:image/png;base64,{{ bc_b64 }}"
+           style="max-width:100%;border:1px solid var(--border);border-radius:8px;padding:.5rem;background:#fff;">
+      <div class="text-mono" style="margin-top:.5rem;font-size:.9rem;letter-spacing:.1em;">
+        {{ variant.barcode }}
+      </div>
+    {% else %}
+      <div class="text-muted" style="padding:2rem;">Aucun code-barres généré pour cette variante.</div>
+    {% endif %}
+
+    <div class="flex gap-2 justify-center" style="margin-top:1.25rem;">
+      <button onclick="window.print()" class="btn btn-primary">🖨 Imprimer</button>
+      <a href="{{ url_for('variants.barcodes_all', pid=variant.product_id) }}"
+         class="btn btn-secondary">Planche complète →</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

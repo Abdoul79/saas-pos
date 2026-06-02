@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Réceptionner — {{ order.reference }}{% endblock %}
+{% block content %}
+
+<div style="max-width:780px;margin:0 auto;">
+  <div class="flex justify-between items-center mb-3">
+    <div>
+      <div class="text-muted" style="font-size:.75rem;margin-bottom:.2rem;">
+        <a href="{{ url_for('orders.index') }}" style="color:var(--muted);text-decoration:none;">Commandes</a>
+        › <a href="{{ url_for('orders.detail', oid=order.id) }}" style="color:var(--muted);text-decoration:none;">{{ order.reference }}</a>
+        › Réceptionner
+      </div>
+      <div class="page-title" style="margin-bottom:0;">📥 Réception de la livraison</div>
+    </div>
+    <a href="{{ url_for('orders.detail', oid=order.id) }}" class="btn btn-secondary btn-sm">← Retour</a>
+  </div>
+
+  <div class="card mb-2" style="padding:.85rem 1.25rem;">
+    <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:.84rem;">
+      <div><span class="text-muted">Fournisseur : </span><strong>{{ order.supplier.nom }}</strong></div>
+      <div><span class="text-muted">Réf : </span><span class="text-mono">{{ order.reference }}</span></div>
+      {% if order.date_livraison_prevue %}
+      <div><span class="text-muted">Livraison prévue : </span>{{ order.date_livraison_prevue.strftime('%d/%m/%Y') }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="POST">
+    <div class="card mb-2">
+      <div class="card-header">
+        // Saisir les quantités reçues — le stock entrepôt sera mis à jour automatiquement
+      </div>
+      <div class="table-wrap" style="margin-top:.5rem;">
+        <table>
+          <thead>
+            <tr>
+              <th>Article</th>
+              <th style="text-align:center;">Commandé</th>
+              <th style="text-align:center;">Déjà reçu</th>
+              <th style="text-align:center;color:var(--accent);">Reçu ce jour ▼</th>
+              <th style="text-align:center;">Restant</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in order.items %}
+            <tr style="{% if item.is_fully_received %}opacity:.5;{% endif %}">
+              <td>
+                <strong>{{ item.designation }}</strong>
+                {% if item.sku %}<div class="text-mono" style="font-size:.72rem;color:var(--muted);">{{ item.sku }}</div>{% endif %}
+              </td>
+              <td class="text-mono" style="text-align:center;">{{ item.quantite_commandee }}</td>
+              <td style="text-align:center;">
+                <span class="badge {% if item.quantite_recue > 0 %}badge-orange{% else %}badge-red{% endif %}">
+                  {{ item.quantite_recue }}
+                </span>
+              </td>
+              <td style="text-align:center;padding:.4rem .75rem;">
+                {% if item.is_fully_received %}
+                  <span class="text-success" style="font-size:.85rem;">✓ Complet</span>
+                  <input type="hidden" name="recu_{{ item.id }}" value="{{ item.quantite_recue }}">
+                {% else %}
+                  <input class="form-control text-mono"
+                         type="number" name="recu_{{ item.id }}"
+                         value="{{ item.quantite_recue }}"
+                         min="0" max="{{ item.quantite_commandee }}"
+                         style="width:90px;text-align:center;font-weight:700;margin:0 auto;"
+                         oninput="updateLine(this, {{ item.quantite_commandee }})">
+                {% endif %}
+              </td>
+              <td style="text-align:center;">
+                <span class="text-warning text-mono" id="restant_{{ item.id }}">
+                  {{ item.quantite_restante }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="background:#f5a62312;border:1px solid #f5a62344;border-radius:10px;padding:.85rem 1.1rem;margin-bottom:1.25rem;font-size:.84rem;">
+      <strong style="color:var(--accent);">ℹ Information :</strong>
+      <span style="color:var(--muted);">
+        Les quantités saisies seront ajoutées au <strong style="color:var(--text);">stock entrepôt</strong> de chaque article.
+        Le statut de la commande passera à <em>Reçue</em> si tout est réceptionné, ou <em>Partielle</em> sinon.
+      </span>
+    </div>
+
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary" style="padding:.75rem 2rem;">
+        ✓ Enregistrer la réception
+      </button>
+      <a href="{{ url_for('orders.detail', oid=order.id) }}" class="btn btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateLine(input, max) {
+  const val      = parseInt(input.value) || 0;
+  const itemId   = input.name.replace('recu_', '');
+  const restant  = document.getElementById('restant_' + itemId);
+  if (restant) restant.textContent = Math.max(0, max - val);
+  if (val > max) input.value = max;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environnements virtuels
+venv/
+env/
+.venv/
+.env
+
+# Base de données SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Fichiers uploadés (ne pas versionner les images/logos des clients)
+static/uploads/products/
+static/uploads/logos/
+static/barcodes/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Variables d'environnement
+.env
+.env.local
+config.local.py
+
+# WeasyPrint cache
+.weasyprint/

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Commande {{ order.reference }} — SaaS POS{% endblock %}
+{% block content %}
+
+{% set lbl, badge = order.status_label %}
+
+<div class="flex justify-between items-center mb-3">
+  <div>
+    <div class="text-muted" style="font-size:.75rem;margin-bottom:.2rem;">
+      <a href="{{ url_for('orders.index') }}" style="color:var(--muted);text-decoration:none;">Commandes</a>
+      &nbsp;›&nbsp; {{ order.reference or '#' + order.id|string }}
+    </div>
+    <div class="page-title" style="margin-bottom:0;">{{ order.reference or 'Commande #' + order.id|string }}</div>
+  </div>
+  <div class="flex gap-1 items-center">
+    <span class="badge {{ badge }}" style="font-size:.82rem;padding:.3rem .8rem;">{{ lbl }}</span>
+    {% if order.is_editable %}
+    <a href="{{ url_for('orders.download_pdf', oid=order.id) }}"
+       class="btn btn-secondary"
+       title="Génère le PDF et marque la commande comme envoyée">
+      📄 Télécharger PDF &amp; Envoyer
+    </a>
+    {% elif order.statut == 'envoyee' or order.statut == 'recue_partielle' %}
+    <a href="{{ url_for('orders.download_pdf', oid=order.id) }}"
+       class="btn btn-secondary btn-sm"
+       title="Re-télécharger le bon de commande">
+      📄 Re-télécharger PDF
+    </a>
+    {% endif %}
+    {% if order.can_receive %}
+    <a href="{{ url_for('orders.receive', oid=order.id) }}" class="btn btn-primary">
+      📥 Réceptionner la livraison
+    </a>
+    {% endif %}
+    {% if order.statut not in ['recue', 'annulee'] %}
+    <form method="POST" action="{{ url_for('orders.cancel', oid=order.id) }}">
+      <button type="submit" class="btn btn-danger btn-sm"
+              onclick="return confirm('Annuler cette commande ?')">Annuler</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Info commande -->
+<div class="grid-2 mb-2">
+  <div class="card">
+    <div class="card-header">// Fournisseur</div>
+    <table style="width:100%;font-size:.875rem;margin-top:.5rem;">
+      <tr><td style="padding:.4rem;color:var(--muted);width:45%;">Nom</td>
+          <td style="padding:.4rem;"><strong>{{ order.supplier.nom }}</strong></td></tr>
+      <tr><td style="padding:.4rem;color:var(--muted);">Contact</td>
+          <td style="padding:.4rem;">{{ order.supplier.contact or '—' }}</td></tr>
+      <tr><td style="padding:.4rem;color:var(--muted);">Téléphone</td>
+          <td style="padding:.4rem;" class="text-mono">{{ order.supplier.telephone or '—' }}</td></tr>
+      <tr><td style="padding:.4rem;color:var(--muted);">Email</td>
+          <td style="padding:.4rem;">{{ order.supplier.email or '—' }}</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-header">// Détails commande</div>
+    <table style="width:100%;font-size:.875rem;margin-top:.5rem;">
+      <tr><td style="padding:.4rem;color:var(--muted);width:45%;">Réf. interne</td>
+          <td style="padding:.4rem;" class="text-mono">{{ order.reference or '—' }}</td></tr>
+      <tr><td style="padding:.4rem;color:var(--muted);">Réf. fournisseur</td>
+          <td style="padding:.4rem;" class="text-mono">{{ order.ref_fournisseur or '—' }}</td></tr>
+      <tr><td style="padding:.4rem;color:var(--muted);">Livraison prévue</td>
+          <td style="padding:.4rem;">{{ order.date_livraison_prevue.strftime('%d/%m/%Y') if order.date_livraison_prevue else '—' }}</td></tr>
+      <tr><td style="padding:.4rem;color:var(--muted);">Créé le</td>
+          <td style="padding:.4rem;">{{ order.created_at.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+      <tr><td style="padding:.4rem;color:var(--muted);">Par</td>
+          <td style="padding:.4rem;">{{ order.created_by.full_name }}</td></tr>
+    </table>
+    {% if order.notes %}
+    <div style="margin-top:.75rem;padding:.65rem;background:var(--bg);border-radius:7px;font-size:.82rem;color:var(--muted);">
+      <strong style="color:var(--text);">Notes :</strong> {{ order.notes }}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Lignes -->
+<div class="card">
+  <div class="card-header" style="display:flex;justify-content:space-between;">
+    <span>// Articles commandés ({{ order.total_items }} unité(s))</span>
+    <span class="text-accent text-mono" style="font-size:.9rem;">
+      Total HT : {{ "%.0f"|format(order.total_amount) }} FCFA
+    </span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Article</th><th>SKU</th>
+          <th style="text-align:center;">Commandé</th>
+          <th style="text-align:center;">Reçu</th>
+          <th style="text-align:center;">Restant</th>
+          <th>Prix unitaire</th><th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in order.items %}
+        <tr>
+          <td><strong>{{ item.designation }}</strong></td>
+          <td class="text-mono" style="font-size:.78rem;color:var(--muted);">{{ item.sku or '—' }}</td>
+          <td class="text-mono" style="text-align:center;">{{ item.quantite_commandee }}</td>
+          <td style="text-align:center;">
+            <span class="badge {% if item.is_fully_received %}badge-green{% elif item.quantite_recue > 0 %}badge-orange{% else %}badge-red{% endif %}">
+              {{ item.quantite_recue }}
+            </span>
+          </td>
+          <td style="text-align:center;">
+            {% if item.quantite_restante > 0 %}
+            <span class="text-warning text-mono">{{ item.quantite_restante }}</span>
+            {% else %}
+            <span class="text-success">✓</span>
+            {% endif %}
+          </td>
+          <td class="text-mono">{{ "%.0f"|format(item.prix_achat_unitaire) }} FCFA</td>
+          <td class="text-accent text-mono">{{ "%.0f"|format(item.total) }} FCFA</td>
+        </tr>
+        {% endfor %}
+        <tr style="border-top:2px solid var(--border);">
+          <td colspan="5"></td>
+          <td style="font-weight:600;font-size:.9rem;">TOTAL</td>
+          <td class="text-accent text-mono" style="font-size:1rem;font-weight:700;">
+            {{ "%.0f"|format(order.total_amount) }} FCFA
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

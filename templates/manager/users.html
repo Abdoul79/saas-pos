@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Employés — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Gestion des Caissiers</div>
+  <a href="{{ url_for('manager.create_user') }}" class="btn btn-primary">+ Nouvel employé</a>
+</div>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><strong>{{ u.full_name }}</strong></td>
+          <td class="text-mono" style="font-size:.8rem;">{{ u.email }}</td>
+          <td><span class="badge badge-blue">Caissier</span></td>
+          <td>
+            {% if u.is_active %}
+              <span class="badge badge-green">Actif</span>
+            {% else %}
+              <span class="badge badge-red">Désactivé</span>
+            {% endif %}
+          </td>
+          <td class="text-muted" style="font-size:.8rem;">
+            {{ u.last_login.strftime('%d/%m/%Y %H:%M') if u.last_login else '—' }}
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('manager.toggle_user', user_id=u.id) }}">
+              <button type="submit" class="btn btn-sm {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                {{ 'Désactiver' if u.is_active else 'Activer' }}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem;">Aucun caissier enregistré.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

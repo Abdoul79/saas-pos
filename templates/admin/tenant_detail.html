@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Détail Commerçant — SaaS POS{% endblock %}
+{% block content %}
+<div class="page-title">Fiche Commerçant</div>
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">// Informations</div>
+    <table>
+      <tr><td class="text-muted">Nom</td><td><strong>{{ tenant.prenom }} {{ tenant.nom }}</strong></td></tr>
+      <tr><td class="text-muted">Email</td><td class="text-mono">{{ tenant.email }}</td></tr>
+      <tr><td class="text-muted">Activité</td><td>{{ tenant.activite }}</td></tr>
+      <tr><td class="text-muted">Ville</td><td>{{ tenant.ville }}</td></tr>
+      <tr><td class="text-muted">Adresse</td><td>{{ tenant.adresse }}</td></tr>
+      <tr><td class="text-muted">Statut</td><td>
+        {% if tenant.status == 'active' %}<span class="badge badge-green">Actif</span>
+        {% elif tenant.status == 'pending' %}<span class="badge badge-orange">En attente</span>
+        {% elif tenant.status == 'suspended' %}<span class="badge badge-red">Suspendu</span>
+        {% else %}<span class="badge">Rejeté</span>{% endif %}
+      </td></tr>
+      <tr><td class="text-muted">Licence</td><td class="text-mono">
+        {{ tenant.licence_expiry.strftime('%d/%m/%Y') if tenant.licence_expiry else '—' }}
+        <span class="badge badge-{{ tenant.licence_badge }}" style="margin-left:.3rem;">{{ tenant.days_remaining }}j</span>
+      </td></tr>
+      <tr><td class="text-muted">Inscription</td><td>{{ tenant.created_at.strftime('%d/%m/%Y') }}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">// Statistiques</div>
+    <div class="stat-card" style="border:none;padding:.5rem 0;">
+      <div class="stat-label">Transactions totales</div>
+      <div class="stat-value text-accent">{{ tx_count }}</div>
+    </div>
+    <div class="stat-card" style="border:none;padding:.5rem 0;">
+      <div class="stat-label">CA total généré</div>
+      <div class="stat-value">{{ "%.0f"|format(tx_total) }} <small style="font-size:.5em;">FCFA</small></div>
+    </div>
+    <div style="margin-top:1rem;">
+      <a href="{{ url_for('super_admin.tenants') }}" class="btn btn-secondary">← Retour à la liste</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

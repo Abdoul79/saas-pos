@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+{% block title %}Réception Stock — {{ product.designation }}{% endblock %}
+{% block head %}
+<style>
+  .ref-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .ref-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: .65rem;
+    margin-top: 1rem;
+  }
+  .ref-item {
+    padding: .55rem .75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .ref-label { font-size: .68rem; color: var(--muted); letter-spacing: .05em; margin-bottom: .2rem; }
+  .ref-value { font-size: .88rem; font-weight: 500; }
+  .ref-value.mono { font-family: var(--mono); }
+
+  .stock-current {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .65rem;
+    margin-bottom: 1.5rem;
+  }
+  .sc-item {
+    padding: .85rem 1rem;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .sc-val { font-family: var(--mono); font-size: 1.8rem; font-weight: 700; line-height: 1; }
+  .sc-lbl { font-size: .72rem; color: var(--muted); margin-top: .3rem; }
+
+  /* Variant selector */
+  .var-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: .55rem;
+    margin-bottom: 1.5rem;
+  }
+  .var-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: .75rem;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .1s;
+    position: relative;
+  }
+  .var-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .var-card.selected {
+    border-color: var(--accent);
+    background: #f5a62315;
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .var-card .check {
+    position: absolute; top: .4rem; right: .5rem;
+    color: var(--accent); font-size: .85rem; opacity: 0;
+    transition: opacity .15s;
+  }
+  .var-card.selected .check { opacity: 1; }
+  .vc-name  { font-size: .84rem; font-weight: 600; }
+  .vc-sku   { font-size: .7rem; color: var(--muted); margin-top: .1rem; font-family: var(--mono); }
+  .vc-stocks {
+    display: flex; gap: .35rem; margin-top: .5rem; flex-wrap: wrap;
+  }
+  .vc-pill {
+    font-size: .68rem; font-family: var(--mono);
+    padding: .1rem .45rem; border-radius: 99px;
+  }
+  .pill-ent { background: #16a34a22; color: #4ade80; border: 1px solid #16a34a44; }
+  .pill-ray { background: #0284c722; color: #38bdf8; border: 1px solid #0284c744; }
+  .pill-zero { background: #dc262622; color: #f87171; border: 1px solid #dc262644; }
+
+  /* Quantity input */
+  .qty-big {
+    display: flex; gap: .65rem; align-items: center; margin-bottom: .75rem;
+  }
+  .qty-big input {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 1.6rem;
+    font-weight: 700;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: .75rem;
+    color: var(--text);
+    transition: border-color .15s;
+  }
+  .qty-big input:focus { outline: none; border-color: var(--accent); }
+  .qty-adj {
+    width: 48px; height: 48px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; cursor: pointer; font-size: 1.3rem;
+    color: var(--text); transition: background .12s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .qty-adj:hover { background: var(--border); }
+
+  .presets { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .preset-btn {
+    padding: .35rem .85rem;
+    border-radius: 99px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: .82rem;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .preset-btn:hover, .preset-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: #f5a62315;
+  }
+
+  /* Preview */
+  .stock-preview {
+    background: #16a34a15;
+    border: 1px solid #16a34a44;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .sp-label { font-size: .75rem; color: var(--muted); margin-bottom: .2rem; }
+  .sp-value { font-family: var(--mono); font-size: 1.4rem; color: #4ade80; font-weight: 700; }
+  .sp-arrow { font-size: 1.5rem; color: var(--muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 720px; margin: 0 auto;">
+
+  <!-- Breadcrumb -->
+  <div class="flex justify-between items-center mb-3">
+    <div>
+      <div class="text-muted" style="font-size: .75rem; margin-bottom: .2rem;">
+        <a href="{{ url_for('manager.products') }}" style="color:var(--muted);text-decoration:none;">Stock Central</a>
+        &nbsp;›&nbsp; Réception de stock
+      </div>
+      <div class="page-title" style="margin-bottom: 0;">Réception de marchandises</div>
+    </div>
+    <a href="{{ url_for('manager.products') }}" class="btn btn-secondary btn-sm">← Retour</a>
+  </div>
+
+  <!-- ── Références produit ── -->
+  <div class="ref-card">
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      {% if product.image_url %}
+        <img src="{{ product.image_url }}"
+             style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);flex-shrink:0;">
+      {% else %}
+        <div style="width:72px;height:72px;background:var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--muted);flex-shrink:0;">□</div>
+      {% endif %}
+      <div>
+        <div style="font-size: 1.1rem; font-weight: 700;">{{ product.designation }}</div>
+        {% if product.description %}
+        <div class="text-muted" style="font-size: .82rem; margin-top: .2rem;">{{ product.description }}</div>
+        {% endif %}
+        <div style="display:flex;gap:.5rem;margin-top:.4rem;flex-wrap:wrap;">
+          {% if product.category %}
+          <span style="font-size:.75rem;padding:.15rem .55rem;border-radius:99px;background:{{ product.category.couleur }}22;border:1px solid {{ product.category.couleur }}44;color:{{ product.category.couleur }};">
+            {{ product.category.icone }} {{ product.category.nom }}
+          </span>
+          {% endif %}
+          {% if product.has_variants %}
+          <span class="badge badge-purple" style="font-size:.72rem;">{{ product.variant_count }} variante(s)</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-grid">
+      <div class="ref-item">
+        <div class="ref-label">SKU / CODE INTERNE</div>
+        <div class="ref-value mono">{{ product.sku or '—' }}</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-label">CODE-BARRES</div>
+        <div class="ref-value mono" style="font-size:.82rem;">{{ product.barcode or '—' }}</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-label">FOURNISSEUR</div>
+        <div class="ref-value">{{ product.supplier.nom if product.supplier else '—' }}</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-label">PRIX D'ACHAT</div>
+        <div class="ref-value mono" style="color:var(--accent);">{{ "%.0f"|format(product.prix_achat) }} FCFA</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-label">PRIX VENTE HT</div>
+        <div class="ref-value mono">{{ "%.0f"|format(product.prix_vente_ht) }} FCFA</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-label">TVA / PRIX TTC</div>
+        <div class="ref-value mono">
+          {% if product.taux_tva > 0 %}{{ product.taux_tva|int }}% →{% endif %}
+          {{ "%.0f"|format(product.prix_vente_ttc) }} FCFA
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Formulaire ── -->
+  <form method="POST" action="{{ url_for('manager.add_stock', product_id=product.id) }}" id="receiveForm">
+    <input type="hidden" name="variant_id" id="variantIdField" value="">
+
+    {% if product.has_variants %}
+    <!-- Sélecteur de variante -->
+    <div class="card mb-2">
+      <div class="card-header" style="{% if not variants %}color:var(--danger);{% endif %}">
+        // 1. Sélectionner la variante à réapprovisionner
+      </div>
+      {% if variants %}
+      <div class="var-grid" style="margin-top:1rem;">
+        {% for v in variants %}
+        <div class="var-card" data-vid="{{ v.id }}" onclick="selectVariant(this, {{ v.id }}, {{ v.stock_entrepot }}, {{ v.stock_magasin }})">
+          <span class="check">✓</span>
+          <div class="vc-name">{{ v.attributs_display or v.nom }}</div>
+          {% if v.sku %}<div class="vc-sku">{{ v.sku }}</div>{% endif %}
+          <div class="vc-stocks">
+            <span class="vc-pill {% if v.stock_entrepot > 0 %}pill-ent{% else %}pill-zero{% endif %}">
+              🏭 {{ v.stock_entrepot }}
+            </span>
+            <span class="vc-pill {% if v.stock_magasin > 0 %}pill-ray{% else %}pill-zero{% endif %}">
+              🛒 {{ v.stock_magasin }}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-muted" style="padding:1.5rem;text-align:center;">Aucune variante active.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Stock actuel -->
+    <div class="stock-current">
+      <div class="sc-item" style="background:#dc262622;border:1px solid #dc262644;">
+        <div class="sc-val" style="color:var(--danger);" id="dispStockEnt">
+          {% if not product.has_variants %}{{ product.stock_entrepot }}{% else %}—{% endif %}
+        </div>
+        <div class="sc-lbl">🏭 Stock Entrepôt actuel</div>
+      </div>
+      <div class="sc-item" style="background:#0284c722;border:1px solid #0284c744;">
+        <div class="sc-val" style="color:var(--accent2);" id="dispStockRay">
+          {% if not product.has_variants %}{{ product.stock_magasin }}{% else %}—{% endif %}
+        </div>
+        <div class="sc-lbl">🛒 Stock Rayon actuel</div>
+      </div>
+    </div>
+
+    <!-- Quantité -->
+    <div class="card mb-2">
+      <div class="card-header">// {% if product.has_variants %}2.{% endif %} Quantité reçue</div>
+      <div style="margin-top:1rem;">
+        <div class="qty-big">
+          <button type="button" class="qty-adj" onclick="adjQty(-1)">−</button>
+          <input type="number" name="quantity" id="qtyInput" value="10" min="1" required
+                 oninput="updatePreview()">
+          <button type="button" class="qty-adj" onclick="adjQty(1)">+</button>
+        </div>
+        <div class="presets">
+          <span style="font-size:.72rem;color:var(--muted);align-self:center;margin-right:.2rem;">Quantité rapide :</span>
+          {% for q in [5, 10, 20, 50, 100, 200] %}
+          <button type="button" class="preset-btn" onclick="setQty({{ q }}, this)">{{ q }}</button>
+          {% endfor %}
+        </div>
+
+        <!-- Aperçu stock après réception -->
+        <div class="stock-preview" id="stockPreview">
+          <div>
+            <div class="sp-label">Stock entrepôt APRÈS réception</div>
+            <div class="sp-value" id="previewVal">—</div>
+          </div>
+          <div class="sp-arrow">→</div>
+          <div style="text-align:right;">
+            <div class="sp-label">Variation</div>
+            <div style="font-family:var(--mono);font-size:1.1rem;color:#4ade80;font-weight:700;" id="previewDelta">+10</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note -->
+    <div class="card mb-2">
+      <div class="card-header">// Note / Référence (optionnel)</div>
+      <div style="margin-top:1rem;">
+        <input class="form-control" type="text" name="note"
+               placeholder="ex: BL-2024-001, Commande du {{ now_date }}, Livraison fournisseur…"
+               style="font-size:.9rem;">
+        <div class="text-muted" style="font-size:.74rem;margin-top:.4rem;">
+          Bon de livraison, numéro de commande, date… Apparaîtra dans l'historique des transferts.
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary" id="submitBtn"
+              style="flex:1;padding:.85rem;font-size:.95rem;"
+              {% if product.has_variants %}disabled{% endif %}>
+        ✓ Enregistrer la réception
+      </button>
+      <a href="{{ url_for('manager.products') }}" class="btn btn-secondary" style="padding:.85rem 1.5rem;">
+        Annuler
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentStockEnt = {{ product.stock_entrepot if not product.has_variants else 0 }};
+const hasVariants   = {{ 'true' if product.has_variants else 'false' }};
+
+function selectVariant(card, vid, stockEnt, stockRay) {
+  // Désélectionner tout
+  document.querySelectorAll('.var-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+
+  document.getElementById('variantIdField').value = vid;
+  document.getElementById('dispStockEnt').textContent = stockEnt;
+  document.getElementById('dispStockRay').textContent = stockRay;
+  document.getElementById('submitBtn').disabled = false;
+  currentStockEnt = stockEnt;
+  updatePreview();
+}
+
+function adjQty(d) {
+  const inp = document.getElementById('qtyInput');
+  inp.value = Math.max(1, (parseInt(inp.value) || 1) + d);
+  updatePreview();
+}
+
+function setQty(q, btn) {
+  document.getElementById('qtyInput').value = q;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updatePreview();
+}
+
+function updatePreview() {
+  const qty    = parseInt(document.getElementById('qtyInput').value) || 0;
+  const after  = currentStockEnt + qty;
+  const prev   = document.getElementById('stockPreview');
+  const pval   = document.getElementById('previewVal');
+  const pdelta = document.getElementById('previewDelta');
+
+  if (!hasVariants || document.getElementById('variantIdField').value) {
+    prev.style.display   = 'flex';
+    pval.textContent     = after;
+    pdelta.textContent   = '+' + qty;
+  } else {
+    prev.style.display   = 'none';
+  }
+}
+
+// Init preview for simple products
+if (!hasVariants) updatePreview();
+</script>
+{% endblock %}

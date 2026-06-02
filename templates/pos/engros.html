@@ -1,0 +1,554 @@
+{% extends "base.html" %}
+{% block title %}Caisse Gros — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  main { padding:.75rem; max-width:100%; }
+  .pos-layout { display:grid; grid-template-columns:1fr 390px; gap:.75rem; height:calc(100vh - 76px); }
+  .pos-left   { display:flex; flex-direction:column; gap:.75rem; min-height:0; }
+
+  /* Header Gros */
+  .gros-banner {
+    background:linear-gradient(135deg, #1a6e2e22, #16a34a11);
+    border:1px solid #16a34a44;
+    border-radius:10px;
+    padding:.6rem 1rem;
+    display:flex;
+    align-items:center;
+    gap:.75rem;
+    font-size:.84rem;
+    flex-shrink:0;
+  }
+  .gros-badge {
+    background:#16a34a;
+    color:#fff;
+    font-size:.7rem;
+    font-weight:700;
+    padding:.2rem .6rem;
+    border-radius:99px;
+    letter-spacing:.05em;
+  }
+  .gros-link { color:var(--muted); font-size:.78rem; text-decoration:none; }
+  .gros-link:hover { color:var(--accent); }
+
+  .scan-bar { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:.65rem .9rem; display:flex; gap:.75rem; align-items:center; flex-shrink:0; }
+  .scan-bar input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:.55rem 1rem; color:var(--text); font-family:var(--mono); font-size:.9rem; }
+  .scan-bar input:focus { outline:none; border-color:var(--success); box-shadow:0 0 0 2px #16a34a22; }
+
+  .cat-bar { display:flex; gap:.4rem; overflow-x:auto; padding:.1rem 0; flex-shrink:0; scrollbar-width:none; }
+  .cat-bar::-webkit-scrollbar { display:none; }
+  .cat-pill { display:inline-flex; align-items:center; gap:.35rem; padding:.35rem .75rem; border-radius:99px; font-size:.76rem; cursor:pointer; white-space:nowrap; border:1px solid var(--border); background:var(--bg); color:var(--muted); transition:all .15s; flex-shrink:0; }
+  .cat-pill.active { border-color:var(--success); color:var(--success); background:#16a34a15; }
+
+  .center-zone { flex:1; display:grid; grid-template-columns:1fr 330px; gap:.75rem; min-height:0; overflow:hidden; }
+
+  /* Catalog */
+  .catalog-wrap { background:var(--surface); border:1px solid var(--border); border-radius:10px; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+  .catalog-header { padding:.6rem 1rem; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:.7rem; color:var(--muted); letter-spacing:.08em; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+
+  /* ── CORRECTION : grid-auto-rows fixe → taille des cartes constante, scroll vers le bas ── */
+  .catalog-grid {
+    overflow-y:auto;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    grid-auto-rows:220px;
+    gap:.55rem;
+    padding:.65rem;
+    align-content:start;
+  }
+
+  /* Product card */
+  .product-card { background:var(--bg); border:1px solid var(--border); border-radius:10px; overflow:hidden; cursor:pointer; transition:border-color .15s,transform .1s,box-shadow .15s; display:flex; flex-direction:column; user-select:none; height:220px; }
+  .product-card:hover { border-color:var(--success); transform:translateY(-2px); box-shadow:0 4px 16px rgba(22,163,74,.15); }
+  .product-card:active { transform:translateY(0) scale(.97); }
+  .product-card.has-var { border-color:#7c3aed44; }
+  .product-card.no-gros { border-color:#d9770644; }
+
+  .pc-img-wrap { width:100%; height:150px; min-height:150px; max-height:150px; background:var(--border); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative; }
+  .pc-img { width:100%; height:100%; object-fit:cover; transition:transform .2s; }
+  .product-card:hover .pc-img { transform:scale(1.05); }
+  .pc-placeholder { font-size:2.2rem; color:var(--muted); opacity:.35; }
+  .pc-gros-badge { position:absolute; top:4px; right:4px; font-family:var(--mono); font-size:.6rem; padding:.12rem .35rem; border-radius:99px; background:rgba(22,163,74,.85); color:#fff; font-weight:700; }
+  .pc-nogros-badge { position:absolute; top:4px; right:4px; font-family:var(--mono); font-size:.6rem; padding:.12rem .35rem; border-radius:99px; background:rgba(217,119,6,.85); color:#fff; }
+  .pc-cat-stripe { height:3px; width:100%; flex-shrink:0; }
+  .pc-info { padding:.3rem .45rem; flex:1; display:flex; flex-direction:column; gap:.05rem; overflow:hidden; }
+  .pc-name  { font-size:.72rem; font-weight:600; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .pc-price { font-family:var(--mono); font-size:.78rem; color:var(--success); margin-top:auto; }
+  .pc-retail { font-family:var(--mono); font-size:.65rem; color:var(--muted); text-decoration:line-through; }
+
+  /* Cart */
+  .cart-wrap { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-height:0; }
+  .cart-header { padding:.6rem .85rem; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:.7rem; color:var(--muted); letter-spacing:.08em; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+  .cart-items { flex:1; overflow-y:auto; }
+  .cart-item { display:grid; grid-template-columns:38px 1fr auto auto auto; gap:.4rem; align-items:center; padding:.45rem .75rem; border-bottom:1px solid #1c2030; }
+  .ci-thumb { width:34px; height:34px; object-fit:cover; border-radius:5px; border:1px solid var(--border); }
+  .ci-ph { width:34px; height:34px; background:var(--border); border-radius:5px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:.9rem; }
+  .ci-info { min-width:0; }
+  .ci-name  { font-size:.77rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ci-var   { font-size:.68rem; color:var(--muted); }
+  .ci-price { font-family:var(--mono); font-size:.7rem; color:var(--success); }
+  .qty-control { display:flex; align-items:center; gap:.22rem; }
+  .qty-btn { width:20px; height:20px; background:var(--border); border:none; border-radius:4px; color:var(--text); cursor:pointer; font-size:.8rem; display:flex; align-items:center; justify-content:center; }
+  .qty-val { font-family:var(--mono); font-size:.8rem; min-width:20px; text-align:center; font-weight:700; }
+  .ci-sub { font-family:var(--mono); font-size:.8rem; color:var(--success); text-align:right; white-space:nowrap; }
+  .rm-btn { background:none; border:none; color:var(--danger); cursor:pointer; font-size:.78rem; padding:.12rem .28rem; border-radius:4px; opacity:.5; }
+  .rm-btn:hover { opacity:1; background:#dc262620; }
+  .cart-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--muted); font-size:.82rem; padding:1.5rem; gap:.5rem; }
+
+  /* Right panel */
+  .pos-right { background:var(--surface); border:1px solid var(--border); border-radius:10px; display:flex; flex-direction:column; overflow:hidden; }
+  .total-display { padding:.9rem 1.25rem; border-bottom:1px solid var(--border); text-align:center; flex-shrink:0; }
+  .total-label { font-family:var(--mono); font-size:.66rem; color:var(--muted); letter-spacing:.12em; margin-bottom:.3rem; }
+  .total-value { font-family:var(--mono); font-size:1.9rem; color:var(--success); line-height:1; }
+  .payment-section { padding:.85rem; flex:1; display:flex; flex-direction:column; gap:.7rem; overflow-y:auto; }
+  .pay-method-label { font-size:.68rem; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-bottom:.3rem; }
+  .method-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.35rem; }
+  .method-btn { padding:.45rem .3rem; border-radius:8px; background:var(--bg); border:1px solid var(--border); color:var(--muted); font-size:.7rem; cursor:pointer; text-align:center; transition:all .15s; line-height:1.4; }
+  .method-btn .mi { display:block; font-size:1rem; margin-bottom:.1rem; }
+  .method-btn.active { border-color:var(--success); color:var(--success); background:#16a34a12; }
+  .numpad { display:grid; grid-template-columns:repeat(3,1fr); gap:.3rem; }
+  .num-btn { padding:.6rem; border-radius:7px; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:var(--mono); font-size:.92rem; cursor:pointer; transition:all .1s; text-align:center; }
+  .num-btn:hover  { background:var(--border); }
+  .num-btn:active { transform:scale(.93); }
+  .num-btn.wide   { grid-column:span 2; }
+  .num-btn.clear  { color:var(--danger); }
+  .given-display { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:.5rem .9rem; font-family:var(--mono); font-size:1rem; color:var(--text); text-align:right; min-height:40px; }
+  .change-display { background:#16a34a18; border:1px solid #16a34a44; border-radius:8px; padding:.5rem .9rem; font-family:var(--mono); color:#4ade80; display:flex; justify-content:space-between; align-items:center; font-size:.84rem; }
+  .validate-btn { width:100%; padding:.85rem; background:var(--success); color:#fff; border:none; border-radius:10px; font-family:var(--sans); font-size:.95rem; font-weight:700; cursor:pointer; transition:opacity .15s; }
+  .validate-btn:hover:not(:disabled) { opacity:.88; }
+  .validate-btn:disabled { opacity:.35; cursor:not-allowed; }
+
+  /* Modals */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:999; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.75rem; min-width:320px; max-width:480px; width:90%; animation:popIn .2s ease; }
+  @keyframes popIn { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+  .variant-card { background:var(--bg); border:2px solid var(--border); border-radius:8px; overflow:hidden; cursor:pointer; transition:border-color .12s; }
+  .variant-card:hover { border-color:var(--success); }
+  .variant-card.out { opacity:.35; cursor:not-allowed; pointer-events:none; }
+  .vc-img { width:100%; aspect-ratio:1; object-fit:cover; }
+  .vc-ph  { width:100%; aspect-ratio:1; background:var(--border); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:1.5rem; }
+  .vc-info { padding:.4rem .5rem; }
+  .vc-name  { font-size:.78rem; font-weight:600; }
+  .vc-price { font-family:var(--mono); font-size:.76rem; color:var(--success); }
+  .vc-retail { font-family:var(--mono); font-size:.68rem; color:var(--muted); text-decoration:line-through; }
+  .vc-stock { font-size:.66rem; color:var(--muted); }
+
+  .sale-modal-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:2.25rem; text-align:center; min-width:300px; animation:popIn .2s ease; }
+  .sale-modal-actions { display:flex; gap:.6rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pos-layout">
+  <!-- ══ LEFT ══ -->
+  <div class="pos-left">
+
+    <!-- Bandeau Gros -->
+    <div class="gros-banner">
+      <span class="gros-badge">🏭 VENTE EN GROS</span>
+      <span style="color:var(--muted);font-size:.82rem;">Prix grossiste actifs · Stocks rayon</span>
+      <a href="{{ url_for('pos.interface') }}" class="gros-link" style="margin-left:auto;">
+        ↩ Caisse Détail
+      </a>
+    </div>
+
+    <!-- Scan -->
+    <div class="scan-bar">
+      <span style="color:var(--success);font-size:1.1rem;flex-shrink:0;">⬡</span>
+      <input type="text" id="barcodeInput" placeholder="Scanner ou rechercher…" autocomplete="off">
+      <button class="btn btn-secondary btn-sm" onclick="clearCart()">⌫ Vider</button>
+    </div>
+
+    <!-- Catégories -->
+    {% if categories %}
+    <div class="cat-bar">
+      <div class="cat-pill active" data-cat="" onclick="filterCat('',this)">✦ Tout</div>
+      {% for c in categories %}
+      <div class="cat-pill" data-cat="{{ c.id }}" onclick="filterCat('{{ c.id }}',this)">
+        {{ c.icone }} {{ c.nom }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="center-zone">
+      <!-- Catalogue -->
+      <div class="catalog-wrap">
+        <div class="catalog-header">
+          <span>▣ PRODUITS (PRIX GROS)</span>
+          <span id="catalogCount">{{ catalog|length }}</span>
+        </div>
+        <div class="catalog-grid" id="catalogGrid">
+          {% for p in catalog %}
+          {% set prix_affiche = p.prix_gros if p.prix_gros else p.prix_vente_ttc %}
+          <div class="product-card {% if p.has_variants %}has-var{% endif %} {% if not p.prix_gros %}no-gros{% endif %}"
+               data-id="{{ p.id }}"
+               data-name="{{ p.designation|lower }}"
+               data-cat="{{ p.category_id or '' }}"
+               onclick="onCardClick({{ p.id }})">
+            {% if p.category %}<div class="pc-cat-stripe" style="background:{{ p.category.couleur }};"></div>{% endif %}
+            <div class="pc-img-wrap">
+              {% if p.image_url %}<img src="{{ p.image_url }}" class="pc-img" alt="" loading="lazy">
+              {% else %}<div class="pc-placeholder">□</div>{% endif %}
+              {% if p.prix_gros %}
+              <div class="pc-gros-badge">GROS</div>
+              {% else %}
+              <div class="pc-nogros-badge">Détail</div>
+              {% endif %}
+              {% set sm = p.total_stock_magasin %}
+              <div style="
+                position:absolute;bottom:4px;right:4px;
+                font-family:var(--mono);font-size:.6rem;padding:.12rem .38rem;
+                border-radius:99px;background:rgba(13,15,20,.82);
+                border:1px solid {% if sm == 0 %}#dc262666{% elif sm <= 5 %}#d9770666{% else %}#16a34a55{% endif %};
+                color:{% if sm == 0 %}#f87171{% elif sm <= 5 %}#fbbf24{% else %}#4ade80{% endif %};">
+                🛒 {{ sm }}
+              </div>
+            </div>
+            <div class="pc-info">
+              <div class="pc-name">{{ p.designation }}</div>
+              {% if p.prix_gros and p.prix_gros != p.prix_vente_ttc %}
+              <div class="pc-retail">{{ p.prix_vente_ttc|int }} FCFA</div>
+              {% endif %}
+              <div class="pc-price">
+                {% if p.has_variants %}<span style="color:var(--muted);font-size:.7rem;">Voir variantes</span>
+                {% else %}{{ prix_affiche|int }} FCFA{% endif %}
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted);font-size:.85rem;">
+            Aucun produit en rayon.
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Cart -->
+      <div class="cart-wrap">
+        <div class="cart-header"><span>PANIER GROS</span><span id="itemCount">0</span></div>
+        <div class="cart-items" id="cartItems">
+          <div class="cart-empty"><div style="font-size:2.5rem;">🏭</div><div>Cliquez sur un produit</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT ══ -->
+  <div class="pos-right">
+    <div class="total-display">
+      <div class="total-label">TOTAL GROS (TTC)</div>
+      <div class="total-value" id="totalDisplay">0 <span style="font-size:.45em;opacity:.6;">FCFA</span></div>
+      <div class="total-sub" id="totalItems" style="opacity:.5;font-size:.72rem;margin-top:.2rem;">panier vide</div>
+    </div>
+    <div class="payment-section">
+      <div>
+        <div class="pay-method-label">Mode de paiement</div>
+        <div class="method-grid">
+          <button class="method-btn active" onclick="setMethod('especes',this)"><span class="mi">💵</span>Espèces</button>
+          <button class="method-btn" onclick="setMethod('carte',this)"><span class="mi">💳</span>Carte</button>
+          <button class="method-btn" onclick="setMethod('mobile_money',this)"><span class="mi">📱</span>Mobile</button>
+        </div>
+      </div>
+      <div id="cashSection">
+        <div style="font-size:.68rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.28rem;">Montant reçu</div>
+        <div class="given-display" id="givenDisplay">_</div>
+        <div class="numpad" style="margin-top:.4rem;">
+          {% for n in ['7','8','9','4','5','6','1','2','3'] %}
+          <button class="num-btn" onclick="numPress('{{ n }}')">{{ n }}</button>
+          {% endfor %}
+          <button class="num-btn wide" onclick="numPress('0')">0</button>
+          <button class="num-btn clear" onclick="numPress('C')">⌫</button>
+        </div>
+        <div class="change-display" id="changeDisplay" style="display:none;margin-top:.4rem;">
+          <span>Monnaie</span><span id="changeValue" style="font-weight:700;">0 FCFA</span>
+        </div>
+      </div>
+      <button class="validate-btn" id="validateBtn" onclick="validateSale()" disabled>
+        ✓ Valider (GROS)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Variant Modal -->
+<div class="modal-overlay" id="variantModal">
+  <div class="modal-box">
+    <div style="font-family:var(--mono);color:var(--success);font-size:.82rem;letter-spacing:.08em;margin-bottom:.85rem;" id="varModalTitle">// Choisir une variante</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.5rem;margin-bottom:1rem;" id="variantGrid"></div>
+    <button class="btn btn-secondary" style="width:100%;" onclick="closeModal('variantModal')">Annuler</button>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal-overlay" id="successModal">
+  <div class="sale-modal-box">
+    <div style="font-size:3rem;margin-bottom:.6rem;">✅</div>
+    <div style="font-family:var(--mono);color:var(--success);font-size:1.1rem;margin-bottom:.4rem;">VENTE GROS VALIDÉE</div>
+    <div id="modalDetails" style="color:var(--muted);font-size:.88rem;margin-bottom:1.25rem;line-height:1.7;"></div>
+    <div class="sale-modal-actions">
+      <button class="btn btn-secondary" style="flex:1;" onclick="openFacture()">🧾 Facture</button>
+      <button class="btn btn-primary" style="flex:1;background:var(--success);color:#fff;" onclick="newSale()">Nouvelle vente →</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CATALOG = {
+{% for p in catalog %}
+  {{ p.id }}: {
+    id: {{ p.id }},
+    designation: {{ p.designation|tojson }},
+    prix_gros: {{ p.prix_gros|float if p.prix_gros else 0 }},
+    prix_vente: {{ p.prix_vente_ttc|float }},
+    prix_ht: {{ p.prix_vente_ht|float }},
+    taux_tva: {{ p.taux_tva|float }},
+    stock_magasin: {{ p.total_stock_magasin }},
+    stock_entrepot: {{ p.total_stock_entrepot }},
+    image_url: {{ (p.image_url or '')|tojson }},
+    has_variants: {{ 'true' if p.has_variants else 'false' }},
+    category: {{ (p.category.nom if p.category else '')|tojson }},
+  },
+{% endfor %}
+};
+
+let cart = {};
+let method = 'especes';
+let givenRaw = '';
+let lastSaleId = null;
+
+function getPrix(p) { return p.prix_gros > 0 ? p.prix_gros : p.prix_vente; }
+
+const inp = document.getElementById('barcodeInput');
+inp.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const v = inp.value.trim();
+    if (v) { resScan(v); inp.value = ''; filterCatalog(''); }
+  }
+  if (e.key === 'Escape') { inp.value = ''; filterCatalog(''); }
+});
+inp.addEventListener('input', () => {
+  const q = inp.value.trim();
+  if (/^\d+$/.test(q)) return;
+  filterCatalog(q.toLowerCase());
+});
+
+async function resScan(code) {
+  try {
+    const r = await fetch(`/pos/api/product/scan?barcode=${encodeURIComponent(code)}`);
+    const d = await r.json();
+    if (!r.ok) { showError(d.error); return; }
+    if (d.needs_variant || d.has_variants) { openVarModal(d); return; }
+    const cat = CATALOG[d.id];
+    if (cat) d.prix_vente = getPrix(cat);
+    addToCart(d);
+  } catch { showError('Erreur réseau.'); }
+}
+
+let activeCat = '';
+function filterCat(catId, btn) {
+  activeCat = catId;
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  filterCatalog(inp.value.trim().toLowerCase());
+}
+function filterCatalog(q) {
+  let shown = 0;
+  document.querySelectorAll('.product-card').forEach(card => {
+    const nm = card.dataset.name || '';
+    const ct = card.dataset.cat  || '';
+    const ok = (!q || nm.includes(q)) && (!activeCat || ct === activeCat);
+    card.style.display = ok ? '' : 'none';
+    if (ok) shown++;
+  });
+  document.getElementById('catalogCount').textContent = shown;
+}
+
+async function onCardClick(pid) {
+  const p = CATALOG[pid];
+  if (!p) return;
+  if (p.has_variants) {
+    try {
+      const r = await fetch(`/manager/variants/api/product/${pid}`);
+      const variants = await r.json();
+      openVarModal({ id: pid, designation: p.designation, image_url: p.image_url, variants });
+    } catch { showError('Impossible de charger les variantes.'); }
+  } else {
+    addToCart({ ...p, prix_vente: getPrix(p) });
+  }
+}
+
+function openVarModal(product) {
+  document.getElementById('varModalTitle').textContent = `// ${product.designation}`;
+  const grid = document.getElementById('variantGrid');
+  grid.innerHTML = '';
+  const variants = product.variants || [];
+  const cat = CATALOG[product.id] || {};
+  variants.forEach(v => {
+    const card = document.createElement('div');
+    card.className = 'variant-card' + (v.stock_magasin <= 0 ? ' out' : '');
+    const prixGros = cat.prix_gros > 0 ? cat.prix_gros : v.prix_vente;
+    card.innerHTML = `
+      ${v.image_url ? `<img src="${v.image_url}" class="vc-img" alt="">` : `<div class="vc-ph">□</div>`}
+      <div class="vc-info">
+        <div class="vc-name">${v.variant_label || v.nom}</div>
+        <div class="vc-price">${Math.round(prixGros).toLocaleString('fr-FR')} FCFA</div>
+        ${cat.prix_gros > 0 && cat.prix_gros != v.prix_vente ? `<div class="vc-retail">${Math.round(v.prix_vente).toLocaleString('fr-FR')} FCFA</div>` : ''}
+        <div class="vc-stock">Stock : ${v.stock_magasin}</div>
+      </div>`;
+    if (v.stock_magasin > 0) {
+      card.addEventListener('click', () => {
+        addToCart({
+          id: v.id, variant_id: v.variant_id,
+          designation: product.designation,
+          variant_label: v.variant_label || v.nom || '',
+          prix_vente: prixGros,
+          prix_ht: v.prix_ht,
+          taux_tva: v.taux_tva,
+          stock_magasin: v.stock_magasin,
+          image_url: v.image_url || product.image_url || '',
+          is_variant: true,
+        });
+        closeModal('variantModal');
+      });
+    }
+    grid.appendChild(card);
+  });
+  document.getElementById('variantModal').classList.add('open');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+
+function cartKey(i) { return i.is_variant ? `v${i.variant_id}` : `p${i.id}`; }
+function addToCart(item) {
+  const key = cartKey(item);
+  if (cart[key]) {
+    if (cart[key].qty >= item.stock_magasin) { showError('Stock max atteint.'); return; }
+    cart[key].qty++;
+  } else { cart[key] = { ...item, qty: 1 }; }
+  renderCart();
+}
+function changeQty(key, d) {
+  if (!cart[key]) return;
+  cart[key].qty = Math.max(0, cart[key].qty + d);
+  if (cart[key].qty === 0) delete cart[key];
+  renderCart();
+}
+function removeItem(key) { delete cart[key]; renderCart(); }
+function clearCart() { cart = {}; givenRaw = ''; renderCart(); updateGiven(); }
+
+function renderCart() {
+  const el    = document.getElementById('cartItems');
+  const items = Object.values(cart);
+  const total = items.reduce((s, i) => s + i.prix_vente * i.qty, 0);
+  const count = items.reduce((s, i) => s + i.qty, 0);
+  document.getElementById('totalDisplay').innerHTML =
+    `${Math.round(total).toLocaleString('fr-FR')} <span style="font-size:.45em;opacity:.6;">FCFA</span>`;
+  document.getElementById('totalItems').textContent =
+    items.length ? `${count} art. · ${items.length} ligne(s)` : 'panier vide';
+  document.getElementById('validateBtn').disabled = items.length === 0;
+  document.getElementById('itemCount').textContent = count || '0';
+  if (!items.length) {
+    el.innerHTML = `<div class="cart-empty"><div style="font-size:2.5rem;">🏭</div><div>Cliquez sur un produit</div></div>`;
+    updateGiven(); return;
+  }
+  el.innerHTML = '';
+  items.forEach(i => {
+    const row = document.createElement('div');
+    row.className = 'cart-item';
+    row.innerHTML = `
+      ${i.image_url ? `<img src="${i.image_url}" class="ci-thumb" alt="">` : `<div class="ci-ph">□</div>`}
+      <div class="ci-info">
+        <div class="ci-name">${i.designation}</div>
+        ${i.is_variant && i.variant_label ? `<div class="ci-var">↳ ${i.variant_label}</div>` : ''}
+        <div class="ci-price">${Math.round(i.prix_vente).toLocaleString('fr-FR')} FCFA</div>
+      </div>
+      <div class="qty-control">
+        <button class="qty-btn" data-key="${cartKey(i)}" data-d="-1">−</button>
+        <span class="qty-val">${i.qty}</span>
+        <button class="qty-btn" data-key="${cartKey(i)}" data-d="1">+</button>
+      </div>
+      <div class="ci-sub">${Math.round(i.prix_vente * i.qty).toLocaleString('fr-FR')}</div>
+      <button class="rm-btn" data-key="${cartKey(i)}">✕</button>`;
+    el.appendChild(row);
+  });
+  el.querySelectorAll('.qty-btn').forEach(b =>
+    b.addEventListener('click', () => changeQty(b.dataset.key, +b.dataset.d)));
+  el.querySelectorAll('.rm-btn').forEach(b =>
+    b.addEventListener('click', () => removeItem(b.dataset.key)));
+  updateGiven();
+}
+
+function setMethod(m, btn) {
+  method = m;
+  document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('cashSection').style.display = m === 'especes' ? 'block' : 'none';
+  updateGiven();
+}
+function numPress(k) {
+  if (k === 'C') givenRaw = givenRaw.slice(0,-1);
+  else if (givenRaw.length < 10) givenRaw += k;
+  updateGiven();
+}
+function updateGiven() {
+  const total = Object.values(cart).reduce((s,i) => s + i.prix_vente * i.qty, 0);
+  const given = parseInt(givenRaw||'0');
+  document.getElementById('givenDisplay').textContent = givenRaw ? parseInt(givenRaw).toLocaleString('fr-FR')+' FCFA' : '_';
+  const cd = document.getElementById('changeDisplay');
+  if (givenRaw && given >= Math.round(total)) {
+    cd.style.display='flex';
+    document.getElementById('changeValue').textContent = Math.round(given-total).toLocaleString('fr-FR')+' FCFA';
+  } else cd.style.display='none';
+}
+
+async function validateSale() {
+  const items = Object.values(cart);
+  const total = items.reduce((s,i) => s + i.prix_vente * i.qty, 0);
+  const given = parseInt(givenRaw||'0');
+  if (method==='especes' && given < Math.round(total)) { showError('Montant reçu insuffisant.'); return; }
+  const btn = document.getElementById('validateBtn');
+  btn.disabled=true; btn.textContent='⏳ Traitement…';
+  try {
+    const r = await fetch('/pos/api/sale/engros', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        payment_method: method,
+        amount_given: method==='especes' ? given : Math.round(total),
+        items: items.map(i => ({
+          product_id: i.id,
+          variant_id: (i.is_variant && i.variant_id) ? i.variant_id : null,
+          quantity: i.qty
+        }))
+      })
+    });
+    const d = await r.json();
+    if (!r.ok) { showError(d.error); btn.disabled=false; btn.textContent='✓ Valider (GROS)'; return; }
+    lastSaleId = d.sale_id;
+    document.getElementById('modalDetails').innerHTML =
+      `<strong style="font-size:1.1rem;color:var(--text);">${Math.round(d.total).toLocaleString('fr-FR')} FCFA</strong>` +
+      (d.change > 0 ? `<br>Monnaie : <strong style="color:var(--success);">${Math.round(d.change).toLocaleString('fr-FR')} FCFA</strong>` : '') +
+      `<br><span style="font-size:.78rem;color:var(--muted);">Vente en gros</span>`;
+    document.getElementById('successModal').classList.add('open');
+  } catch { showError('Erreur réseau.'); btn.disabled=false; btn.textContent='✓ Valider (GROS)'; }
+}
+
+function openFacture() { if (lastSaleId) window.open(`/pos/facture/${lastSaleId}`, '_blank'); }
+function newSale() { closeModal('successModal'); document.getElementById('validateBtn').textContent='✓ Valider (GROS)'; clearCart(); inp.focus(); }
+
+function showError(msg) {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;background:#dc262622;border:1px solid #dc262655;color:#f87171;padding:.75rem 1.25rem;border-radius:8px;font-size:.85rem;min-width:260px;';
+  d.textContent = msg;
+  document.body.appendChild(d);
+  setTimeout(() => { d.style.opacity='0'; d.style.transition='opacity .3s'; setTimeout(()=>d.remove(),300); }, 3500);
+}
+
+inp.focus();
+</script>
+{% endblock %}

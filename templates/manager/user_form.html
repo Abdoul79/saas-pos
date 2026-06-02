@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Nouvel Employé — SaaS POS{% endblock %}
+{% block content %}
+<div style="max-width:480px;margin:0 auto;">
+  <div class="page-title">Créer un compte Caissier</div>
+  <div class="card">
+    <form method="POST">
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Nom</label><input class="form-control" name="nom" required></div>
+        <div class="form-group"><label class="form-label">Prénom</label><input class="form-control" name="prenom" required></div>
+      </div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-control" type="email" name="email" required></div>
+      <div class="form-group"><label class="form-label">Mot de passe</label><input class="form-control" type="password" name="password" required></div>
+      <div class="flex gap-2" style="margin-top:1rem;">
+        <button type="submit" class="btn btn-primary">Créer le compte</button>
+        <a href="{{ url_for('manager.users') }}" class="btn btn-secondary">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

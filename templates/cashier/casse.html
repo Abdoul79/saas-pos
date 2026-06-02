@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Fiche de Casse — SaaS POS{% endblock %}
+{% block content %}
+<div style="max-width:640px;margin:0 auto;">
+  <div class="page-title">Enregistrer une Fiche de Casse</div>
+  <div class="card">
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">Motif *</label>
+        <select class="form-control" name="motif" required>
+          <option value="">-- Choisir le motif --</option>
+          <option>Casse (bris)</option>
+          <option>Périmé</option>
+          <option>Vol en rayon</option>
+          <option>Défectueux</option>
+          <option>Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note (optionnel)</label>
+        <input class="form-control" name="note" placeholder="Détail complémentaire...">
+      </div>
+
+      <div class="card-header">// Articles concernés</div>
+      <div id="linesContainer">
+        <div class="loss-line flex gap-2 items-center mb-1" style="margin-top:.75rem;">
+          <select class="form-control" name="product_id[]" required>
+            <option value="">-- Produit --</option>
+            {% for p in products %}
+            <option value="{{ p.id }}">{{ p.designation }} (rayon: {{ p.stock_magasin }})</option>
+            {% endfor %}
+          </select>
+          <input class="form-control" type="number" name="quantity[]" min="1" value="1" style="width:90px;" required>
+          <button type="button" class="btn btn-danger btn-sm" onclick="removeLine(this)">✕</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-secondary btn-sm" style="margin:.5rem 0;" onclick="addLine()">+ Ajouter un article</button>
+
+      <div class="flex gap-2" style="margin-top:1rem;">
+        <button type="submit" class="btn btn-primary">Enregistrer la fiche</button>
+        <a href="{{ url_for('cashier.my_history') }}" class="btn btn-secondary">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const productsHtml = `{% for p in products %}<option value="{{ p.id }}">{{ p.designation }} (rayon: {{ p.stock_magasin }})</option>{% endfor %}`;
+
+function addLine() {
+  const div = document.createElement('div');
+  div.className = 'loss-line flex gap-2 items-center mb-1';
+  div.innerHTML = `<select class="form-control" name="product_id[]" required><option value="">-- Produit --</option>${productsHtml}</select>
+    <input class="form-control" type="number" name="quantity[]" min="1" value="1" style="width:90px;" required>
+    <button type="button" class="btn btn-danger btn-sm" onclick="removeLine(this)">✕</button>`;
+  document.getElementById('linesContainer').appendChild(div);
+}
+
+function removeLine(btn) {
+  const lines = document.querySelectorAll('.loss-line');
+  if (lines.length > 1) btn.closest('.loss-line').remove();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Variantes — {{ product.designation }}{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div>
+    <div class="text-muted" style="font-size:.78rem;margin-bottom:.2rem;">
+      {% if product.category %}
+      <span style="color:{{ product.category.couleur }};">{{ product.category.icone }} {{ product.category.nom }}</span> ·
+      {% endif %}
+      {% if product.sku %}<span class="text-mono">{{ product.sku }}</span> · {% endif %}
+      {{ product.designation }}
+    </div>
+    <div class="page-title" style="margin-bottom:0">Variantes du produit</div>
+  </div>
+  <div class="flex gap-1">
+    <a href="{{ url_for('variants.barcodes_all', pid=product.id) }}"
+         class="btn btn-secondary" target="_blank"
+         title="Imprimer les codes-barres de toutes les variantes">
+        🏷 Planche codes-barres
+      </a>
+      <a href="{{ url_for('variants.create', pid=product.id) }}" class="btn btn-primary">+ Nouvelle variante</a>
+    <a href="{{ url_for('manager.products') }}" class="btn btn-secondary">← Produits</a>
+  </div>
+</div>
+
+<!-- Résumé produit -->
+<div class="card mb-2" style="{% if product.category %}border-left:4px solid {{ product.category.couleur }};{% endif %}">
+  <div style="display:grid;grid-template-columns:64px 1fr auto;gap:1rem;align-items:center;">
+    {% if product.image_url %}
+      <img src="{{ product.image_url }}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+    {% else %}
+      <div style="width:64px;height:64px;background:var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:var(--muted);">□</div>
+    {% endif %}
+    <div>
+      <div style="font-weight:600;font-size:1rem;">{{ product.designation }}</div>
+      <div class="text-muted" style="font-size:.82rem;margin-top:.2rem;">
+        {% if product.supplier %}Fournisseur : {{ product.supplier.nom }} · {% endif %}
+        TVA : {{ product.taux_tva|int }}%
+      </div>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin:0;gap:.5rem;">
+      <div class="stat-card" style="padding:.75rem;">
+        <div class="stat-label">Variantes</div>
+        <div class="stat-value text-accent" style="font-size:1.4rem;">{{ variants|length }}</div>
+      </div>
+      <div class="stat-card" style="padding:.75rem;">
+        <div class="stat-label">Stock entrepôt</div>
+        <div class="stat-value" style="font-size:1.4rem;">{{ variants|sum(attribute='stock_entrepot') }}</div>
+      </div>
+      <div class="stat-card" style="padding:.75rem;">
+        <div class="stat-label">Stock rayon</div>
+        <div class="stat-value" style="font-size:1.4rem;">{{ variants|sum(attribute='stock_magasin') }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tableau variantes -->
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Variante</th>
+          <th>Attributs</th>
+          <th>SKU</th>
+          <th>Code-barres</th>
+          <th>Prix HT</th>
+          <th>TVA</th>
+          <th>Prix TTC</th>
+          <th>Marge</th>
+          <th>Entrepôt</th>
+          <th>Rayon</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in variants %}
+        <tr style="{% if not v.is_active %}opacity:.45;{% endif %}">
+          <td style="width:44px;">
+            {% if v.image_url %}
+              <img src="{{ v.image_url }}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+            {% else %}
+              <div style="width:38px;height:38px;background:var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1rem;">□</div>
+            {% endif %}
+          </td>
+          <td><strong>{{ v.nom }}</strong></td>
+          <td>
+            {% for k, val in v.attributs.items() %}
+            <span class="badge badge-blue" style="margin:.1rem;">{{ k }} : {{ val }}</span>
+            {% endfor %}
+          </td>
+          <td class="text-mono" style="font-size:.78rem;">{{ v.sku or '—' }}</td>
+          <td class="text-mono" style="font-size:.75rem;">
+            {{ v.barcode or '—' }}
+            {% if v.barcode_generated %}<span class="badge badge-purple" style="font-size:.6rem;">GÉN.</span>{% endif %}
+          </td>
+          <td class="text-mono">{{ "%.0f"|format(v.prix_vente_ht) }}</td>
+          <td>
+            {% if v.taux_tva > 0 %}<span class="badge badge-purple">{{ v.taux_tva|int }}%</span>
+            {% else %}<span class="text-muted">0%</span>{% endif %}
+          </td>
+          <td class="text-accent text-mono">{{ "%.0f"|format(v.prix_vente_ttc) }}</td>
+          <td class="text-mono" style="font-size:.8rem;color:{% if v.marge >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+            {{ "%.0f"|format(v.marge) }}
+          </td>
+          <td>
+            <span class="badge {% if v.stock_entrepot == 0 %}badge-red{% elif v.stock_entrepot <= 5 %}badge-orange{% else %}badge-green{% endif %}">
+              {{ v.stock_entrepot }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if v.stock_magasin == 0 %}badge-red{% elif v.stock_magasin <= 3 %}badge-orange{% else %}badge-blue{% endif %}">
+              {{ v.stock_magasin }}
+            </span>
+          </td>
+          <td>
+            {% if v.is_active %}<span class="badge badge-green">Actif</span>
+            {% else %}<span class="badge badge-red">Inactif</span>{% endif %}
+          </td>
+          <td>
+            <div class="flex gap-1">
+              <a href="{{ url_for('variants.edit', vid=v.id) }}" class="btn btn-secondary btn-sm">Éditer</a>
+              {% if v.barcode %}
+              <a href="{{ url_for('variants.barcode', vid=v.id) }}"
+                 class="btn btn-secondary btn-sm" target="_blank" title="Code-barres">🏷</a>
+              {% endif %}
+              <form method="POST" action="{{ url_for('variants.delete', vid=v.id) }}">
+                <button type="submit" class="btn btn-danger btn-sm"
+                        onclick="return confirm('Supprimer « {{ v.nom }} » ?')">✕</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="13" style="text-align:center;padding:3rem;">
+            <div class="text-muted">Aucune variante.</div>
+            <a href="{{ url_for('variants.create', pid=product.id) }}" class="btn btn-primary" style="margin-top:1rem;">Ajouter la première variante</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

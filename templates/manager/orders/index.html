@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Commandes Fournisseurs{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Commandes Fournisseurs</div>
+  <a href="{{ url_for('orders.create') }}" class="btn btn-primary">+ Nouvelle commande</a>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-2">
+  <form method="GET" class="flex gap-2 items-center" style="flex-wrap:wrap;">
+    <select name="statut" class="form-control" style="max-width:180px;">
+      <option value="">Tous les statuts</option>
+      {% for s, (lbl, _) in OrderStatus.LABELS.items() %}
+      <option value="{{ s }}" {% if current_statut == s %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+    <select name="supplier_id" class="form-control" style="max-width:200px;">
+      <option value="">Tous les fournisseurs</option>
+      {% for s in suppliers %}
+      <option value="{{ s.id }}" {% if current_supplier == s.id %}selected{% endif %}>{{ s.nom }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary">Filtrer</button>
+    {% if current_statut or current_supplier %}<a href="{{ url_for('orders.index') }}" class="btn btn-secondary">✕</a>{% endif %}
+    <span class="text-muted" style="font-size:.78rem;margin-left:auto;">{{ orders|length }} commande(s)</span>
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Référence</th><th>Fournisseur</th><th>Statut</th>
+          <th>Articles</th><th>Total HT</th><th>Livraison prévue</th>
+          <th>Créé le</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        {% set lbl, badge = o.status_label %}
+        <tr>
+          <td>
+            <a href="{{ url_for('orders.detail', oid=o.id) }}"
+               style="color:var(--accent);text-decoration:none;font-weight:600;font-family:var(--mono);">
+              {{ o.reference or '#' + o.id|string }}
+            </a>
+            {% if o.ref_fournisseur %}
+            <div class="text-muted" style="font-size:.72rem;">Réf. fourn. : {{ o.ref_fournisseur }}</div>
+            {% endif %}
+          </td>
+          <td><strong>{{ o.supplier.nom }}</strong></td>
+          <td><span class="badge {{ badge }}">{{ lbl }}</span></td>
+          <td class="text-mono">{{ o.total_items }}</td>
+          <td class="text-mono text-accent">{{ "%.0f"|format(o.total_amount) }} FCFA</td>
+          <td class="text-muted" style="font-size:.82rem;">
+            {{ o.date_livraison_prevue.strftime('%d/%m/%Y') if o.date_livraison_prevue else '—' }}
+          </td>
+          <td class="text-muted" style="font-size:.8rem;">{{ o.created_at.strftime('%d/%m/%Y') }}</td>
+          <td>
+            <div class="flex gap-1">
+              <a href="{{ url_for('orders.detail', oid=o.id) }}" class="btn btn-secondary btn-sm">Voir</a>
+              {% if o.can_receive %}
+              <a href="{{ url_for('orders.receive', oid=o.id) }}" class="btn btn-sm"
+                 style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a55;">Réceptionner</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align:center;padding:3rem;">
+            <div class="text-muted">Aucune commande.</div>
+            <a href="{{ url_for('orders.create') }}" class="btn btn-primary" style="margin-top:1rem;">Créer la première commande</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

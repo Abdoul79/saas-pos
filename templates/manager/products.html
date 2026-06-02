@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+{% block title %}Stock Central — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  /* ── Badges cliquables ─── */
+  .stock-btn {
+    display:inline-flex;align-items:center;gap:.3rem;
+    cursor:pointer;border:none;font-family:inherit;
+    transition:filter .15s,transform .12s;
+  }
+  .stock-btn:hover { filter:brightness(1.25);transform:scale(1.05); }
+  .stock-btn .plus-icon {
+    font-size:.65rem;opacity:0;transition:opacity .15s;
+    background:rgba(255,255,255,.2);border-radius:99px;
+    padding:.05rem .25rem;
+  }
+  .stock-btn:hover .plus-icon { opacity:1; }
+
+  /* ── Modal overlay ─── */
+  .modal-overlay {
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.72);z-index:999;
+    align-items:center;justify-content:center;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal-box {
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:14px;padding:1.75rem;
+    min-width:340px;max-width:460px;width:92%;
+    animation:popIn .2s ease;
+  }
+  @keyframes popIn { from{transform:scale(.87);opacity:0} to{transform:scale(1);opacity:1} }
+  .modal-title {
+    font-family:var(--mono);font-size:.78rem;color:var(--accent);
+    letter-spacing:.09em;margin-bottom:1.1rem;
+    display:flex;align-items:center;gap:.5rem;
+  }
+  .modal-product-info {
+    display:flex;align-items:center;gap:.85rem;
+    background:var(--bg);border:1px solid var(--border);
+    border-radius:10px;padding:.75rem;margin-bottom:1.1rem;
+  }
+  .mpi-img {
+    width:50px;height:50px;object-fit:cover;
+    border-radius:7px;border:1px solid var(--border);flex-shrink:0;
+  }
+  .mpi-ph {
+    width:50px;height:50px;background:var(--border);
+    border-radius:7px;display:flex;align-items:center;
+    justify-content:center;font-size:1.4rem;color:var(--muted);flex-shrink:0;
+  }
+  .mpi-name  { font-weight:600;font-size:.92rem; }
+  .mpi-meta  { font-size:.74rem;color:var(--muted);margin-top:.15rem; }
+
+  .stock-summary {
+    display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1.1rem;
+  }
+  .ss-item {
+    padding:.65rem .85rem;border-radius:8px;text-align:center;
+  }
+  .ss-val { font-family:var(--mono);font-size:1.3rem;font-weight:700; }
+  .ss-lbl { font-size:.68rem;color:var(--muted);margin-top:.12rem; }
+
+  .qty-row { display:flex;gap:.5rem;align-items:center;margin-bottom:.65rem; }
+  .qty-row input { flex:1;text-align:center;font-family:var(--mono);font-size:1.1rem;font-weight:700; }
+  .quick-btns { display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:1rem; }
+  .qbtn {
+    padding:.22rem .6rem;border-radius:99px;
+    background:var(--border);border:1px solid transparent;
+    color:var(--muted);font-size:.75rem;cursor:pointer;
+    font-family:var(--mono);transition:all .12s;
+  }
+  .qbtn:hover { border-color:var(--accent);color:var(--accent);background:#f5a62315; }
+
+  /* Variant selector inside modal */
+  .var-select-grid {
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+    gap:.45rem;margin-bottom:.85rem;
+  }
+  .var-select-card {
+    background:var(--bg);border:2px solid var(--border);
+    border-radius:8px;padding:.55rem .65rem;cursor:pointer;
+    transition:border-color .12s;
+  }
+  .var-select-card:hover { border-color:var(--accent); }
+  .var-select-card.selected { border-color:var(--accent);background:#f5a62315; }
+  .vsc-name  { font-size:.8rem;font-weight:600; }
+  .vsc-stock { font-size:.68rem;color:var(--muted);margin-top:.15rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Stock Central (Entrepôt)</div>
+  <div class="flex gap-1">
+    <a href="{{ url_for('categories.index') }}" class="btn btn-secondary">🏷 Catégories</a>
+    <a href="{{ url_for('suppliers.index') }}"  class="btn btn-secondary">🏢 Fournisseurs</a>
+    <a href="{{ url_for('manager.products_pdf') }}?q={{ q }}&category_id={{ current_category or '' }}&supplier_id={{ current_supplier or '' }}"
+       class="btn btn-secondary"
+       title="Télécharger la liste complète des articles">
+      📄 PDF
+    </a>
+    <a href="{{ url_for('manager.price_tags_pdf') }}?q={{ q }}&category_id={{ current_category or '' }}&supplier_id={{ current_supplier or '' }}"
+       class="btn btn-secondary"
+       title="Étiquettes prix à afficher devant les articles">
+      🏷 Étiquettes
+    </a>
+    <a href="{{ url_for('manager.create_product') }}" class="btn btn-primary">+ Nouveau Produit</a>
+  </div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-2">
+  <form method="GET" class="flex gap-2 items-center" style="flex-wrap:wrap;">
+    <input name="q" class="form-control" value="{{ q }}" placeholder="Rechercher…" style="max-width:220px;">
+    <select name="category_id" class="form-control" style="max-width:180px;">
+      <option value="">Toutes catégories</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}" {% if current_category == c.id %}selected{% endif %}>{{ c.icone }} {{ c.nom }}</option>
+      {% endfor %}
+    </select>
+    <select name="supplier_id" class="form-control" style="max-width:180px;">
+      <option value="">Tous fournisseurs</option>
+      {% for s in suppliers %}
+      <option value="{{ s.id }}" {% if current_supplier == s.id %}selected{% endif %}>{{ s.nom }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary">Filtrer</button>
+    {% if q or current_category or current_supplier %}
+    <a href="{{ url_for('manager.products') }}" class="btn btn-secondary">✕</a>
+    {% endif %}
+    <span class="text-muted" style="font-size:.78rem;margin-left:auto;">{{ products|length }} produit(s)</span>
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:52px;"></th>
+          <th>Désignation</th>
+          <th>SKU</th>
+          <th>Catégorie</th>
+          <th>Fournisseur</th>
+          <th>Code-barres</th>
+          <th>P. Achat</th>
+          <th>Prix HT</th><th>TVA</th><th>Prix TTC</th><th>Marge</th>
+          <th title="Cliquez sur le badge pour ajouter du stock">Entrepôt ↑</th>
+          <th>Rayon</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <!-- Image -->
+          <td>
+            {% if p.image_url %}
+              <img src="{{ p.image_url }}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+            {% else %}
+              <div style="width:44px;height:44px;background:var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.2rem;">□</div>
+            {% endif %}
+          </td>
+
+          <!-- Désignation -->
+          <td>
+            <strong>{{ p.designation }}</strong>
+            {% if p.has_variants %}
+              <span class="badge badge-purple" style="font-size:.65rem;">{{ p.variant_count }} var.</span>
+            {% endif %}
+            {% if p.description %}
+              <div class="text-muted" style="font-size:.73rem;margin-top:.1rem;">{{ p.description[:50] }}{% if p.description|length > 50 %}…{% endif %}</div>
+            {% endif %}
+          </td>
+
+          <td class="text-mono" style="font-size:.78rem;color:var(--muted);">{{ p.sku or '—' }}</td>
+
+          <!-- Catégorie -->
+          <td>
+            {% if p.category %}
+              <span style="display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:99px;font-size:.75rem;background:{{ p.category.couleur }}22;border:1px solid {{ p.category.couleur }}44;color:{{ p.category.couleur }};">
+                {{ p.category.icone }} {{ p.category.nom }}
+              </span>
+            {% else %}<span class="text-muted" style="font-size:.78rem;">—</span>{% endif %}
+          </td>
+
+          <!-- Fournisseur -->
+          <td style="font-size:.8rem;">
+            {% if p.supplier %}
+              <a href="{{ url_for('suppliers.detail', sid=p.supplier_id) }}" style="color:var(--accent);text-decoration:none;">{{ p.supplier.nom }}</a>
+            {% else %}—{% endif %}
+          </td>
+
+          <!-- Barcode -->
+          <td class="text-mono" style="font-size:.75rem;">
+            {{ p.barcode or '—' }}
+            {% if p.barcode_generated %}<span class="badge badge-purple" style="font-size:.6rem;">GÉN.</span>{% endif %}
+          </td>
+
+          <!-- Prix -->
+          <td class="text-mono" style="font-size:.8rem;color:var(--muted);">{{ "%.0f"|format(p.prix_achat) }}</td>
+          <td class="text-mono">{{ "%.0f"|format(p.prix_vente_ht) }}</td>
+          <td>
+            {% if p.taux_tva > 0 %}<span class="badge badge-purple">{{ p.taux_tva|int }}%</span>
+            {% else %}<span class="text-muted" style="font-size:.8rem;">0%</span>{% endif %}
+          </td>
+          <td class="text-accent text-mono">{{ "%.0f"|format(p.prix_vente_ttc) }}</td>
+          <td class="text-mono" style="font-size:.8rem;color:{% if p.marge >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+            {{ "%.0f"|format(p.marge) }} <span class="text-muted" style="font-size:.7rem;">({{ "%.1f"|format(p.taux_marge) }}%)</span>
+          </td>
+
+          <!-- ── Stock Entrepôt — cliquable pour ajouter ── -->
+          <td>
+            {% set se = p.total_stock_entrepot %}
+            <button type="button"
+                    class="stock-btn badge {% if se == 0 %}badge-red{% elif se <= 10 %}badge-orange{% else %}badge-green{% endif %}"
+                    onclick="openAddStock(
+                      {{ p.id }},
+                      {{ p.designation|tojson }},
+                      {{ (p.image_url or '')|tojson }},
+                      {{ p.has_variants|tojson }},
+                      {{ p.total_stock_entrepot }},
+                      {{ p.total_stock_magasin }}
+                    )"
+                    title="Cliquer pour ajouter du stock entrepôt">
+              {{ se }}
+              <span class="plus-icon">+</span>
+            </button>
+          </td>
+
+          <!-- Stock Rayon -->
+          <td>
+            {% set sm = p.total_stock_magasin %}
+            <span class="badge {% if sm == 0 %}badge-red{% elif sm <= 5 %}badge-orange{% else %}badge-blue{% endif %}">{{ sm }}</span>
+          </td>
+
+          <!-- Actions -->
+          <td>
+            <div class="flex gap-1" style="flex-wrap:nowrap;">
+              <a href="{{ url_for('manager.edit_product', product_id=p.id) }}" class="btn btn-secondary btn-sm">Éditer</a>
+              <a href="{{ url_for('manager.receive_stock', product_id=p.id) }}"
+                 class="btn btn-sm"
+                 style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a55;"
+                 title="Réceptionner du stock entrepôt">
+                🏭 +Stock
+              </a>
+              {% if p.has_variants %}
+              <a href="{{ url_for('variants.index', pid=p.id) }}" class="btn btn-secondary btn-sm">⚙ Var.</a>
+              {% else %}
+              <a href="{{ url_for('variants.create', pid=p.id) }}" class="btn btn-secondary btn-sm" title="Ajouter des variantes">+ Var.</a>
+              {% endif %}
+              {% if p.barcode %}
+              <a href="{{ url_for('manager.view_barcode', product_id=p.id) }}" class="btn btn-secondary btn-sm" target="_blank">🏷</a>
+              {% endif %}
+              <button type="button" class="btn btn-danger btn-sm"
+                      data-pid="{{ p.id }}"
+                      data-name="{{ p.designation|e }}"
+                      onclick="openDeleteModal(this)">
+                🗑
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="14" style="text-align:center;padding:3rem;">
+            <div class="text-muted">Aucun produit trouvé.</div>
+            <a href="{{ url_for('manager.create_product') }}" class="btn btn-primary" style="margin-top:1rem;">Créer le premier produit</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ Données variantes pour le JS ══ -->
+<script id="variantsData" type="application/json">
+{
+  {% for p in products %}
+  {% if p.has_variants %}
+  "{{ p.id }}": [
+    {% for v in p.variants %}
+    {
+      "id": {{ v.id }},
+      "nom": {{ v.nom|tojson }},
+      "label": {{ v.attributs_display|tojson }},
+      "stock_entrepot": {{ v.stock_entrepot }},
+      "stock_magasin": {{ v.stock_magasin }},
+      "sku": {{ (v.sku or '')|tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]{% if not loop.last %},{% endif %}
+  {% endif %}
+  {% endfor %}
+}
+</script>
+
+<!-- ══ MODAL AJOUT STOCK ══ -->
+<div class="modal-overlay" id="addStockModal">
+  <div class="modal-box">
+    <div class="modal-title">🏭 AJOUTER STOCK ENTREPÔT</div>
+
+    <!-- Info produit -->
+    <div class="modal-product-info" id="msProductInfo"></div>
+
+    <!-- Sélecteur variante (si has_variants) -->
+    <div id="msVariantSection" style="display:none;">
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.4rem;">
+        Choisir la variante à réapprovisionner :
+      </div>
+      <div class="var-select-grid" id="msVariantGrid"></div>
+    </div>
+
+    <!-- Résumé stock actuel -->
+    <div class="stock-summary" id="msStockSummary">
+      <div class="ss-item" style="background:var(--bg);border:1px solid var(--border);">
+        <div class="ss-val text-mono" id="msCurrentEnt">—</div>
+        <div class="ss-lbl">🏭 Stock Entrepôt actuel</div>
+      </div>
+      <div class="ss-item" style="background:var(--bg);border:1px solid var(--border);">
+        <div class="ss-val text-mono" id="msCurrentRay">—</div>
+        <div class="ss-lbl">🛒 Stock Rayon actuel</div>
+      </div>
+    </div>
+
+    <!-- Formulaire -->
+    <form method="POST" id="addStockForm">
+      <input type="hidden" name="variant_id" id="msVariantId" value="">
+
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.4rem;">
+        Quantité reçue à ajouter à l'entrepôt :
+      </div>
+      <div class="qty-row">
+        <button type="button" class="btn btn-secondary" onclick="adjQty(-1)">−</button>
+        <input class="form-control" type="number" name="quantity" id="msQty"
+               value="10" min="1" required>
+        <button type="button" class="btn btn-secondary" onclick="adjQty(1)">+</button>
+      </div>
+      <div class="quick-btns">
+        {% for q in [5, 10, 20, 50, 100] %}
+        <button type="button" class="qbtn" onclick="setQty({{ q }})">{{ q }}</button>
+        {% endfor %}
+      </div>
+
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label class="form-label">Note / Référence commande (optionnel)</label>
+        <input class="form-control" type="text" name="note"
+               placeholder="ex: BL-2024-001, Commande fournisseur du 22/05…">
+      </div>
+
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary" style="flex:1;" id="msSubmitBtn">
+          ✓ Ajouter au stock entrepôt
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══ MODAL SUPPRESSION PRODUIT ══ -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box" style="max-width:420px;">
+    <div style="text-align:center;margin-bottom:1.25rem;">
+      <div style="width:52px;height:52px;background:#dc262220;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .85rem;font-size:1.5rem;">🗑</div>
+      <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:.4rem;">Supprimer le produit</div>
+      <div style="font-size:.85rem;color:var(--muted);">
+        Vous êtes sur le point de supprimer
+        <strong id="deleteProductName" style="color:var(--text);"></strong>.
+      </div>
+      <div style="margin-top:.65rem;background:#dc262215;border:1px solid #dc262230;border-radius:8px;padding:.6rem .9rem;font-size:.78rem;color:#f87171;">
+        ⚠ Cette action est irréversible. L'historique des ventes liées sera conservé.
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-secondary" style="flex:1;" onclick="closeDeleteModal()">
+        Annuler
+      </button>
+      <form id="deleteForm" method="POST" style="flex:1;">
+        <button type="submit" class="btn btn-danger" style="width:100%;font-weight:700;">
+          🗑 Supprimer définitivement
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const VARIANTS_DATA = JSON.parse(document.getElementById('variantsData').textContent);
+let currentProductId = null;
+let selectedVariantId = null;
+
+function openAddStock(pid, name, imgUrl, hasVariants, stockEnt, stockRay) {
+  currentProductId  = pid;
+  selectedVariantId = null;
+
+  // Info produit
+  document.getElementById('msProductInfo').innerHTML = `
+    ${imgUrl
+      ? `<img src="${imgUrl}" class="mpi-img" alt="">`
+      : `<div class="mpi-ph">□</div>`}
+    <div>
+      <div class="mpi-name">${name}</div>
+      <div class="mpi-meta">
+        ${hasVariants
+          ? '<span style="color:var(--warning);">⚙ Produit avec variantes — choisissez une variante</span>'
+          : 'Produit simple'}
+      </div>
+    </div>`;
+
+  // Set form action
+  document.getElementById('addStockForm').action = `/manager/products/${pid}/add-stock`;
+  document.getElementById('msVariantId').value    = '';
+  document.getElementById('msSubmitBtn').disabled = hasVariants; // désactivé tant que variante non choisie
+
+  if (hasVariants) {
+    renderVariantSelector(pid);
+    document.getElementById('msVariantSection').style.display = 'block';
+    document.getElementById('msStockSummary').style.display   = 'none';
+  } else {
+    document.getElementById('msVariantSection').style.display = 'none';
+    document.getElementById('msStockSummary').style.display   = 'grid';
+    document.getElementById('msCurrentEnt').textContent = stockEnt;
+    document.getElementById('msCurrentRay').textContent = stockRay;
+  }
+
+  document.getElementById('addStockModal').classList.add('open');
+  setTimeout(() => document.getElementById('msQty').focus(), 200);
+}
+
+function renderVariantSelector(pid) {
+  const variants = VARIANTS_DATA[pid] || [];
+  const grid = document.getElementById('msVariantGrid');
+  grid.innerHTML = '';
+
+  variants.forEach(v => {
+    const card = document.createElement('div');
+    card.className = 'var-select-card';
+    card.dataset.vid = v.id;
+    card.innerHTML = `
+      <div class="vsc-name">${v.label || v.nom}</div>
+      ${v.sku ? `<div class="vsc-stock" style="font-family:var(--mono);font-size:.7rem;color:var(--muted);">${v.sku}</div>` : ''}
+      <div class="vsc-stock">
+        <span style="color:var(--success);">🏭 ${v.stock_entrepot}</span>
+        &nbsp;·&nbsp;
+        <span style="color:var(--accent2);">🛒 ${v.stock_magasin}</span>
+      </div>`;
+
+    card.addEventListener('click', () => {
+      // Désélectionner tout
+      grid.querySelectorAll('.var-select-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedVariantId = v.id;
+      document.getElementById('msVariantId').value = v.id;
+
+      // Afficher stock de cette variante
+      document.getElementById('msStockSummary').style.display = 'grid';
+      document.getElementById('msCurrentEnt').textContent = v.stock_entrepot;
+      document.getElementById('msCurrentRay').textContent = v.stock_magasin;
+      document.getElementById('msSubmitBtn').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+}
+
+function adjQty(delta) {
+  const inp = document.getElementById('msQty');
+  inp.value = Math.max(1, (parseInt(inp.value) || 1) + delta);
+}
+function setQty(q) {
+  document.getElementById('msQty').value = q;
+  document.querySelectorAll('.qbtn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+function closeModal() {
+  document.getElementById('addStockModal').classList.remove('open');
+}
+document.getElementById('addStockModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('addStockModal')) closeModal();
+});
+
+// ── Delete modal ──────────────────────────────────────────────────────────
+function openDeleteModal(btn) {
+  document.getElementById('deleteProductName').textContent = btn.dataset.name;
+  document.getElementById('deleteForm').action = '/manager/products/' + btn.dataset.pid + '/delete';
+  document.getElementById('deleteModal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('open');
+}
+document.getElementById('deleteModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('deleteModal')) closeDeleteModal();
+});
+</script>
+{% endblock %}

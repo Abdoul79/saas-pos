@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Paramètres Boutique en Ligne — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">⚙ Paramètres Boutique en Ligne</div>
+  <a href="{{ url_for('online.dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+</div>
+
+<div class="card" style="max-width:600px;padding:1.5rem;">
+  <form method="POST">
+    <div class="form-group">
+      <label class="form-label">
+        <input type="checkbox" name="active" {% if tenant.boutique_en_ligne_active %}checked{% endif %} style="margin-right:.5rem;">
+        Activer la boutique en ligne
+      </label>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Slug (URL de la boutique)</label>
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <span style="color:var(--muted);font-size:.82rem;">votre-domaine.com/shop/</span>
+        <input name="slug" class="form-control" value="{{ tenant.shop_slug or '' }}" placeholder="ma-boutique" style="flex:1;">
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;">Lettres minuscules et tirets uniquement.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description de la boutique</label>
+      <textarea name="description" class="form-control" rows="3">{{ tenant.shop_description or '' }}</textarea>
+    </div>
+
+    {% if tenant.boutique_en_ligne_active and tenant.shop_slug %}
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem;margin-bottom:1rem;font-size:.82rem;">
+      🔗 URL de votre boutique :
+      <a href="{{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }}" target="_blank" style="color:var(--accent);font-weight:600;">
+        {{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }}
+      </a>
+    </div>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary" style="width:100%;">💾 Sauvegarder</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{% if supplier %}Éditer{% else %}Nouveau{% endif %} Fournisseur — SaaS POS{% endblock %}
+{% block content %}
+<div style="max-width:680px;margin:0 auto;">
+  <div class="page-title">
+    {% if supplier %}Modifier « {{ supplier.nom }} »{% else %}Nouveau Fournisseur{% endif %}
+  </div>
+
+  <div class="card">
+    <form method="POST">
+      <!-- Informations principales -->
+      <div class="card-header">// Identification</div>
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label">Nom du fournisseur *</label>
+        <input class="form-control" name="nom" value="{{ supplier.nom if supplier else '' }}" required autofocus
+               placeholder="ex: SODICO, CFAO Retail, Grossiste Central…">
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Nom du contact</label>
+          <input class="form-control" name="contact" value="{{ supplier.contact or '' if supplier else '' }}"
+                 placeholder="Responsable commercial">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Téléphone</label>
+          <input class="form-control" name="telephone" value="{{ supplier.telephone or '' if supplier else '' }}"
+                 placeholder="+225 XX XX XX XX">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-control" type="email" name="email" value="{{ supplier.email or '' if supplier else '' }}"
+               placeholder="contact@fournisseur.com">
+      </div>
+
+      <!-- Adresse -->
+      <div class="card-header" style="margin-top:1.5rem;">// Localisation</div>
+      <div class="grid-2" style="margin-top:1rem;">
+        <div class="form-group">
+          <label class="form-label">Ville</label>
+          <input class="form-control" name="ville" value="{{ supplier.ville or '' if supplier else '' }}"
+                 placeholder="Abidjan, Dakar…">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Adresse</label>
+          <input class="form-control" name="adresse" value="{{ supplier.adresse or '' if supplier else '' }}"
+                 placeholder="Rue, quartier, zone industrielle…">
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="card-header" style="margin-top:1.5rem;">// Notes internes</div>
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label">Remarques (conditions de paiement, délais livraison…)</label>
+        <textarea class="form-control" name="notes" rows="3"
+                  placeholder="ex: Paiement à 30 jours, livraison le mardi…">{{ supplier.notes or '' if supplier else '' }}</textarea>
+      </div>
+
+      <div class="flex gap-2" style="margin-top:1.5rem;">
+        <button type="submit" class="btn btn-primary">
+          {% if supplier %}Sauvegarder les modifications{% else %}Créer le fournisseur{% endif %}
+        </button>
+        <a href="{{ url_for('suppliers.index') }}" class="btn btn-secondary">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Reçu Abonnement — {{ tenant.nom }}</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Helvetica Neue',Arial,sans-serif; font-size:10pt; color:#1a1a2e; background:#fff; }
+    @page {
+      size: A4; margin: 20mm 20mm 25mm 20mm;
+      @bottom-center { content:"Page " counter(page); font-size:8pt; color:#aaa; }
+    }
+
+    /* Header */
+    .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; padding-bottom:14px; border-bottom:3px solid #1a1a2e; }
+    .brand h1 { font-size:18pt; font-weight:800; color:#1a1a2e; letter-spacing:-.5px; }
+    .brand .sub { font-size:8.5pt; color:#666; margin-top:3px; }
+    .doc-info { text-align:right; }
+    .doc-info .type { font-size:14pt; font-weight:700; color:#16a34a; text-transform:uppercase; letter-spacing:1px; }
+    .doc-info .ref  { font-size:9pt; font-family:'Courier New',monospace; color:#333; margin-top:4px; }
+    .doc-info .date { font-size:8.5pt; color:#666; margin-top:2px; }
+
+    /* Parties */
+    .parties { display:flex; gap:20px; margin-bottom:24px; }
+    .party { flex:1; border:1px solid #ddd; border-radius:6px; padding:12px 14px; }
+    .party .label { font-size:7.5pt; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#888; margin-bottom:6px; }
+    .party .name  { font-size:11pt; font-weight:700; color:#1a1a2e; margin-bottom:3px; }
+    .party .info  { font-size:8.5pt; color:#555; line-height:1.7; }
+
+    /* Détails paiement */
+    .detail-table { width:100%; border-collapse:collapse; margin-bottom:24px; }
+    .detail-table thead tr { background:#1a1a2e; color:#fff; }
+    .detail-table thead th { padding:8px 12px; font-size:8pt; font-weight:600; text-transform:uppercase; letter-spacing:.5px; text-align:left; }
+    .detail-table thead th.r { text-align:right; }
+    .detail-table tbody tr { border-bottom:1px solid #eee; }
+    .detail-table tbody td { padding:10px 12px; font-size:9pt; vertical-align:middle; }
+    .detail-table tbody td.r { text-align:right; font-family:'Courier New',monospace; font-weight:600; }
+
+    /* Total box */
+    .total-box { display:flex; justify-content:flex-end; margin-bottom:24px; }
+    .total-inner { width:280px; border-collapse:collapse; }
+    .total-inner td { padding:6px 12px; font-size:9.5pt; border-bottom:1px solid #eee; }
+    .total-inner tr:last-child td { background:#1a1a2e; color:#fff; font-size:12pt; font-weight:700; border-bottom:none; border-radius:4px; }
+    .total-inner .lbl { color:#555; }
+    .total-inner tr:last-child .lbl { color:#ccc; }
+    .total-inner .val { text-align:right; font-family:'Courier New',monospace; }
+
+    /* Status badge */
+    .status-paid    { display:inline-block; padding:3px 10px; border-radius:4px; background:#e8f5e9; color:#2e7d32; font-weight:700; font-size:9pt; }
+    .status-pending { display:inline-block; padding:3px 10px; border-radius:4px; background:#fff3e0; color:#e65100; font-weight:700; font-size:9pt; }
+    .status-late    { display:inline-block; padding:3px 10px; border-radius:4px; background:#fce8e6; color:#c5221f; font-weight:700; font-size:9pt; }
+
+    /* Notes */
+    .notes-box { border:1px solid #ddd; border-radius:6px; padding:10px 14px; margin-bottom:20px; }
+    .notes-box .notes-label { font-size:7.5pt; text-transform:uppercase; letter-spacing:.6px; color:#888; font-weight:700; margin-bottom:5px; }
+
+    /* Signatures */
+    .sig-section { display:flex; justify-content:space-around; margin-top:30px; margin-bottom:20px; }
+    .sig-box { text-align:center; }
+    .sig-box .sig-label { font-size:8pt; color:#666; margin-bottom:40px; }
+    .sig-box .sig-line  { width:150px; border-top:1px solid #aaa; margin:0 auto; padding-top:4px; font-size:7pt; color:#aaa; }
+
+    /* Footer */
+    .footer { margin-top:16px; padding-top:10px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:7.5pt; color:#bbb; }
+  </style>
+</head>
+<body>
+
+  <!-- En-tête -->
+  <div class="header">
+    <div class="brand">
+      <h1>SaaS POS</h1>
+      <div class="sub">Plateforme de gestion de points de vente</div>
+      <div class="sub">admin@saaspos.local</div>
+    </div>
+    <div class="doc-info">
+      <div class="type">Reçu de Paiement</div>
+      <div class="ref">REF : ABONNEMENT-{{ tenant.id }}-{{ paiement.mois }}</div>
+      <div class="date">Émis le : {{ today.strftime('%d/%m/%Y') }}</div>
+      <div style="margin-top:6px;">
+        {% if paiement.statut == 'paye' %}
+          <span class="status-paid">✓ PAYÉ</span>
+        {% elif paiement.statut == 'retard' %}
+          <span class="status-late">⚠ EN RETARD</span>
+        {% else %}
+          <span class="status-pending">⏳ EN ATTENTE</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Parties -->
+  <div class="parties">
+    <!-- Fournisseur du service -->
+    <div class="party">
+      <div class="label">Fournisseur du service</div>
+      <div class="name">SaaS POS</div>
+      <div class="info">
+        Plateforme de gestion de points de vente<br>
+        admin@saaspos.local<br>
+        Service client disponible 24h/24
+      </div>
+    </div>
+
+    <!-- Client (Tenant) -->
+    <div class="party">
+      <div class="label">Client</div>
+      <div class="name">
+        {{ tenant.nom_boutique or (tenant.prenom + ' ' + tenant.nom) }}
+      </div>
+      <div class="info">
+        {% if tenant.nom_boutique %}{{ tenant.prenom }} {{ tenant.nom }}<br>{% endif %}
+        {{ tenant.activite }}<br>
+        {{ tenant.adresse }}<br>
+        {{ tenant.ville }}<br>
+        {% if tenant.telephone_entreprise %}Tél : {{ tenant.telephone_entreprise }}<br>{% endif %}
+        {% if tenant.email %}{{ tenant.email }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Tableau abonnement -->
+  <table class="detail-table">
+    <thead>
+      <tr>
+        <th style="width:40px;">#</th>
+        <th>Description</th>
+        <th>Période</th>
+        <th class="r" style="width:80px;">Durée</th>
+        <th class="r" style="width:130px;">Montant</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="color:#aaa;font-size:8pt;">01</td>
+        <td>
+          <strong>Abonnement SaaS POS</strong><br>
+          <span style="font-size:8pt;color:#666;">Accès à la plateforme de gestion POS
+          {% if tenant.vente_engros_active %} · Module Vente en Gros inclus{% endif %}
+          </span>
+        </td>
+        <td style="font-size:8.5pt;">
+          {{ paiement.mois_display }}<br>
+          {% if paiement.date_paiement %}
+          <span style="font-size:7.5pt;color:#888;">Payé le {{ paiement.date_paiement.strftime('%d/%m/%Y') }}</span>
+          {% endif %}
+        </td>
+        <td class="r">1 mois</td>
+        <td class="r">{{ "%.0f"|format(paiement.montant) }} FCFA</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Total -->
+  <div class="total-box">
+    <table class="total-inner">
+      <tr>
+        <td class="lbl">Sous-total HT</td>
+        <td class="val">{{ "%.0f"|format(paiement.montant) }} FCFA</td>
+      </tr>
+      <tr>
+        <td class="lbl">TVA (0%)</td>
+        <td class="val">0 FCFA</td>
+      </tr>
+      <tr>
+        <td class="lbl">TOTAL</td>
+        <td class="val">{{ "%.0f"|format(paiement.montant) }} FCFA</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Référence paiement -->
+  {% if paiement.reference %}
+  <div class="notes-box" style="margin-bottom:14px;">
+    <div class="notes-label">Référence de paiement</div>
+    <div style="font-family:'Courier New',monospace;font-size:9.5pt;font-weight:600;color:#1a1a2e;">
+      {{ paiement.reference }}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if paiement.notes %}
+  <div class="notes-box">
+    <div class="notes-label">Notes</div>
+    <div style="font-size:9pt;color:#444;line-height:1.5;">{{ paiement.notes }}</div>
+  </div>
+  {% endif %}
+
+  <!-- Signatures -->
+  <div class="sig-section">
+    <div class="sig-box">
+      <div class="sig-label">Le Client</div>
+      <div class="sig-line">Signature &amp; Cachet</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-label">SaaS POS</div>
+      <div class="sig-line">Signature &amp; Cachet</div>
+    </div>
+  </div>
+
+  <!-- Pied de page -->
+  <div class="footer">
+    <div>SaaS POS — Reçu d'abonnement · {{ paiement.mois }}</div>
+    <div>Généré le {{ today.strftime('%d/%m/%Y') }} · REF : ABONNEMENT-{{ tenant.id }}-{{ paiement.mois }}</div>
+  </div>
+
+</body>
+</html>

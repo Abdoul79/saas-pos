@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Code-Barres — {{ product.designation }}{% endblock %}
+{% block content %}
+<div style="max-width:480px;margin:0 auto;text-align:center;">
+  <div class="page-title">Planche d'étiquettes</div>
+  <div class="card">
+    <h2 style="margin-bottom:.5rem;">{{ product.designation }}</h2>
+    <p class="text-muted mb-2">Code : <span class="text-mono text-accent">{{ product.barcode }}</span></p>
+    {% if bc_b64 %}
+      <img src="data:image/png;base64,{{ bc_b64 }}" style="max-width:100%;border:1px solid var(--border);border-radius:8px;padding:.5rem;background:#fff;">
+    {% else %}
+      <div class="text-muted" style="padding:2rem;">Code-barres non disponible (bibliothèque python-barcode non installée).</div>
+    {% endif %}
+    <div style="margin-top:1.5rem;">
+      <button onclick="window.print()" class="btn btn-primary">🖨 Imprimer</button>
+      <a href="{{ url_for('manager.products') }}" class="btn btn-secondary" style="margin-left:.5rem;">Retour</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

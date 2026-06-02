@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Commandes en Ligne — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">📋 Commandes en Ligne</div>
+  <a href="{{ url_for('online.dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+</div>
+
+<div class="card mb-2">
+  <div class="flex gap-1" style="padding:.5rem;flex-wrap:wrap;">
+    <a href="{{ url_for('online.orders_list') }}" class="btn btn-sm {% if not status_filter %}btn-primary{% else %}btn-secondary{% endif %}">Toutes</a>
+    {% for s in OnlineOrderStatus.all() %}
+    <a href="{{ url_for('online.orders_list', status=s) }}"
+       class="btn btn-sm {% if status_filter == s %}btn-primary{% else %}btn-secondary{% endif %}"
+       style="{% if status_filter == s %}background:{{ OnlineOrderStatus.color(s) }};border-color:{{ OnlineOrderStatus.color(s) }};{% endif %}">
+      {{ OnlineOrderStatus.icon(s) }} {{ OnlineOrderStatus.label(s) }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Réf</th><th>Client</th><th>Date</th><th>Articles</th><th>Total</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td class="text-mono" style="font-size:.82rem;">{{ o.reference }}</td>
+          <td>{{ o.customer.full_name }}</td>
+          <td style="font-size:.82rem;">{{ o.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>{{ o.items|length }}</td>
+          <td class="text-accent text-mono" style="font-weight:700;">{{ o.total_amount|int }} FCFA</td>
+          <td>
+            <span class="badge" style="background:{{ OnlineOrderStatus.color(o.status) }}22;color:{{ OnlineOrderStatus.color(o.status) }};border:1px solid {{ OnlineOrderStatus.color(o.status) }}44;">
+              {{ OnlineOrderStatus.icon(o.status) }} {{ OnlineOrderStatus.label(o.status) }}
+            </span>
+          </td>
+          <td><a href="{{ url_for('online.order_detail', oid=o.id) }}" class="btn btn-secondary btn-sm">Détail</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-muted" style="text-align:center;padding:2rem;">Aucune commande.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

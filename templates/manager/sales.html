@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Journal des Ventes — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  .cashier-block { margin-bottom:1.25rem;border-radius:12px;overflow:hidden;border:1px solid var(--border); }
+  .cashier-header { display:flex;justify-content:space-between;align-items:center;padding:.7rem 1.1rem;font-weight:700;font-size:.9rem;border-bottom:1px solid rgba(255,255,255,.06); }
+  .cashier-avatar { width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0; }
+  .cashier-body { background:var(--surface); }
+  .sale-row { border-bottom:1px solid var(--border);transition:background .1s; }
+  .sale-row:last-child { border-bottom:none; }
+  .sale-row:hover { background:rgba(255,255,255,.03); }
+  .sale-meta { display:grid;grid-template-columns:70px 80px 85px 1fr 130px;gap:.5rem;align-items:start;padding:.55rem 1.1rem; }
+  .sale-id   { font-family:monospace;font-size:.72rem;color:var(--muted); }
+  .sale-time { font-size:.78rem;color:var(--muted); }
+  .sale-products { display:flex;flex-wrap:wrap;gap:.3rem; }
+  .prod-tag  { display:inline-flex;align-items:center;gap:.28rem;font-size:.71rem;padding:.18rem .5rem;border-radius:6px;background:var(--bg);border:1px solid var(--border); }
+  .prod-qty  { font-family:monospace;font-weight:700; }
+  .prod-price{ color:var(--muted);font-family:monospace;font-size:.66rem; }
+  .sale-amount { text-align:right;font-family:monospace;font-size:.9rem;font-weight:700; }
+  .cashier-footer { display:flex;justify-content:space-between;align-items:center;padding:.5rem 1.1rem;border-top:1px solid rgba(255,255,255,.06);font-size:.8rem;flex-wrap:wrap;gap:.5rem; }
+
+  /* Type badge */
+  .type-badge-detail { background:#3b82f615;border:1px solid #3b82f644;color:#60a5fa;font-size:.62rem;padding:.1rem .4rem;border-radius:4px;font-weight:700;font-family:monospace; }
+  .type-badge-engros { background:#22c55e15;border:1px solid #22c55e44;color:#4ade80;font-size:.62rem;padding:.1rem .4rem;border-radius:4px;font-weight:700;font-family:monospace; }
+
+  /* Top produits */
+  .top-prod-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.5rem;margin-bottom:1.1rem; }
+  .top-prod-card { background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:.6rem .85rem;display:flex;align-items:center;gap:.65rem; }
+  .tp-rank { font-family:monospace;font-size:.75rem;min-width:18px;text-align:center; }
+  .tp-info { flex:1;min-width:0; }
+  .tp-name { font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .tp-qty  { font-size:.7rem;color:var(--muted);font-family:monospace; }
+  .tp-bar  { height:3px;border-radius:99px;background:var(--border);margin-top:.35rem; }
+  .tp-bar-fill { height:3px;border-radius:99px; }
+
+  /* Résumé type split */
+  .type-split { display:flex;gap:.6rem;margin-bottom:1rem; }
+  .type-split-card { flex:1;border-radius:10px;padding:.7rem 1rem;border:1px solid; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">
+    Ventes du jour
+    {% if filter_date %}
+    <span style="font-size:.75rem;color:var(--muted);font-weight:400;margin-left:.5rem;">
+      {{ filter_date.strftime('%d/%m/%Y') }}
+    </span>
+    {% endif %}
+  </div>
+  <a href="{{ url_for('manager.sales_pdf') }}?date={{ date_filter }}&cashier_id={{ current_cashier }}"
+     class="btn btn-secondary btn-sm">📄 PDF</a>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-2">
+  <form method="GET" class="flex gap-2 items-center" style="flex-wrap:wrap;">
+    <input type="date" name="date" class="form-control" value="{{ date_filter }}" style="width:170px;">
+    <select name="cashier_id" class="form-control" style="max-width:180px;">
+      <option value="">Tous les caissiers</option>
+      {% for c in cashiers %}
+      <option value="{{ c.id }}" {% if current_cashier == c.id %}selected{% endif %}>{{ c.full_name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrer</button>
+    <a href="{{ url_for('manager.sales') }}" class="btn btn-secondary btn-sm">📅 Aujourd'hui</a>
+  </form>
+</div>
+
+<!-- Stats globales -->
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:.75rem;">
+  <div class="stat-card">
+    <div class="stat-label">Transactions</div>
+    <div class="stat-value text-accent">{{ nb_transactions }}</div>
+    <div class="stat-sub">{{ sales_by_cashier|length }} caissier(s)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total TTC</div>
+    <div class="stat-value">{{ "%.0f"|format(total_ttc) }} <small style="font-size:.45em;color:var(--muted);">FCFA</small></div>
+    {% if total_tva > 0 %}<div class="stat-sub">TVA : {{ "%.0f"|format(total_tva) }}</div>{% endif %}
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Ticket moyen</div>
+    <div class="stat-value">{{ "%.0f"|format(ticket_moyen) }} <small style="font-size:.45em;color:var(--muted);">FCFA</small></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Par mode</div>
+    <div style="margin-top:.35rem;display:flex;flex-direction:column;gap:.2rem;">
+      {% for method, data in by_method.items() %}
+      <div class="flex justify-between" style="font-size:.75rem;">
+        {% if method == 'especes' %}<span class="badge badge-green" style="font-size:.65rem;">💵 Espèces</span>
+        {% elif method == 'carte' %}<span class="badge badge-blue" style="font-size:.65rem;">💳 Carte</span>
+        {% else %}<span class="badge badge-purple" style="font-size:.65rem;">📱 Mobile</span>{% endif %}
+        <span class="text-mono" style="font-size:.78rem;">{{ "%.0f"|format(data.total) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Résumé Détail vs Gros ── -->
+{% if nb_detail or nb_engros %}
+<div class="type-split" style="margin-bottom:1rem;">
+  <div class="type-split-card" style="background:#3b82f610;border-color:#3b82f633;">
+    <div style="font-size:.68rem;color:#60a5fa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;font-weight:700;">🛒 Ventes au Détail</div>
+    <div style="font-family:monospace;font-size:1.2rem;font-weight:800;color:#60a5fa;">{{ "%.0f"|format(total_detail) }} <span style="font-size:.6rem;opacity:.6;">FCFA</span></div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem;">{{ nb_detail }} transaction(s)</div>
+  </div>
+  {% if nb_engros %}
+  <div class="type-split-card" style="background:#22c55e10;border-color:#22c55e33;">
+    <div style="font-size:.68rem;color:#4ade80;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;font-weight:700;">🏭 Ventes en Gros</div>
+    <div style="font-family:monospace;font-size:1.2rem;font-weight:800;color:#4ade80;">{{ "%.0f"|format(total_engros) }} <span style="font-size:.6rem;opacity:.6;">FCFA</span></div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem;">{{ nb_engros }} transaction(s)</div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Top produits ── -->
+{% if top_products %}
+<div style="margin-bottom:1rem;">
+  <div style="font-family:monospace;font-size:.7rem;color:var(--muted);letter-spacing:.08em;margin-bottom:.55rem;">// TOP PRODUITS DU JOUR</div>
+  {% set max_qty = top_products[0].qty if top_products else 1 %}
+  <div class="top-prod-grid">
+    {% for p in top_products %}
+    {% set accent = ['#f5a623','#3b82f6','#22c55e','#a78bfa','#f43f5e','#06b6d4','#fb923c','#84cc16'] %}
+    {% set col = accent[loop.index0 % accent|length] %}
+    <div class="top-prod-card">
+      <div class="tp-rank" style="color:{{ col }};font-weight:700;">
+        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+      </div>
+      <div class="tp-info">
+        <div class="tp-name" title="{{ p.designation }}">{{ p.designation }}</div>
+        <div class="tp-qty">{{ p.qty }} vendu(s) · {{ "%.0f"|format(p.total) }} FCFA</div>
+        <div class="tp-bar"><div class="tp-bar-fill" style="width:{{ ((p.qty / max_qty) * 100)|int }}%;background:{{ col }};"></div></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ══ Ventes par caissier ══ -->
+{% set colors = ['#f5a623','#3b82f6','#22c55e','#a78bfa','#f43f5e','#06b6d4','#fb923c','#84cc16'] %}
+
+{% if sales_by_cashier %}
+  {% for cid, data in sales_by_cashier.items() %}
+  {% set color = colors[loop.index0 % colors|length] %}
+  {% set cashier = data.cashier %}
+
+  <div class="cashier-block" style="border-color:{{ color }}44;">
+    <div class="cashier-header" style="background:{{ color }}15;">
+      <div style="display:flex;align-items:center;gap:.65rem;">
+        <div class="cashier-avatar" style="background:{{ color }}30;color:{{ color }};">
+          {% if cashier %}{{ cashier.prenom[0] }}{{ cashier.nom[0] }}{% else %}?{% endif %}
+        </div>
+        <div>
+          <div style="color:{{ color }};">{% if cashier %}{{ cashier.prenom }} {{ cashier.nom }}{% else %}Inconnu{% endif %}</div>
+          <div style="font-size:.68rem;font-weight:400;opacity:.65;">{{ data.sales|length }} vente(s) · {{ data.nb_items }} article(s)</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        {% if data.nb_detail %}
+        <div style="text-align:right;">
+          <div style="font-size:.65rem;color:#60a5fa;margin-bottom:.1rem;">🛒 Détail</div>
+          <div style="font-family:monospace;font-size:.85rem;font-weight:700;color:#60a5fa;">{{ "%.0f"|format(data.total_detail) }}</div>
+        </div>
+        {% endif %}
+        {% if data.nb_engros %}
+        <div style="text-align:right;">
+          <div style="font-size:.65rem;color:#4ade80;margin-bottom:.1rem;">🏭 Gros</div>
+          <div style="font-family:monospace;font-size:.85rem;font-weight:700;color:#4ade80;">{{ "%.0f"|format(data.total_engros) }}</div>
+        </div>
+        {% endif %}
+        <div style="font-family:monospace;font-size:1.05rem;font-weight:700;color:{{ color }};border-left:1px solid {{ color }}33;padding-left:1rem;">
+          {{ "%.0f"|format(data.total) }} <span style="font-size:.6rem;opacity:.6;">FCFA</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cashier-body">
+      {% for s in data.sales %}
+      {% set is_engros = s.sale_type == 'engros' %}
+      <div class="sale-row" style="{% if is_engros %}border-left:3px solid #22c55e44;{% else %}border-left:3px solid #3b82f644;{% endif %}">
+        <div class="sale-meta">
+          <div>
+            <div class="sale-id">#{{ s.id }}</div>
+            <div class="sale-time">{{ s.created_at.strftime('%H:%M') }}</div>
+          </div>
+          <!-- Type détail/gros -->
+          <div>
+            {% if is_engros %}
+            <span class="type-badge-engros">🏭 Gros</span>
+            {% else %}
+            <span class="type-badge-detail">🛒 Détail</span>
+            {% endif %}
+          </div>
+          <!-- Mode paiement -->
+          <div>
+            {% if s.payment_method == 'especes' %}<span class="badge badge-green" style="font-size:.62rem;">💵</span>
+            {% elif s.payment_method == 'carte' %}<span class="badge badge-blue" style="font-size:.62rem;">💳</span>
+            {% else %}<span class="badge badge-purple" style="font-size:.62rem;">📱</span>{% endif %}
+          </div>
+          <!-- Produits -->
+          <div class="sale-products">
+            {% for item in s.items %}
+            <div class="prod-tag">
+              <span class="prod-qty" style="color:{{ color }};">{{ item.quantity }}×</span>
+              <span>{{ item.designation or 'Article supprimé' }}</span>
+              <span class="prod-price">{{ "%.0f"|format(item.subtotal) }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          <!-- Total -->
+          <div class="sale-amount" style="color:{% if is_engros %}#4ade80{% else %}#60a5fa{% endif %};">
+            {{ "%.0f"|format(s.total_amount) }} FCFA
+            {% if s.change_given and s.change_given > 0 %}
+            <div style="font-size:.67rem;color:var(--muted);font-weight:400;">Rendu : {{ "%.0f"|format(s.change_given) }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="cashier-footer" style="background:{{ color }}0d;border-top-color:{{ color }}22;">
+      <div style="display:flex;gap:1rem;align-items:center;">
+        {% if data.nb_detail %}
+        <span style="color:#60a5fa;font-size:.75rem;">🛒 Détail : {{ data.nb_detail }} vente(s) · <strong style="font-family:monospace;">{{ "%.0f"|format(data.total_detail) }} FCFA</strong></span>
+        {% endif %}
+        {% if data.nb_engros %}
+        <span style="color:#4ade80;font-size:.75rem;">🏭 Gros : {{ data.nb_engros }} vente(s) · <strong style="font-family:monospace;">{{ "%.0f"|format(data.total_engros) }} FCFA</strong></span>
+        {% endif %}
+      </div>
+      <strong style="font-family:monospace;color:{{ color }};">TOTAL = {{ "%.0f"|format(data.total) }} FCFA</strong>
+    </div>
+  </div>
+  {% endfor %}
+
+{% else %}
+<div class="card" style="text-align:center;padding:3rem;color:var(--muted);">
+  Aucune vente aujourd'hui.
+</div>
+{% endif %}
+
+{% endblock %}

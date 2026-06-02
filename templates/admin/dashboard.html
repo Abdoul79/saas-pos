@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block title %}Super Admin — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  .pay-row-modal { display:none; }
+  .pay-form {
+    background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    padding:.75rem; margin-top:.5rem;
+    display:grid; grid-template-columns:1fr 1fr auto auto auto; gap:.4rem; align-items:end;
+  }
+  .montant-inline { display:flex; align-items:center; gap:.3rem; }
+  .montant-inline input {
+    width:90px; background:var(--bg); border:1px solid var(--border);
+    border-radius:5px; padding:.22rem .4rem; color:var(--text);
+    font-family:var(--mono); font-size:.8rem;
+  }
+  /* Modals */
+  .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;align-items:center;justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal-box { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.75rem;min-width:360px;max-width:440px;width:92%;animation:popIn .2s ease; }
+  @keyframes popIn { from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">Console Super Administrateur</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Comptes actifs</div>
+    <div class="stat-value text-accent">{{ active_count }}</div>
+    <div class="stat-sub">commerçants opérationnels</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">En attente</div>
+    <div class="stat-value" style="color:var(--warning);">{{ pending_tenants|length }}</div>
+    <div class="stat-sub">demandes à traiter</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Suspendus</div>
+    <div class="stat-value" style="color:var(--danger);">{{ suspended_count }}</div>
+    <div class="stat-sub">comptes suspendus</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Encaissé ce mois</div>
+    <div class="stat-value" style="color:var(--success);">{{ "%.0f"|format(total_encaisse) }}</div>
+    <div class="stat-sub">FCFA abonnements <span class="text-mono" style="font-size:.7rem;">{{ mois_courant }}</span></div>
+  </div>
+</div>
+
+<!-- Demandes en attente -->
+{% if pending_tenants %}
+<div class="card">
+  <div class="card-header" style="color:var(--warning);">⚠ // Demandes en attente d'activation</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Commerçant</th><th>Email</th><th>Activité</th><th>Ville</th><th>Date</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for t in pending_tenants %}
+        <tr>
+          <td><strong>{{ t.prenom }} {{ t.nom }}</strong></td>
+          <td class="text-mono" style="font-size:.8rem;">{{ t.email }}</td>
+          <td>{{ t.activite }}</td>
+          <td>{{ t.ville }}</td>
+          <td class="text-muted">{{ t.created_at.strftime('%d/%m/%Y') }}</td>
+          <td>
+            <div class="flex gap-1">
+              <form method="POST" action="{{ url_for('super_admin.activate_tenant', tenant_id=t.id) }}" style="display:inline-flex;gap:.3rem;align-items:center;">
+                <input name="days" type="number" value="30" min="1" max="365" style="width:55px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .4rem;color:var(--text);font-size:.78rem;">
+                <button type="submit" class="btn btn-success btn-sm">✓ Activer</button>
+              </form>
+              <form method="POST" action="{{ url_for('super_admin.reject_tenant', tenant_id=t.id) }}">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Rejeter cette demande ?')">✕ Rejeter</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:2rem;">
+  <div class="text-muted">✓ Aucune demande en attente.</div>
+</div>
+{% endif %}
+
+<!-- Commerçants actifs -->
+{% if active_tenants %}
+<div class="card" style="margin-top:1rem;">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>// Commerçants actifs — Abonnements &amp; Options</span>
+    <a href="{{ url_for('super_admin.paiements') }}" class="btn btn-secondary btn-sm">📊 Historique paiements</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Commerçant</th>
+          <th>Licence</th>
+          <th style="text-align:center;">Mensuel (FCFA)</th>
+          <th style="text-align:center;">Paiement<br><span style="font-weight:400;font-size:.68rem;">{{ mois_courant }}</span></th>
+          <th style="text-align:center;">🏭 Gros</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in active_tenants %}
+        {% set paiement = paiements_mois.get(t.id) %}
+        {% set lbl, badge = paiement.status_label if paiement else ('—', 'badge-blue') %}
+        <tr>
+          <!-- Commerçant -->
+          <td>
+            <div style="font-weight:600;">{{ t.prenom }} {{ t.nom }}</div>
+            {% if t.nom_boutique %}<div style="font-size:.74rem;color:var(--accent);">{{ t.nom_boutique }}</div>{% endif %}
+            <div style="font-size:.72rem;color:var(--muted);">{{ t.activite }} · {{ t.ville }}</div>
+          </td>
+
+          <!-- Licence -->
+          <td>
+            <span class="badge badge-{{ t.licence_badge }}" style="font-size:.72rem;">{{ t.days_remaining }}j</span>
+          </td>
+
+          <!-- Montant mensuel -->
+          <td style="text-align:center;">
+            <form method="POST" action="{{ url_for('super_admin.set_montant_mensuel', tenant_id=t.id) }}" class="montant-inline" style="justify-content:center;">
+              <input type="number" name="montant_mensuel" value="{{ t.montant_mensuel|int if t.montant_mensuel else '' }}" placeholder="0" min="0" step="500"
+                     style="width:90px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:.22rem .4rem;color:var(--text);font-family:var(--mono);font-size:.82rem;text-align:center;">
+              <button type="submit" class="btn btn-secondary btn-sm">✓</button>
+            </form>
+          </td>
+
+          <!-- Statut paiement -->
+          <td style="text-align:center;">
+            <span class="badge {{ badge }}" style="font-size:.72rem;cursor:pointer;" onclick="togglePayForm('pay-{{ t.id }}')">{{ lbl }}</span>
+            {% if paiement and paiement.date_paiement %}
+            <div style="font-size:.68rem;color:var(--muted);">{{ paiement.date_paiement.strftime('%d/%m/%Y') }}</div>
+            {% endif %}
+            <div id="pay-{{ t.id }}" class="pay-row-modal" style="text-align:left;">
+              <form method="POST" action="{{ url_for('super_admin.enregistrer_paiement', tenant_id=t.id) }}">
+                <input type="hidden" name="mois" value="{{ mois_courant }}">
+                <div class="pay-form">
+                  <div>
+                    <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;">Montant (FCFA)</div>
+                    <input class="form-control text-mono" type="number" name="montant"
+                           value="{{ paiement.montant|int if paiement else (t.montant_mensuel|int if t.montant_mensuel else '') }}"
+                           placeholder="Montant" min="0" step="500" style="max-width:110px;">
+                  </div>
+                  <div>
+                    <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;">Statut</div>
+                    <select class="form-control" name="statut" style="max-width:130px;">
+                      <option value="paye" {% if paiement and paiement.statut == 'paye' %}selected{% endif %}>✓ Payé</option>
+                      <option value="en_attente" {% if not paiement or paiement.statut == 'en_attente' %}selected{% endif %}>En attente</option>
+                      <option value="retard" {% if paiement and paiement.statut == 'retard' %}selected{% endif %}>En retard</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;">Référence</div>
+                    <input class="form-control text-mono" type="text" name="reference"
+                           value="{{ paiement.reference if paiement and paiement.reference else '' }}"
+                           placeholder="Réf. paiement" style="max-width:130px;">
+                  </div>
+                  <button type="submit" class="btn btn-success btn-sm">✓ Enregistrer</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="togglePayForm('pay-{{ t.id }}')">✕</button>
+                </div>
+              </form>
+            </div>
+          </td>
+
+          <!-- Vente en Gros -->
+          <td style="text-align:center;">
+            <form method="POST" action="{{ url_for('super_admin.toggle_engros', tenant_id=t.id) }}">
+              <button type="submit" class="btn btn-sm {% if t.vente_engros_active %}btn-success{% else %}btn-secondary{% endif %}" style="min-width:80px;font-size:.72rem;"
+                      onclick="return confirm('{% if t.vente_engros_active %}Désactiver{% else %}Activer{% endif %} la vente en gros ?')">
+                {% if t.vente_engros_active %}✓ ON{% else %}— OFF{% endif %}
+              </button>
+            </form>
+          </td>
+
+          <!-- Actions -->
+          <td>
+            <div class="flex gap-1" style="flex-wrap:nowrap;">
+              {% if paiement and paiement.statut == 'paye' %}
+              <a href="{{ url_for('super_admin.paiement_pdf', tenant_id=t.id, mois=mois_courant) }}"
+                 class="btn btn-sm" style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a44;" title="Reçu PDF">📄</a>
+              {% endif %}
+              <button type="button" class="btn btn-sm"
+                      style="background:#d9770618;color:#fbbf24;border:1px solid #d9770644;"
+                      data-suspend data-tid="{{ t.id }}" data-name="{{ t.prenom }} {{ t.nom }}">
+                ⏸ Suspendre
+              </button>
+              <button type="button" class="btn btn-danger btn-sm"
+                      data-delete-tenant data-tid="{{ t.id }}" data-name="{{ t.prenom }} {{ t.nom }}">
+                🗑
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div style="margin-top:1rem;">
+  <a href="{{ url_for('super_admin.tenants') }}" class="btn btn-secondary">Voir tous les commerçants →</a>
+</div>
+
+<!-- ══ MODAL SUSPENSION ══ -->
+<div class="modal-overlay" id="suspendModal">
+  <div class="modal-box">
+    <div style="text-align:center;margin-bottom:1.25rem;">
+      <div style="width:52px;height:52px;background:#d9770620;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .85rem;font-size:1.5rem;">⏸</div>
+      <div style="font-size:1rem;font-weight:700;margin-bottom:.4rem;">Suspendre le compte</div>
+      <div style="font-size:.85rem;color:var(--muted);">
+        Le compte de <strong id="suspendName"></strong> sera suspendu.
+        Tous les utilisateurs perdront l'accès immédiatement.
+      </div>
+      <div style="margin-top:.65rem;background:#d9770615;border:1px solid #d9770630;border-radius:8px;padding:.6rem .9rem;font-size:.78rem;color:#fbbf24;">
+        ⚠ Le compte peut être réactivé à tout moment depuis la liste en attente.
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('suspendModal')">Annuler</button>
+      <form id="suspendForm" method="POST" style="flex:1;">
+        <button type="submit" class="btn btn-sm" style="width:100%;background:#d97706;color:#fff;border:none;padding:.7rem;border-radius:8px;font-weight:700;">
+          ⏸ Suspendre
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL SUPPRESSION ══ -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <div style="text-align:center;margin-bottom:1.25rem;">
+      <div style="width:52px;height:52px;background:#dc262220;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .85rem;font-size:1.5rem;">🗑</div>
+      <div style="font-size:1rem;font-weight:700;margin-bottom:.4rem;">Supprimer le compte</div>
+      <div style="font-size:.85rem;color:var(--muted);">
+        Vous allez supprimer définitivement le compte de <strong id="deleteName"></strong>.
+      </div>
+      <div style="margin-top:.65rem;background:#dc262215;border:1px solid #dc262230;border-radius:8px;padding:.6rem .9rem;font-size:.78rem;color:#f87171;">
+        ⚠ Toutes les données (produits, ventes, stock) seront supprimées. Action irréversible.
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('deleteModal')">Annuler</button>
+      <form id="deleteForm" method="POST" style="flex:1;">
+        <button type="submit" class="btn btn-danger" style="width:100%;font-weight:700;">
+          🗑 Supprimer définitivement
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePayForm(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(m =>
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); })
+);
+
+// Suspend
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-suspend]');
+  if (!btn) return;
+  document.getElementById('suspendName').textContent = btn.dataset.name;
+  document.getElementById('suspendForm').action = `/superadmin/tenant/${btn.dataset.tid}/suspend`;
+  document.getElementById('suspendModal').classList.add('open');
+});
+
+// Delete
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-delete-tenant]');
+  if (!btn) return;
+  document.getElementById('deleteName').textContent = btn.dataset.name;
+  document.getElementById('deleteForm').action = `/superadmin/tenant/${btn.dataset.tid}/delete`;
+  document.getElementById('deleteModal').classList.add('open');
+});
+</script>
+{% endblock %}

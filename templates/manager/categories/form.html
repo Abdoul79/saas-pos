@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{% if category %}Éditer{% else %}Nouvelle{% endif %} Catégorie{% endblock %}
+{% block content %}
+<div style="max-width:520px;margin:0 auto;">
+  <div class="page-title">{% if category %}Modifier « {{ category.nom }} »{% else %}Nouvelle Catégorie{% endif %}</div>
+  <div class="card">
+    <form method="POST">
+
+      <div class="form-group">
+        <label class="form-label">Nom *</label>
+        <input class="form-control" name="nom" value="{{ category.nom if category else '' }}" required autofocus placeholder="ex: Boissons, Épicerie, Hygiène…">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Icône (emoji)</label>
+        <div class="flex gap-2 items-center">
+          <input class="form-control" name="icone" id="iconeInput"
+                 value="{{ category.icone if category else '📦' }}"
+                 style="max-width:80px;font-size:1.4rem;text-align:center;">
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap;">
+            {% for em in ['📦','🛒','🥤','🍞','🧴','👗','💊','🔧','🧹','📱','🖥','🎮','🥩','🧃','🍫','🧊','🪴','🏠','⚽','🎵'] %}
+            <button type="button" onclick="document.getElementById('iconeInput').value='{{ em }}'"
+                    style="background:var(--border);border:none;border-radius:6px;padding:.3rem .4rem;cursor:pointer;font-size:1.1rem;">{{ em }}</button>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Couleur</label>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+          {% for col in colors %}
+          <label style="cursor:pointer;">
+            <input type="radio" name="couleur" value="{{ col }}"
+                   {% if (category and category.couleur == col) or (not category and col == '#f5a623') %}checked{% endif %}
+                   style="display:none;" class="color-radio">
+            <div class="color-swatch" data-color="{{ col }}"
+                 style="width:32px;height:32px;border-radius:50%;background:{{ col }};
+                        border:3px solid {% if (category and category.couleur == col) or (not category and col == '#f5a623') %}white{% else %}transparent{% endif %};
+                        box-shadow:{% if (category and category.couleur == col) or (not category and col == '#f5a623') %}0 0 0 2px {{ col }}{% else %}none{% endif %};
+                        transition:all .15s;"></div>
+          </label>
+          {% endfor %}
+          <input type="color" name="couleur_custom" id="customColor"
+                 value="{{ category.couleur if category else '#f5a623' }}"
+                 style="width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;padding:0;background:none;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description (optionnel)</label>
+        <textarea class="form-control" name="description" rows="2"
+                  placeholder="Description de la catégorie…">{{ category.description or '' if category else '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Ordre d'affichage</label>
+        <input class="form-control" type="number" name="ordre" value="{{ category.ordre if category else 0 }}" min="0" style="max-width:120px;">
+        <div class="text-muted" style="font-size:.75rem;margin-top:.3rem;">Les catégories sont triées par ordre croissant.</div>
+      </div>
+
+      <div class="flex gap-2" style="margin-top:1.5rem;">
+        <button type="submit" class="btn btn-primary">
+          {% if category %}Sauvegarder{% else %}Créer{% endif %}
+        </button>
+        <a href="{{ url_for('categories.index') }}" class="btn btn-secondary">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.color-radio').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('.color-swatch').forEach(s => {
+      s.style.border = '3px solid transparent';
+      s.style.boxShadow = 'none';
+    });
+    const swatch = r.nextElementSibling;
+    swatch.style.border = '3px solid white';
+    swatch.style.boxShadow = `0 0 0 2px ${swatch.dataset.color}`;
+  });
+});
+</script>
+{% endblock %}

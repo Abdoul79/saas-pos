@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% block title %}{% if product %}Éditer{% else %}Nouveau{% endif %} Produit{% endblock %}
+{% block head %}
+<style>
+  .section-header { font-family:var(--mono); font-size:.7rem; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; padding:.6rem 0 .75rem; border-bottom:1px solid var(--border); margin-bottom:1.25rem; }
+  @keyframes pulseGlow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(245,166,35,0); }
+    50%      { box-shadow: 0 0 0 4px rgba(245,166,35,.15); }
+  }
+  .img-drop { border:2px dashed var(--border); border-radius:12px; padding:1.75rem; text-align:center; cursor:pointer; transition:border-color .2s,background .2s; position:relative; overflow:hidden; }
+  .img-drop:hover,.img-drop.drag-over { border-color:var(--accent); background:#f5a62308; }
+  .img-drop input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+  .img-preview { width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-bottom:.75rem; }
+  .tax-row { display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:.75rem;align-items:end; }
+  .tax-op { display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.2rem;padding-bottom:.5rem; }
+  .ttc-display { background:#f5a62315;border:1px solid #f5a62355;border-radius:8px;padding:.65rem 1rem;font-family:var(--mono);font-size:1.1rem;color:var(--accent);text-align:right;min-height:44px; }
+  .tva-presets { display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem; }
+  .tva-preset { padding:.2rem .6rem;border-radius:99px;background:var(--border);border:1px solid transparent;color:var(--muted);font-size:.75rem;cursor:pointer;font-family:var(--mono);transition:all .12s; }
+  .tva-preset.active,.tva-preset:hover { border-color:var(--accent);color:var(--accent);background:#f5a62315; }
+  .margin-pill { display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .8rem;border-radius:99px;font-family:var(--mono);font-size:.8rem; }
+  .cat-pill { display:inline-flex;align-items:center;gap:.4rem;padding:.25rem .65rem;border-radius:99px;font-size:.78rem;cursor:pointer;border:2px solid transparent;transition:all .12s; }
+  .cat-pill.selected { border-color: currentColor; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:780px;margin:0 auto;">
+  <div class="flex justify-between items-center mb-3">
+    <div class="page-title" style="margin-bottom:0">
+      {% if product %}Modifier « {{ product.designation }} »{% else %}Nouveau Produit{% endif %}
+    </div>
+    <div class="flex gap-1">
+      {% if product and product.has_variants %}
+      <a href="{{ url_for('variants.index', pid=product.id) }}" class="btn btn-secondary btn-sm">⚙ Variantes ({{ product.variant_count }})</a>
+      {% endif %}
+      <a href="{{ url_for('manager.products') }}" class="btn btn-secondary btn-sm">← Retour</a>
+    </div>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data">
+
+    <!-- ── 1. Identification ── -->
+    <div class="card mb-2">
+      <div class="section-header">// 1. Identification</div>
+
+      {% if not product %}
+      <!-- Mode scan : un bandeau d'accueil invite à scanner le code-barres en premier -->
+      <div id="scanBanner" style="
+        display:flex;align-items:center;gap:.85rem;
+        background:#f5a62312;border:1px solid #f5a62344;
+        border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem;
+        animation:pulseGlow 2s infinite;
+      ">
+        <span style="font-size:1.6rem;">⬡</span>
+        <div>
+          <div style="font-weight:600;font-size:.88rem;color:var(--accent);">Scannez le code-barres du produit</div>
+          <div style="font-size:.76rem;color:var(--muted);margin-top:.15rem;">
+            Pointez la douchette sur l'article · Le code sera injecté automatiquement · Appuyez sur <kbd style="background:var(--border);border-radius:4px;padding:.05rem .35rem;font-family:var(--mono);font-size:.75rem;">Entrée</kbd> pour continuer la saisie
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label class="form-label">Désignation *</label>
+        <input class="form-control" name="designation" id="designationField"
+               value="{{ product.designation if product else '' }}" required
+               {% if product %}autofocus{% endif %}
+               placeholder="Nom complet du produit…">
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">
+            SKU / Code interne
+            {% if not product %}
+            <span id="skuBadge" style="margin-left:.4rem;font-size:.68rem;padding:.1rem .45rem;border-radius:99px;background:#f5a62322;color:var(--accent);border:1px solid #f5a62444;">
+              Auto
+            </span>
+            {% endif %}
+          </label>
+          <div style="display:flex;gap:.4rem;align-items:center;">
+            <input class="form-control text-mono" name="sku" id="skuField"
+                   value="{{ product.sku or '' if product else next_sku }}"
+                   placeholder="ex: ART-0001…"
+                   style="flex:1;">
+            {% if not product %}
+            <button type="button" class="btn btn-secondary btn-sm"
+                    id="skuRegenBtn"
+                    onclick="regenSku()"
+                    title="Générer le prochain code automatiquement"
+                    style="flex-shrink:0;white-space:nowrap;">
+              ↻ Régénérer
+            </button>
+            {% endif %}
+          </div>
+          {% if not product %}
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;">
+            Code généré automatiquement · Modifiable librement
+          </div>
+          {% endif %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Code-barres
+            {% if not product %}
+            <span id="scanStatus" style="margin-left:.5rem;font-size:.7rem;color:var(--muted);font-weight:400;">
+              En attente du scan…
+            </span>
+            {% endif %}
+          </label>
+          <div style="position:relative;">
+            <input class="form-control text-mono" name="barcode" id="barcodeField"
+                   value="{{ product.barcode if product and not product.barcode_generated else '' }}"
+                   placeholder="{% if not product %}Prêt à scanner — douchette ou saisie manuelle{% else %}Code-barres{% endif %}"
+                   {% if product and product.barcode_generated %}disabled{% endif %}
+                   {% if not product %}autofocus{% endif %}
+                   autocomplete="off" spellcheck="false"
+                   style="{% if not product %}padding-right:2.5rem;{% endif %}">
+            {% if not product %}
+            <span id="barcodeIcon" style="
+              position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
+              font-size:1rem;pointer-events:none;opacity:.4;transition:opacity .2s;
+            ">⬡</span>
+            {% endif %}
+          </div>
+          {% if not product %}
+          <div id="barcodeConfirm" style="display:none;margin-top:.4rem;padding:.4rem .7rem;background:#16a34a22;border:1px solid #16a34a44;border-radius:7px;font-size:.78rem;color:#4ade80;">
+            ✓ Code scanné — remplissez les autres informations
+          </div>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.78rem;color:var(--muted);margin-top:.35rem;" id="genCbLabel">
+            <input type="checkbox" name="generate_barcode" value="1" id="genCb" style="accent-color:var(--accent);">
+            Pas de code-barres — générer EAN-13 automatiquement
+          </label>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Fournisseur</label>
+          <select class="form-control" name="supplier_id">
+            <option value="">— Aucun —</option>
+            {% for s in suppliers %}
+            <option value="{{ s.id }}" {% if product and product.supplier_id == s.id %}selected{% endif %}>{{ s.nom }}</option>
+            {% endfor %}
+          </select>
+          <div style="margin-top:.35rem;">
+            <a href="{{ url_for('suppliers.create') }}" target="_blank" style="font-size:.74rem;color:var(--accent);text-decoration:none;">+ Créer un fournisseur</a>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Catégorie</label>
+          <select class="form-control" name="category_id" id="categorySel">
+            <option value="">— Sans catégorie —</option>
+            {% for c in categories %}
+            <option value="{{ c.id }}" data-color="{{ c.couleur }}" data-icone="{{ c.icone }}"
+                    {% if product and product.category_id == c.id %}selected{% endif %}>
+              {{ c.icone }} {{ c.nom }}
+            </option>
+            {% endfor %}
+          </select>
+          <div style="margin-top:.35rem;">
+            <a href="{{ url_for('categories.create') }}" target="_blank" style="font-size:.74rem;color:var(--accent);text-decoration:none;">+ Créer une catégorie</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description courte (optionnel)</label>
+        <textarea class="form-control" name="description" rows="2"
+                  placeholder="Détails, composition, format…">{{ product.description or '' if product else '' }}</textarea>
+      </div>
+
+      {% if not product %}
+      <div class="form-group">
+        <label class="form-label">Stock initial (entrepôt)</label>
+        <input class="form-control" type="number" name="stock_initial" value="0" min="0" style="max-width:160px;">
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── 2. Image ── -->
+    <div class="card mb-2">
+      <div class="section-header">// 2. Photo du produit</div>
+      <div class="grid-2" style="align-items:start;">
+        <div class="img-drop" id="dropZone">
+          <input type="file" name="image" id="imageInput" accept="image/*">
+          {% if product and product.image_url %}
+            <img src="{{ product.image_url }}" class="img-preview" id="imgPreview">
+            <div class="text-muted" style="font-size:.78rem;">Cliquer ou glisser pour remplacer</div>
+          {% else %}
+            <div style="font-size:2rem;margin-bottom:.4rem;">🖼</div>
+            <div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem;">Glisser une image</div>
+            <div class="text-muted" style="font-size:.75rem;">PNG, JPG, WEBP</div>
+          {% endif %}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.75rem;padding:.5rem 0;">
+          <div id="imgInfo" style="display:none;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:.82rem;">
+            <div class="text-muted" style="font-size:.7rem;">FICHIER</div>
+            <div id="imgName" style="font-weight:500;"></div>
+            <div id="imgSize" class="text-muted" style="font-size:.75rem;"></div>
+          </div>
+          {% if product and product.image_url %}
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.82rem;color:var(--danger);">
+            <input type="checkbox" name="delete_image" value="1" style="accent-color:var(--danger);">
+            Supprimer l'image
+          </label>
+          {% endif %}
+          {% if product and product.has_variants %}
+          <div class="text-muted" style="font-size:.76rem;line-height:1.5;padding:.6rem;background:var(--bg);border-radius:6px;border:1px solid var(--border);">
+            💡 Chaque variante peut avoir sa propre image qui remplace celle-ci.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 3. Prix & TVA ── -->
+    <div class="card mb-2">
+      <div class="section-header">// 3. Prix & Fiscalité
+        {% if product and product.has_variants %}
+        <span class="badge badge-orange" style="margin-left:.5rem;font-size:.65rem;">Les variantes ont leurs propres prix</span>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          Prix en Gros (FCFA)
+          <span class="text-muted" style="font-weight:400;font-size:.72rem;">— optionnel, si vente en gros activée</span>
+        </label>
+        <input class="form-control text-mono" type="number" name="prix_gros" id="prixGros"
+               step="1" min="0"
+               value="{{ product.prix_gros|int if product and product.prix_gros else '' }}"
+               placeholder="0 = utiliser le prix TTC normal"
+               style="max-width:220px;">
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem;">
+          Affiché à la Caisse Gros. Si vide, le prix TTC standard est utilisé.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Prix d'achat (FCFA)</label>
+        <input class="form-control text-mono" type="number" name="prix_achat" id="prixAchat" 
+               step="1" min="0" value="{{ product.prix_achat|int if product else '' }}"
+               placeholder="0" style="max-width:220px;">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Calcul du prix de vente</label>
+        <div class="tax-row">
+          <div>
+            <label class="form-label" style="margin-bottom:.3rem;">Prix HT (FCFA) *</label>
+            <input class="form-control text-mono" type="number" name="prix_vente_ht" id="prixHT"
+                   step="1" min="0" required value="{{ product.prix_vente_ht|int if product else '' }}" placeholder="0">
+          </div>
+          <div class="tax-op">×</div>
+          <div>
+            <label class="form-label" style="margin-bottom:.3rem;">TVA (%)</label>
+            <input class="form-control text-mono" type="number" name="taux_tva" id="tauxTVA"
+                   step="0.01" min="0" max="100"
+                   value="{{ product.taux_tva if product else '0' }}" style="text-align:center;">
+            <div class="tva-presets">
+              {% for r in [0,5,10,18,20] %}
+              <button type="button" class="tva-preset {% if (product and product.taux_tva == r) or (not product and r == 0) %}active{% endif %}"
+                      data-rate="{{ r }}" onclick="setTVA({{ r }},this)">{{ r }}%</button>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="tax-op">=</div>
+          <div>
+            <label class="form-label" style="margin-bottom:.3rem;color:var(--accent);">Prix TTC (Caisse)</label>
+            <div class="ttc-display" id="ttcDisplay">
+              {% if product %}{{ product.prix_vente_ttc|int }} FCFA{% else %}0 FCFA{% endif %}
+            </div>
+            <input type="hidden" name="prix_vente_ttc" id="prixTTC" value="{{ product.prix_vente_ttc if product else 0 }}">
+          </div>
+        </div>
+      </div>
+
+      <div id="marginBox" style="padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;display:flex;gap:1.5rem;flex-wrap:wrap;">
+        <div><div class="text-muted" style="font-size:.7rem;">MARGE</div>
+          <span class="margin-pill" id="margeVal" style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a44;">—</span></div>
+        <div><div class="text-muted" style="font-size:.7rem;">TAUX</div>
+          <span class="margin-pill" id="tauxMarge" style="background:#0284c722;color:#38bdf8;border:1px solid #0284c744;">—</span></div>
+        <div><div class="text-muted" style="font-size:.7rem;">TVA/UNITÉ</div>
+          <span class="margin-pill" id="tvaVal" style="background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44;">—</span></div>
+      </div>
+    </div>
+
+    <div class="flex gap-2" style="margin-top:1.5rem;">
+      <button type="submit" class="btn btn-primary" style="padding:.7rem 2rem;">
+        {% if product %}💾 Sauvegarder{% else %}✓ Créer le produit{% endif %}
+      </button>
+      <a href="{{ url_for('manager.products') }}" class="btn btn-secondary">Annuler</a>
+      {% if product and not product.has_variants %}
+      <a href="{{ url_for('variants.create', pid=product.id) }}" class="btn btn-secondary" style="margin-left:auto;">
+        + Ajouter des variantes
+      </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Barcode scanner support ────────────────────────────────────────────────
+const genCb   = document.getElementById('genCb');
+const bf      = document.getElementById('barcodeField');
+const scanBanner  = document.getElementById('scanBanner');
+const scanStatus  = document.getElementById('scanStatus');
+const barcodeIcon = document.getElementById('barcodeIcon');
+const barcodeConfirm = document.getElementById('barcodeConfirm');
+const desigField  = document.getElementById('designationField');
+
+// Checkbox "générer EAN-13" ↔ champ barcode
+if (genCb && bf) {
+  genCb.addEventListener('change', () => {
+    bf.disabled = genCb.checked;
+    if (genCb.checked) {
+      bf.value = '';
+      onBarcodeCleared();
+    }
+  });
+}
+
+// Quand on tape dans le barcode field : retirer le flag "générer"
+if (bf) {
+  bf.addEventListener('input', () => {
+    if (bf.value.trim()) {
+      // Une valeur est présente : décocher "générer auto"
+      if (genCb && genCb.checked) {
+        genCb.checked = false;
+        bf.disabled   = false;
+      }
+      onBarcodeTyping();
+    } else {
+      onBarcodeCleared();
+    }
+  });
+
+  // Entrée dans le champ barcode = scan terminé → passer à la désignation
+  bf.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();  // Ne pas soumettre le formulaire
+      const val = bf.value.trim();
+      if (val) {
+        onBarcodeLocked(val);
+        // Passer le focus sur la désignation
+        if (desigField) {
+          desigField.focus();
+          desigField.select();
+        }
+      }
+    }
+  });
+}
+
+function onBarcodeTyping() {
+  if (scanStatus) scanStatus.textContent = 'Scan en cours…';
+  if (barcodeIcon) barcodeIcon.style.opacity = '1';
+  if (scanBanner)  scanBanner.style.borderColor = 'var(--accent)';
+}
+
+function onBarcodeLocked(val) {
+  if (scanStatus) {
+    scanStatus.textContent = `✓ ${val}`;
+    scanStatus.style.color = 'var(--success)';
+  }
+  if (barcodeConfirm) barcodeConfirm.style.display = 'block';
+  if (scanBanner)  {
+    scanBanner.style.display   = 'none';  // cacher le bandeau après scan réussi
+  }
+  if (barcodeIcon) barcodeIcon.style.opacity = '0';
+  if (genCb)       genCb.checked = false;
+}
+
+function onBarcodeCleared() {
+  if (scanStatus)      scanStatus.textContent = 'En attente du scan…';
+  if (scanStatus)      scanStatus.style.color = '';
+  if (barcodeConfirm)  barcodeConfirm.style.display = 'none';
+  if (barcodeIcon)     barcodeIcon.style.opacity = '.4';
+  if (scanBanner)      scanBanner.style.display = 'flex';
+}
+
+// ── Image ──────────────────────────────────────────────────────────────────
+const dz  = document.getElementById('dropZone');
+const ii  = document.getElementById('imageInput');
+const inf = document.getElementById('imgInfo');
+ii.addEventListener('change', e => showPrev(e.target.files[0]));
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) { const dt = new DataTransfer(); dt.items.add(f); ii.files = dt.files; showPrev(f); }
+});
+function showPrev(f) {
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    let img = document.getElementById('imgPreview');
+    if (!img) { img = document.createElement('img'); img.id='imgPreview'; img.className='img-preview'; dz.prepend(img); }
+    img.src = e.target.result;
+  };
+  r.readAsDataURL(f);
+  if (inf) { inf.style.display='block'; document.getElementById('imgName').textContent=f.name; document.getElementById('imgSize').textContent=(f.size/1024).toFixed(1)+' Ko'; }
+}
+
+// ── Tax ────────────────────────────────────────────────────────────────────
+const prixHT   = document.getElementById('prixHT');
+const prixAchat= document.getElementById('prixAchat');
+const tauxTVA  = document.getElementById('tauxTVA');
+const ttcDisp  = document.getElementById('ttcDisplay');
+const prixTTC  = document.getElementById('prixTTC');
+function calcTTC() {
+  const ht   = parseFloat(prixHT.value)    || 0;
+  const tva  = parseFloat(tauxTVA.value)   || 0;
+  const achat= parseFloat(prixAchat.value) || 0;
+  const ttc  = Math.round(ht * (1 + tva/100));
+  ttcDisp.textContent = ttc.toLocaleString('fr-FR') + ' FCFA';
+  prixTTC.value = ttc;
+  document.getElementById('tvaVal').textContent   = (ttc-ht).toFixed(0) + ' FCFA';
+  const marge = ht - achat;
+  document.getElementById('margeVal').textContent  = marge.toFixed(0) + ' FCFA';
+  document.getElementById('tauxMarge').textContent = (achat > 0 ? (marge/achat*100).toFixed(1) : '—') + '%';
+}
+function setTVA(r, btn) {
+  tauxTVA.value = r;
+  document.querySelectorAll('.tva-preset').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); calcTTC();
+}
+[prixHT, prixAchat, tauxTVA].forEach(el => el && el.addEventListener('input', calcTTC));
+calcTTC();
+
+// ── SKU auto-generate ──────────────────────────────────────────────────────
+async function regenSku() {
+  const btn   = document.getElementById('skuRegenBtn');
+  const field = document.getElementById('skuField');
+  if (!btn || !field) return;
+  btn.disabled     = true;
+  btn.textContent  = '…';
+  try {
+    const r = await fetch('/manager/api/next-sku');
+    const d = await r.json();
+    if (d.sku) {
+      field.value     = d.sku;
+      field.style.borderColor = 'var(--accent)';
+      setTimeout(() => field.style.borderColor = '', 1000);
+    }
+  } catch { /* silent */ }
+  btn.disabled    = false;
+  btn.textContent = '↻ Régénérer';
+}
+</script>
+{% endblock %}

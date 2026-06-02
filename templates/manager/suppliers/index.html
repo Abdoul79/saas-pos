@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Fournisseurs — SaaS POS{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Fournisseurs</div>
+  <div class="flex gap-1">
+    <a href="{{ url_for('orders.index') }}" class="btn btn-secondary">📋 Historique commandes</a>
+    <a href="{{ url_for('suppliers.create') }}" class="btn btn-primary">+ Nouveau fournisseur</a>
+  </div>
+</div>
+
+<div class="card mb-2">
+  <form method="GET" class="flex gap-2 items-center">
+    <input name="q" class="form-control" value="{{ q }}" placeholder="Rechercher un fournisseur…" style="max-width:320px;">
+    <button type="submit" class="btn btn-secondary">Rechercher</button>
+    {% if q %}<a href="{{ url_for('suppliers.index') }}" class="btn btn-secondary">✕</a>{% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fournisseur</th><th>Contact</th><th>Téléphone</th>
+          <th>Email</th><th>Ville</th><th>Produits</th><th>Statut</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in suppliers %}
+        <tr>
+          <td>
+            <a href="{{ url_for('suppliers.detail', sid=s.id) }}"
+               style="color:var(--accent);text-decoration:none;font-weight:600;">
+              {{ s.nom }}
+            </a>
+          </td>
+          <td>{{ s.contact or '—' }}</td>
+          <td class="text-mono" style="font-size:.82rem;">{{ s.telephone or '—' }}</td>
+          <td style="font-size:.82rem;">{{ s.email or '—' }}</td>
+          <td>{{ s.ville or '—' }}</td>
+          <td>
+            <span class="badge badge-blue">{{ s.product_count }} produit(s)</span>
+          </td>
+          <td>
+            {% if s.is_active %}
+              <span class="badge badge-green">Actif</span>
+            {% else %}
+              <span class="badge badge-red">Inactif</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="flex gap-1">
+              <!-- Bouton Commander -->
+              <a href="{{ url_for('orders.create', sid=s.id) }}"
+                 class="btn btn-sm"
+                 style="background:#f5a62322;color:var(--accent);border:1px solid #f5a62355;font-weight:600;"
+                 title="Passer une commande à ce fournisseur">
+                🛒 Commander
+              </a>
+              <!-- Historique commandes -->
+              <a href="{{ url_for('orders.index') }}?supplier_id={{ s.id }}"
+                 class="btn btn-secondary btn-sm"
+                 title="Historique des commandes">
+                📋
+              </a>
+              <a href="{{ url_for('suppliers.edit', sid=s.id) }}" class="btn btn-secondary btn-sm">Éditer</a>
+              <a href="{{ url_for('suppliers.detail', sid=s.id) }}" class="btn btn-secondary btn-sm">Détail</a>
+              <form method="POST" action="{{ url_for('suppliers.toggle', sid=s.id) }}">
+                <button type="submit" class="btn btn-sm {% if s.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                  {{ 'Désactiver' if s.is_active else 'Activer' }}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align:center;padding:3rem;">
+            <div class="text-muted">Aucun fournisseur enregistré.</div>
+            <a href="{{ url_for('suppliers.create') }}" class="btn btn-primary" style="margin-top:1rem;">Ajouter le premier fournisseur</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

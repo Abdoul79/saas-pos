@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Commerçants — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;align-items:center;justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal-box { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.75rem;min-width:360px;max-width:440px;width:92%;animation:popIn .2s ease; }
+  @keyframes popIn { from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Tous les Commerçants</div>
+  <div class="flex gap-1">
+    {% for s in ['', 'pending', 'active', 'suspended', 'rejected'] %}
+    <a href="?status={{ s }}" class="btn btn-sm {% if current_filter == s %}btn-primary{% else %}btn-secondary{% endif %}">
+      {{ 'Tous' if not s else s.capitalize() }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Commerçant</th><th>Email</th><th>Activité</th>
+          <th>Ville</th><th>Statut</th><th>Licence</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tenants %}
+        <tr>
+          <td><strong>{{ t.prenom }} {{ t.nom }}</strong>
+            {% if t.nom_boutique %}<div style="font-size:.74rem;color:var(--accent);">{{ t.nom_boutique }}</div>{% endif %}
+          </td>
+          <td class="text-mono" style="font-size:.78rem;">{{ t.email }}</td>
+          <td>{{ t.activite }}</td>
+          <td>{{ t.ville }}</td>
+          <td>
+            {% if t.status == 'active' %}<span class="badge badge-green">Actif</span>
+            {% elif t.status == 'pending' %}<span class="badge badge-orange">En attente</span>
+            {% elif t.status == 'suspended' %}<span class="badge badge-red">Suspendu</span>
+            {% else %}<span class="badge" style="color:var(--muted);border:1px solid var(--border);">Rejeté</span>{% endif %}
+          </td>
+          <td class="text-mono" style="font-size:.78rem;">
+            {{ t.licence_expiry.strftime('%d/%m/%Y') if t.licence_expiry else '—' }}
+          </td>
+          <td>
+            <div class="flex gap-1" style="flex-wrap:nowrap;">
+              <a href="{{ url_for('super_admin.tenant_detail', tenant_id=t.id) }}" class="btn btn-secondary btn-sm">Détail</a>
+
+              {% if t.status == 'active' %}
+              <button type="button" class="btn btn-sm"
+                      style="background:#d9770618;color:#fbbf24;border:1px solid #d9770644;"
+                      data-suspend data-tid="{{ t.id }}" data-name="{{ t.prenom }} {{ t.nom }}">
+                ⏸
+              </button>
+              <form method="POST" action="{{ url_for('super_admin.extend_licence', tenant_id=t.id) }}" style="display:inline-flex;gap:.3rem;align-items:center;">
+                <input name="days" type="number" value="30" min="1" style="width:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.2rem .3rem;color:var(--text);font-size:.75rem;">
+                <button type="submit" class="btn btn-success btn-sm">+Jours</button>
+              </form>
+              {% elif t.status in ['pending', 'suspended'] %}
+              <form method="POST" action="{{ url_for('super_admin.activate_tenant', tenant_id=t.id) }}" style="display:inline-flex;gap:.3rem;align-items:center;">
+                <input name="days" type="number" value="30" min="1" style="width:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.2rem .3rem;color:var(--text);font-size:.75rem;">
+                <button type="submit" class="btn btn-success btn-sm">Activer</button>
+              </form>
+              {% endif %}
+
+              <button type="button" class="btn btn-danger btn-sm"
+                      data-delete-tenant data-tid="{{ t.id }}" data-name="{{ t.prenom }} {{ t.nom }}">
+                🗑
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-muted" style="text-align:center;padding:2rem;">Aucun commerçant.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ MODAL SUSPENSION ══ -->
+<div class="modal-overlay" id="suspendModal">
+  <div class="modal-box">
+    <div style="text-align:center;margin-bottom:1.25rem;">
+      <div style="width:52px;height:52px;background:#d9770620;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .85rem;font-size:1.5rem;">⏸</div>
+      <div style="font-size:1rem;font-weight:700;margin-bottom:.4rem;">Suspendre le compte</div>
+      <div style="font-size:.85rem;color:var(--muted);">
+        Le compte de <strong id="suspendName"></strong> sera suspendu.<br>
+        Tous les utilisateurs perdront l'accès immédiatement.
+      </div>
+      <div style="margin-top:.65rem;background:#d9770615;border:1px solid #d9770630;border-radius:8px;padding:.6rem .9rem;font-size:.78rem;color:#fbbf24;">
+        ⚠ Le compte peut être réactivé à tout moment.
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('suspendModal')">Annuler</button>
+      <form id="suspendForm" method="POST" style="flex:1;">
+        <button type="submit" class="btn btn-sm" style="width:100%;background:#d97706;color:#fff;border:none;padding:.7rem;border-radius:8px;font-weight:700;">
+          ⏸ Suspendre
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL SUPPRESSION ══ -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <div style="text-align:center;margin-bottom:1.25rem;">
+      <div style="width:52px;height:52px;background:#dc262220;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .85rem;font-size:1.5rem;">🗑</div>
+      <div style="font-size:1rem;font-weight:700;margin-bottom:.4rem;">Supprimer le compte</div>
+      <div style="font-size:.85rem;color:var(--muted);">
+        Suppression définitive du compte de <strong id="deleteName"></strong>.
+      </div>
+      <div style="margin-top:.65rem;background:#dc262215;border:1px solid #dc262230;border-radius:8px;padding:.6rem .9rem;font-size:.78rem;color:#f87171;">
+        ⚠ Toutes les données (produits, ventes, stock) seront supprimées. Action irréversible.
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('deleteModal')">Annuler</button>
+      <form id="deleteForm" method="POST" style="flex:1;">
+        <button type="submit" class="btn btn-danger" style="width:100%;font-weight:700;">
+          🗑 Supprimer définitivement
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(m =>
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); })
+);
+
+document.addEventListener('click', e => {
+  const s = e.target.closest('[data-suspend]');
+  if (s) {
+    document.getElementById('suspendName').textContent = s.dataset.name;
+    document.getElementById('suspendForm').action = `/superadmin/tenant/${s.dataset.tid}/suspend`;
+    document.getElementById('suspendModal').classList.add('open');
+  }
+  const d = e.target.closest('[data-delete-tenant]');
+  if (d) {
+    document.getElementById('deleteName').textContent = d.dataset.name;
+    document.getElementById('deleteForm').action = `/superadmin/tenant/${d.dataset.tid}/delete`;
+    document.getElementById('deleteModal').classList.add('open');
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "shop/base.html" %}
+{% block title %}Commande {{ order.reference }} — {{ tenant.nom_boutique }}{% endblock %}
+{% block content %}
+<div style="max-width:700px;margin:0 auto;">
+  <div style="text-align:center;margin-bottom:2rem;">
+    <div style="font-size:3rem;">{{ OnlineOrderStatus.icon(order.status) }}</div>
+    <h1 style="font-size:1.3rem;font-weight:800;margin:.5rem 0;">Commande {{ order.reference }}</h1>
+    <span class="badge" style="background:{{ OnlineOrderStatus.color(order.status) }}22;color:{{ OnlineOrderStatus.color(order.status) }};border:1px solid {{ OnlineOrderStatus.color(order.status) }}44;font-size:.85rem;padding:.35rem .85rem;">
+      {{ OnlineOrderStatus.icon(order.status) }} {{ OnlineOrderStatus.label(order.status) }}
+    </span>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    {% for item in order.items %}
+    <div style="display:flex;justify-content:space-between;padding:.75rem 1rem;border-bottom:1px solid var(--border);font-size:.88rem;">
+      <span>{{ item.quantity }}× {{ item.designation }}</span>
+      <span style="font-weight:600;">{{ item.subtotal|int }} FCFA</span>
+    </div>
+    {% endfor %}
+    <div style="display:flex;justify-content:space-between;padding:1rem;font-size:1.15rem;font-weight:800;">
+      <span>Total</span>
+      <span style="color:var(--accent);">{{ order.total_amount|int }} FCFA</span>
+    </div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;font-size:.88rem;">
+    <div style="margin-bottom:.5rem;"><strong>Livraison :</strong> {{ order.adresse_livraison }}, {{ order.ville_livraison }}</div>
+    <div style="margin-bottom:.5rem;"><strong>Téléphone :</strong> {{ order.telephone_contact }}</div>
+    {% if order.note_client %}<div style="margin-bottom:.5rem;"><strong>Note :</strong> {{ order.note_client }}</div>{% endif %}
+    <div style="color:var(--muted);">Passée le {{ order.created_at.strftime('%d/%m/%Y à %H:%M') }}</div>
+  </div>
+</div>
+{% endblock %}

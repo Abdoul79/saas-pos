@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Bon de Commande — {{ order.reference }}</title>
+  <style>
+    /* ── Base ── */
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 10pt;
+      color: #1a1a2e;
+      background: #fff;
+      padding: 0;
+    }
+
+    /* ── Page ── */
+    @page {
+      size: A4;
+      margin: 18mm 18mm 22mm 18mm;
+      @bottom-center {
+        content: "Page " counter(page) " / " counter(pages);
+        font-size: 8pt;
+        color: #999;
+      }
+    }
+
+    /* ── Header ── */
+    .doc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 3px solid #1a1a2e;
+    }
+    .company-block h1 {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #1a1a2e;
+      letter-spacing: -.5px;
+    }
+    .company-block .sub {
+      font-size: 8.5pt;
+      color: #666;
+      margin-top: 3px;
+    }
+    .doc-title-block { text-align: right; }
+    .doc-title-block .doc-type {
+      font-size: 16pt;
+      font-weight: 700;
+      color: #c05c00;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .doc-title-block .doc-ref {
+      font-size: 9pt;
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+      margin-top: 4px;
+      color: #333;
+    }
+    .doc-title-block .doc-date { font-size: 8.5pt; color: #666; margin-top: 2px; }
+
+    /* ── Addresses ── */
+    .parties {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+    .party-box {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 12px 14px;
+    }
+    .party-box .party-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .party-box .party-name {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 3px;
+    }
+    .party-box .party-info {
+      font-size: 8.5pt;
+      color: #555;
+      line-height: 1.6;
+    }
+
+    /* ── Meta info bar ── */
+    .meta-bar {
+      display: flex;
+      gap: 0;
+      margin-bottom: 22px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .meta-item {
+      flex: 1;
+      padding: 8px 12px;
+      border-right: 1px solid #ddd;
+    }
+    .meta-item:last-child { border-right: none; }
+    .meta-item .mi-label { font-size: 7pt; text-transform: uppercase; letter-spacing: .6px; color: #999; margin-bottom: 2px; }
+    .meta-item .mi-value { font-size: 9pt; font-weight: 600; color: #1a1a2e; }
+    .meta-item .mi-value.mono { font-family: 'Courier New', monospace; }
+
+    /* ── Table ── */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .items-table thead tr {
+      background: #1a1a2e;
+      color: #fff;
+    }
+    .items-table thead th {
+      padding: 8px 10px;
+      font-size: 8pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      text-align: left;
+    }
+    .items-table thead th.r { text-align: right; }
+    .items-table tbody tr { border-bottom: 1px solid #eee; }
+    .items-table tbody tr:nth-child(even) { background: #fafafa; }
+    .items-table tbody td {
+      padding: 7px 10px;
+      font-size: 9pt;
+      vertical-align: middle;
+    }
+    .items-table tbody td.r { text-align: right; }
+    .items-table tbody td.mono { font-family: 'Courier New', monospace; font-size: 8.5pt; }
+    .items-table tfoot td {
+      padding: 7px 10px;
+      font-size: 9.5pt;
+      font-weight: 700;
+      border-top: 2px solid #1a1a2e;
+    }
+    .items-table tfoot td.r { text-align: right; }
+
+    /* ── Totals ── */
+    .totals-block {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 24px;
+    }
+    .totals-table {
+      width: 260px;
+      border-collapse: collapse;
+    }
+    .totals-table td {
+      padding: 5px 10px;
+      font-size: 9.5pt;
+      border-bottom: 1px solid #eee;
+    }
+    .totals-table tr:last-child td {
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 11pt;
+      font-weight: 700;
+      border-bottom: none;
+    }
+    .totals-table .lbl { color: #555; }
+    .totals-table tr:last-child .lbl { color: #ccc; }
+    .totals-table .val { text-align: right; font-family: 'Courier New', monospace; font-weight: 600; }
+
+    /* ── Notes ── */
+    .notes-block {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
+    }
+    .notes-block .notes-label {
+      font-size: 7.5pt; text-transform: uppercase; letter-spacing: .6px;
+      color: #888; margin-bottom: 5px; font-weight: 700;
+    }
+    .notes-block p { font-size: 9pt; color: #444; line-height: 1.5; }
+
+    /* ── Footer ── */
+    .doc-footer {
+      margin-top: 20px;
+      padding-top: 12px;
+      border-top: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 7.5pt;
+      color: #aaa;
+    }
+    .signature-zone {
+      text-align: center;
+    }
+    .signature-zone .sig-label {
+      font-size: 7.5pt; color: #888;
+      margin-bottom: 40px; /* space for signature */
+    }
+    .signature-zone .sig-line {
+      width: 160px;
+      border-top: 1px solid #aaa;
+      margin: 0 auto;
+      padding-top: 4px;
+      font-size: 7pt;
+      color: #aaa;
+    }
+
+    /* ── Status badge ── */
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .status-draft    { background: #e8f0fe; color: #1a73e8; }
+    .status-sent     { background: #f3e8fd; color: #8b00ff; }
+    .status-partial  { background: #fff3e0; color: #e65100; }
+    .status-received { background: #e8f5e9; color: #2e7d32; }
+    .status-cancelled{ background: #fce8e6; color: #c5221f; }
+  </style>
+</head>
+<body>
+
+  <!-- ── En-tête ── -->
+  <div class="doc-header">
+    <div class="company-block">
+      <h1>{{ tenant.activite }}</h1>
+      <div class="sub">{{ tenant.adresse }}</div>
+      <div class="sub">{{ tenant.ville }}</div>
+      {% if tenant.email %}<div class="sub">{{ tenant.email }}</div>{% endif %}
+    </div>
+    <div class="doc-title-block">
+      <div class="doc-type">Bon de Commande</div>
+      <div class="doc-ref">{{ order.reference or 'CMD-' + order.id|string }}</div>
+      {% if order.ref_fournisseur %}
+      <div class="doc-date">Réf. fourn. : {{ order.ref_fournisseur }}</div>
+      {% endif %}
+      <div class="doc-date">Date : {{ today.strftime('%d/%m/%Y') }}</div>
+      <div style="margin-top:5px;">
+        {% if order.statut == 'brouillon' %}
+          <span class="status-badge status-draft">Brouillon</span>
+        {% elif order.statut == 'envoyee' %}
+          <span class="status-badge status-sent">Envoyée</span>
+        {% elif order.statut == 'recue_partielle' %}
+          <span class="status-badge status-partial">Partielle</span>
+        {% elif order.statut == 'recue' %}
+          <span class="status-badge status-received">Reçue</span>
+        {% else %}
+          <span class="status-badge status-cancelled">Annulée</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Parties ── -->
+  <div class="parties">
+    <div class="party-box">
+      <div class="party-label">Acheteur</div>
+      <div class="party-name">{{ tenant.prenom }} {{ tenant.nom }}</div>
+      <div class="party-info">
+        {{ tenant.activite }}<br>
+        {{ tenant.adresse }}<br>
+        {{ tenant.ville }}
+        {% if tenant.email %}<br>{{ tenant.email }}{% endif %}
+      </div>
+    </div>
+    <div class="party-box">
+      <div class="party-label">Fournisseur</div>
+      <div class="party-name">{{ order.supplier.nom }}</div>
+      <div class="party-info">
+        {% if order.supplier.contact %}{{ order.supplier.contact }}<br>{% endif %}
+        {% if order.supplier.adresse %}{{ order.supplier.adresse }}<br>{% endif %}
+        {% if order.supplier.ville %}{{ order.supplier.ville }}<br>{% endif %}
+        {% if order.supplier.telephone %}Tél : {{ order.supplier.telephone }}<br>{% endif %}
+        {% if order.supplier.email %}{{ order.supplier.email }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Méta ── -->
+  <div class="meta-bar">
+    <div class="meta-item">
+      <div class="mi-label">Référence</div>
+      <div class="mi-value mono">{{ order.reference or '—' }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="mi-label">Date commande</div>
+      <div class="mi-value">{{ order.created_at.strftime('%d/%m/%Y') }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="mi-label">Livraison prévue</div>
+      <div class="mi-value">{{ order.date_livraison_prevue.strftime('%d/%m/%Y') if order.date_livraison_prevue else '—' }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="mi-label">Créé par</div>
+      <div class="mi-value">{{ order.created_by.full_name }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="mi-label">Nb articles</div>
+      <div class="mi-value">{{ order.total_items }}</div>
+    </div>
+  </div>
+
+  <!-- ── Lignes de commande ── -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width:30px;">#</th>
+        <th>Désignation</th>
+        <th style="width:90px;">SKU</th>
+        <th style="width:70px;" class="r">Qté</th>
+        <th style="width:100px;" class="r">Prix unit. HT</th>
+        <th style="width:110px;" class="r">Total HT</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in order.items %}
+      <tr>
+        <td style="color:#aaa;font-size:8pt;">{{ loop.index }}</td>
+        <td><strong>{{ item.designation }}</strong></td>
+        <td class="mono">{{ item.sku or '—' }}</td>
+        <td class="r" style="font-weight:700;">{{ item.quantite_commandee }}</td>
+        <td class="r mono">{{ "%.0f"|format(item.prix_achat_unitaire) }}</td>
+        <td class="r mono" style="font-weight:600;">{{ "%.0f"|format(item.total) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5" class="r">TOTAL HT</td>
+        <td class="r" style="font-family:'Courier New',monospace;font-size:11pt;">
+          {{ "%.0f"|format(order.total_amount) }} FCFA
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- ── Notes ── -->
+  {% if order.notes %}
+  <div class="notes-block">
+    <div class="notes-label">Notes / Instructions</div>
+    <p>{{ order.notes }}</p>
+  </div>
+  {% endif %}
+
+  <!-- ── Signatures ── -->
+  <div style="display:flex;justify-content:space-around;margin-top:30px;margin-bottom:20px;">
+    <div class="signature-zone">
+      <div class="sig-label">L'Acheteur</div>
+      <div class="sig-line">Signature &amp; Cachet</div>
+    </div>
+    <div class="signature-zone">
+      <div class="sig-label">Le Fournisseur</div>
+      <div class="sig-line">Signature &amp; Cachet</div>
+    </div>
+  </div>
+
+  <!-- ── Pied de page ── -->
+  <div class="doc-footer">
+    <div>Généré le {{ today.strftime('%d/%m/%Y') }} — {{ tenant.activite }}</div>
+    <div>{{ order.reference or 'CMD-' + order.id|string }}</div>
+  </div>
+
+</body>
+</html>

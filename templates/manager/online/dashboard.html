@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Ventes en Ligne — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">🌐 Ventes en Ligne</div>
+  <div class="flex gap-1">
+    {% if tenant.boutique_en_ligne_active and tenant.shop_slug %}
+    <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn btn-secondary" target="_blank">🔗 Voir la boutique</a>
+    {% endif %}
+    <a href="{{ url_for('online.settings') }}" class="btn btn-secondary">⚙ Paramètres</a>
+  </div>
+</div>
+
+{% if not tenant.boutique_en_ligne_active %}
+<div class="card" style="text-align:center;padding:3rem;">
+  <div style="font-size:3rem;margin-bottom:1rem;">🌐</div>
+  <div style="font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">Boutique en ligne désactivée</div>
+  <div class="text-muted" style="margin-bottom:1rem;">Activez votre boutique pour vendre en ligne.</div>
+  <a href="{{ url_for('online.settings') }}" class="btn btn-primary">⚙ Configurer la boutique</a>
+</div>
+{% else %}
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Commandes aujourd'hui</div>
+    <div class="stat-value text-accent">{{ today_orders|length }}</div>
+    <div class="stat-sub">{{ "%.0f"|format(today_ca) }} FCFA</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">CA Total en Ligne</div>
+    <div class="stat-value">{{ "%.0f"|format(total_ca) }} <small style="font-size:.45em;color:var(--muted);">FCFA</small></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">⏳ En attente</div>
+    <div class="stat-value" style="color:#f59e0b;">{{ pending|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Clients inscrits</div>
+    <div class="stat-value" style="color:var(--success);">{{ nb_customers }}</div>
+  </div>
+</div>
+
+<!-- Pipeline commandes -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.5rem;">
+  {% set pipeline = [('En attente', pending, '#f59e0b'), ('Confirmées', confirmed, '#3b82f6'), ('En préparation', preparing, '#a78bfa'), ('Expédiées', shipped, '#06b6d4')] %}
+  {% for label, items, color in pipeline %}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;border-top:3px solid {{ color }};padding:.75rem;">
+    <div style="font-size:.72rem;color:{{ color }};font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">{{ label }} ({{ items|length }})</div>
+    {% for o in items[:5] %}
+    <a href="{{ url_for('online.order_detail', oid=o.id) }}" style="display:block;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:.5rem .65rem;margin-bottom:.35rem;font-size:.78rem;transition:border-color .15s;">
+      <div style="font-weight:600;">{{ o.reference }}</div>
+      <div style="color:var(--muted);font-size:.7rem;">{{ o.customer.full_name }} · {{ o.total_amount|int }} FCFA</div>
+    </a>
+    {% endfor %}
+    {% if items|length > 5 %}<div style="font-size:.72rem;color:var(--muted);text-align:center;">+{{ items|length - 5 }} autres</div>{% endif %}
+    {% if not items %}<div style="font-size:.75rem;color:var(--muted);text-align:center;padding:.5rem;">Aucune</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid-2">
+  <a href="{{ url_for('online.orders_list') }}" class="card" style="padding:1rem;text-align:center;">
+    <div style="font-size:1.5rem;">📋</div>
+    <div style="font-weight:600;margin-top:.3rem;">Toutes les commandes</div>
+  </a>
+  <a href="{{ url_for('online.customers_list') }}" class="card" style="padding:1rem;text-align:center;">
+    <div style="font-size:1.5rem;">👥</div>
+    <div style="font-weight:600;margin-top:.3rem;">Clients ({{ nb_customers }})</div>
+  </a>
+  <a href="{{ url_for('online.reviews_list') }}" class="card" style="padding:1rem;text-align:center;">
+    <div style="font-size:1.5rem;">⭐</div>
+    <div style="font-weight:600;margin-top:.3rem;">Avis {% if nb_pending_reviews %}<span class="badge badge-orange">{{ nb_pending_reviews }} à modérer</span>{% endif %}</div>
+  </a>
+  <a href="{{ url_for('online.settings') }}" class="card" style="padding:1rem;text-align:center;">
+    <div style="font-size:1.5rem;">⚙️</div>
+    <div style="font-weight:600;margin-top:.3rem;">Paramètres boutique</div>
+  </a>
+</div>
+
+{% endif %}
+{% endblock %}

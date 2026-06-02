@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Planches étiquettes — {{ product.designation }}</title>
+  <style>
+    /* ── Screen ── */
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      font-family:'Helvetica Neue',Arial,sans-serif;
+      background:#0d0f14; color:#e8eaf0;
+      min-height:100vh;
+    }
+
+    .screen-header {
+      background:#161a22; border-bottom:1px solid #252b38;
+      padding:.75rem 1.5rem;
+      display:flex; justify-content:space-between; align-items:center;
+      position:sticky; top:0; z-index:10;
+    }
+    .screen-header h1 { font-size:.95rem; font-weight:600; }
+    .screen-header .sub { font-size:.78rem; color:#7a8099; margin-top:.1rem; }
+
+    .controls {
+      background:#161a22; border-bottom:1px solid #252b38;
+      padding:.65rem 1.5rem;
+      display:flex; gap:1rem; align-items:center; flex-wrap:wrap;
+    }
+    .ctrl-label { font-size:.78rem; color:#7a8099; }
+    .ctrl-input {
+      background:#0d0f14; border:1px solid #252b38; border-radius:6px;
+      color:#e8eaf0; padding:.3rem .6rem; font-size:.85rem;
+      width:70px; text-align:center;
+    }
+    .btn {
+      padding:.4rem .9rem; border-radius:7px; border:none;
+      font-size:.83rem; cursor:pointer; font-weight:500; transition:opacity .15s;
+    }
+    .btn-primary { background:#f5a623; color:#0d0f14; }
+    .btn-secondary { background:#252b38; color:#e8eaf0; }
+    .btn:hover { opacity:.85; }
+
+    .sheet-preview {
+      padding:1.5rem;
+      display:flex; flex-wrap:wrap; gap:12px; justify-content:center;
+    }
+
+    /* ── Label card (screen preview) ── */
+    .label-card {
+      background:#fff; color:#000;
+      border-radius:8px; overflow:hidden;
+      width:180px;
+      display:flex; flex-direction:column; align-items:center;
+      padding:8px 10px 10px;
+      box-shadow:0 2px 8px rgba(0,0,0,.4);
+    }
+    .label-card .prod-name {
+      font-size:8pt; font-weight:700; text-align:center;
+      margin-bottom:2px; line-height:1.2;
+    }
+    .label-card .var-name {
+      font-size:7pt; color:#555; text-align:center;
+      margin-bottom:6px;
+    }
+    .label-card img { width:100%; border:none; }
+    .label-card .barcode-num {
+      font-family:'Courier New',monospace; font-size:7pt;
+      color:#333; margin-top:3px; letter-spacing:.05em;
+    }
+    .label-card .price-tag {
+      font-size:9pt; font-weight:800; color:#000;
+      margin-top:4px;
+    }
+    .label-card .sku-tag {
+      font-size:6.5pt; color:#888; font-family:'Courier New',monospace;
+    }
+
+    /* ── Print ── */
+    @media print {
+      body { background:#fff; }
+      .screen-header, .controls, .no-print { display:none !important; }
+      .sheet-preview {
+        padding:5mm; gap:5mm;
+        justify-content:flex-start;
+      }
+      .label-card {
+        width:55mm; /* ~3 par rangée sur A4 */
+        border:0.5pt solid #ccc;
+        break-inside:avoid;
+        box-shadow:none;
+        border-radius:0;
+        padding:3mm 4mm 4mm;
+      }
+      .label-card .prod-name { font-size:7pt; }
+      .label-card .var-name  { font-size:6pt; }
+      .label-card .barcode-num { font-size:6pt; }
+      .label-card .price-tag   { font-size:8pt; }
+      .label-card .sku-tag     { font-size:5.5pt; }
+      @page { size:A4; margin:8mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header écran -->
+  <div class="screen-header no-print">
+    <div>
+      <h1>🏷 Planche d'étiquettes codes-barres</h1>
+      <div class="sub">{{ product.designation }} · {{ items|length }} variante(s)</div>
+    </div>
+    <a href="{{ url_for('variants.index', pid=product.id) }}"
+       class="btn btn-secondary">← Variantes</a>
+  </div>
+
+  <!-- Contrôles -->
+  <div class="controls no-print">
+    <span class="ctrl-label">Copies / variante :</span>
+    <input class="ctrl-input" type="number" id="copiesInput"
+           value="{{ copies }}" min="1" max="20" onchange="updateCopies(this.value)">
+    <button class="btn btn-secondary" onclick="updateCopies(document.getElementById('copiesInput').value)">
+      Actualiser
+    </button>
+    <button class="btn btn-primary" onclick="window.print()">🖨 Imprimer la planche</button>
+    <span class="ctrl-label" id="totalCount" style="margin-left:.5rem;"></span>
+  </div>
+
+  <!-- Prévisualisation -->
+  <div class="sheet-preview" id="sheetPreview">
+    {% if items %}
+      {% for item in items %}
+        {% for i in range(copies) %}
+        <div class="label-card">
+          <div class="prod-name">{{ item.variant.product.designation }}</div>
+          <div class="var-name">
+            {{ item.variant.attributs_display or item.variant.nom }}
+          </div>
+          {% if item.bc_b64 %}
+            <img src="data:image/png;base64,{{ item.bc_b64 }}" alt="{{ item.variant.barcode }}">
+          {% endif %}
+          <div class="barcode-num">{{ item.variant.barcode }}</div>
+          <div class="price-tag">{{ "%.0f"|format(item.variant.prix_vente_ttc) }} FCFA</div>
+          {% if item.variant.sku %}
+          <div class="sku-tag">{{ item.variant.sku }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% endfor %}
+    {% else %}
+      <div style="color:#7a8099;padding:3rem;text-align:center;width:100%;">
+        Aucune variante avec code-barres trouvée.
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+  function updateCopies(n) {
+    n = Math.max(1, Math.min(20, parseInt(n) || 1));
+    document.getElementById('copiesInput').value = n;
+    // Recharger avec le nouveau nombre de copies
+    const url = new URL(window.location.href);
+    url.searchParams.set('copies', n);
+    window.location.href = url.toString();
+  }
+
+  // Afficher le total
+  const total = document.querySelectorAll('.label-card').length;
+  document.getElementById('totalCount').textContent = total + ' étiquette(s) au total';
+  </script>
+</body>
+</html>

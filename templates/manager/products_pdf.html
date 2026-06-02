@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Catalogue Produits</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Helvetica Neue',Arial,sans-serif; font-size:9.5pt; color:#1a1a2e; background:#fff; }
+    @page {
+      size: A4;
+      margin: 16mm 14mm 20mm 14mm;
+      @bottom-center {
+        content: "Page " counter(page) " / " counter(pages) " — Catalogue Produits";
+        font-size: 7.5pt; color: #aaa;
+      }
+      @top-right {
+        content: "{{ tenant.nom_boutique or tenant.activite }}";
+        font-size: 7.5pt; color: #aaa;
+      }
+    }
+
+    /* Header */
+    .header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      border-bottom: 3px solid #1a1a2e; padding-bottom: 12px; margin-bottom: 18px;
+    }
+    .brand h1 { font-size: 16pt; font-weight: 800; color: #1a1a2e; }
+    .brand .sub { font-size: 8pt; color: #666; margin-top: 3px; }
+    .doc-info { text-align: right; }
+    .doc-info .title { font-size: 13pt; font-weight: 700; color: #c05c00; text-transform: uppercase; letter-spacing: .8px; }
+    .doc-info .meta  { font-size: 7.5pt; color: #666; margin-top: 3px; }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex; gap: 0; margin-bottom: 16px;
+      border: 1px solid #ddd; border-radius: 6px; overflow: hidden;
+    }
+    .stat { flex:1; padding: 8px 12px; border-right: 1px solid #ddd; text-align:center; }
+    .stat:last-child { border-right: none; }
+    .stat .sv { font-size: 12pt; font-weight: 800; color: #1a1a2e; font-family:'Courier New',monospace; }
+    .stat .sl { font-size: 6.5pt; text-transform: uppercase; letter-spacing: .5px; color: #999; margin-top: 2px; }
+
+    /* Category header */
+    .cat-header {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f5f5; padding: 5px 10px;
+      margin: 12px 0 4px; border-radius: 4px;
+      font-size: 8.5pt; font-weight: 700; color: #333;
+      border-left: 4px solid #1a1a2e;
+    }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    thead tr { background: #1a1a2e; color: #fff; }
+    thead th { padding: 6px 8px; font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; text-align: left; }
+    thead th.r { text-align: right; }
+    tbody tr { border-bottom: 1px solid #f0f0f0; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr:hover { background: #fff8f0; }
+    tbody td { padding: 5px 8px; vertical-align: middle; }
+    tbody td.r { text-align: right; font-family:'Courier New',monospace; }
+    tbody td.mono { font-family:'Courier New',monospace; font-size: 8pt; }
+
+    /* Badges */
+    .badge { display:inline-block; padding: 1px 5px; border-radius: 3px; font-size: 7pt; font-weight:600; }
+    .badge-green  { background:#e8f5e9; color:#2e7d32; }
+    .badge-orange { background:#fff3e0; color:#e65100; }
+    .badge-red    { background:#fce8e6; color:#c5221f; }
+    .badge-purple { background:#f3e8fd; color:#6a1b9a; }
+    .badge-blue   { background:#e3f2fd; color:#1565c0; }
+    .tva-badge    { background:#eee; color:#555; font-size: 7pt; padding: 1px 4px; border-radius: 3px; }
+
+    /* Footer */
+    .footer { margin-top: 16px; padding-top: 10px; border-top: 1px solid #eee; display:flex; justify-content:space-between; font-size: 7pt; color: #bbb; }
+  </style>
+</head>
+<body>
+
+  <!-- En-tête -->
+  <div class="header">
+    <div class="brand">
+      {% if tenant.logo_url %}
+      <img src="{{ tenant.logo_url }}" style="height:38px;object-fit:contain;margin-bottom:4px;display:block;">
+      {% endif %}
+      <h1>{{ tenant.nom_boutique or tenant.activite }}</h1>
+      <div class="sub">{{ tenant.adresse }}{% if tenant.adresse and tenant.ville %}, {% endif %}{{ tenant.ville }}</div>
+      {% if tenant.telephone_entreprise %}
+      <div class="sub">Tél : {{ tenant.telephone_entreprise }}</div>
+      {% endif %}
+    </div>
+    <div class="doc-info">
+      <div class="title">Catalogue Produits</div>
+      <div class="meta">Généré le {{ today.strftime('%d/%m/%Y') }}</div>
+      <div class="meta">{{ products|length }} article(s)</div>
+      {% if q %}<div class="meta">Filtre : "{{ q }}"</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="sv">{{ products|length }}</div>
+      <div class="sl">Articles</div>
+    </div>
+    <div class="stat">
+      <div class="sv">{{ products|selectattr('has_variants')|list|length }}</div>
+      <div class="sl">Avec variantes</div>
+    </div>
+    <div class="stat">
+      <div class="sv">{{ products|sum(attribute='total_stock_entrepot') }}</div>
+      <div class="sl">Stock entrepôt</div>
+    </div>
+    <div class="stat">
+      <div class="sv">{{ products|sum(attribute='total_stock_magasin') }}</div>
+      <div class="sl">Stock rayon</div>
+    </div>
+    <div class="stat">
+      <div class="sv">
+        {{ "%.0f"|format(products|map(attribute='prix_vente_ttc')|map('float')|list|min if products else 0) }}
+        —
+        {{ "%.0f"|format(products|map(attribute='prix_vente_ttc')|map('float')|list|max if products else 0) }}
+      </div>
+      <div class="sl">Fourchette prix TTC</div>
+    </div>
+  </div>
+
+  <!-- Tableau produits -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:22px;">#</th>
+        <th>Désignation</th>
+        <th style="width:70px;">SKU</th>
+        <th>Catégorie</th>
+        <th>Fournisseur</th>
+        <th class="r" style="width:70px;">Prix HT</th>
+        <th style="width:42px;text-align:center;">TVA</th>
+        <th class="r" style="width:80px;">Prix TTC</th>
+        <th class="r" style="width:55px;">Entrepôt</th>
+        <th class="r" style="width:45px;">Rayon</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in products %}
+      <tr>
+        <td style="color:#bbb;font-size:7.5pt;">{{ loop.index }}</td>
+        <td>
+          <strong>{{ p.designation }}</strong>
+          {% if p.has_variants %}
+          <span class="badge badge-purple">{{ p.variant_count }} var.</span>
+          {% endif %}
+          {% if p.description %}
+          <div style="font-size:7pt;color:#888;margin-top:1px;">{{ p.description[:60] }}{% if p.description|length > 60 %}…{% endif %}</div>
+          {% endif %}
+        </td>
+        <td class="mono">{{ p.sku or '—' }}</td>
+        <td>
+          {% if p.category %}
+          <span class="badge" style="background:{{ p.category.couleur }}22;color:{{ p.category.couleur }};border:1px solid {{ p.category.couleur }}44;">
+            {{ p.category.icone }} {{ p.category.nom }}
+          </span>
+          {% else %}—{% endif %}
+        </td>
+        <td style="font-size:8pt;">{{ p.supplier.nom if p.supplier else '—' }}</td>
+        <td class="r">{{ "%.0f"|format(p.prix_vente_ht) }}</td>
+        <td style="text-align:center;">
+          {% if p.taux_tva > 0 %}
+          <span class="tva-badge">{{ p.taux_tva|int }}%</span>
+          {% else %}
+          <span style="color:#ccc;">—</span>
+          {% endif %}
+        </td>
+        <td class="r" style="font-weight:700;color:#c05c00;">{{ "%.0f"|format(p.prix_vente_ttc) }}</td>
+        <td class="r">
+          {% set se = p.total_stock_entrepot %}
+          <span class="badge {% if se == 0 %}badge-red{% elif se <= 10 %}badge-orange{% else %}badge-green{% endif %}">{{ se }}</span>
+        </td>
+        <td class="r">
+          {% set sm = p.total_stock_magasin %}
+          <span class="badge {% if sm == 0 %}badge-red{% elif sm <= 5 %}badge-orange{% else %}badge-blue{% endif %}">{{ sm }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- ── Récapitulatif financier ── -->
+  {% if products %}
+  {% set t_achat      = namespace(v=0) %}
+  {% set t_ray_ht     = namespace(v=0) %}
+  {% set t_ray_ttc    = namespace(v=0) %}
+  {% set t_ent_ht     = namespace(v=0) %}
+  {% set t_ent_ttc    = namespace(v=0) %}
+  {% for p in products %}
+    {% set sm = p.total_stock_magasin %}
+    {% set se = p.total_stock_entrepot %}
+    {% set st = sm + se %}
+    {% set t_achat.v    = t_achat.v   + p.prix_achat      * st %}
+    {% set t_ray_ht.v   = t_ray_ht.v  + p.prix_vente_ht   * sm %}
+    {% set t_ray_ttc.v  = t_ray_ttc.v + p.prix_vente_ttc  * sm %}
+    {% set t_ent_ht.v   = t_ent_ht.v  + p.prix_vente_ht   * se %}
+    {% set t_ent_ttc.v  = t_ent_ttc.v + p.prix_vente_ttc  * se %}
+  {% endfor %}
+
+  <div style="margin-top:18px;border:2px solid #1a1a2e;border-radius:6px;overflow:hidden;page-break-inside:avoid;">
+
+    <!-- Titre -->
+    <div style="background:#1a1a2e;color:#fff;padding:7px 14px;font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:.6px;">
+      Récapitulatif Financier du Stock
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);">
+
+      <!-- ── 1. Prix d'achat ── -->
+      <div style="padding:10px 14px;border-right:1px solid #ddd;background:#fafafa;">
+        <div style="font-size:7pt;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #1a1a2e;">
+          💰 Prix d'Achat
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:4px 0;font-size:8pt;color:#555;">
+              Total stock (entrepôt + rayon)
+              <div style="font-size:6.5pt;color:#aaa;">Σ prix_achat × qtés totales</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0 2px;text-align:right;">
+              <span style="font-family:'Courier New',monospace;font-size:13pt;font-weight:900;color:#1a1a2e;">
+                {{ "%.0f"|format(t_achat.v) }}
+              </span>
+              <span style="font-size:7.5pt;color:#666;"> FCFA</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ── 2. Prix de vente Rayon ── -->
+      <div style="padding:10px 14px;border-right:1px solid #ddd;">
+        <div style="font-size:7pt;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #1565c0;">
+          🛒 Vente Rayon
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:3px 0;font-size:8pt;color:#555;">HT (sans TVA)</td>
+            <td style="padding:3px 0;text-align:right;font-family:'Courier New',monospace;font-size:9pt;font-weight:700;color:#1565c0;">
+              {{ "%.0f"|format(t_ray_ht.v) }} FCFA
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:3px 0;font-size:8pt;color:#555;">TTC (avec TVA)</td>
+            <td style="padding:3px 0;text-align:right;font-family:'Courier New',monospace;font-size:9.5pt;font-weight:800;color:#c05c00;">
+              {{ "%.0f"|format(t_ray_ttc.v) }} FCFA
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:2px 0;font-size:7pt;color:#aaa;" colspan="2">
+              TVA incluse : {{ "%.0f"|format(t_ray_ttc.v - t_ray_ht.v) }} FCFA
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ── 3. Prix de vente Entrepôt ── -->
+      <div style="padding:10px 14px;">
+        <div style="font-size:7pt;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #16a34a;">
+          🏭 Vente Entrepôt
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:3px 0;font-size:8pt;color:#555;">HT (sans TVA)</td>
+            <td style="padding:3px 0;text-align:right;font-family:'Courier New',monospace;font-size:9pt;font-weight:700;color:#16a34a;">
+              {{ "%.0f"|format(t_ent_ht.v) }} FCFA
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:3px 0;font-size:8pt;color:#555;">TTC (avec TVA)</td>
+            <td style="padding:3px 0;text-align:right;font-family:'Courier New',monospace;font-size:9.5pt;font-weight:800;color:#16a34a;">
+              {{ "%.0f"|format(t_ent_ttc.v) }} FCFA
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:2px 0;font-size:7pt;color:#aaa;" colspan="2">
+              TVA incluse : {{ "%.0f"|format(t_ent_ttc.v - t_ent_ht.v) }} FCFA
+            </td>
+          </tr>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- Ligne totale globale -->
+    <div style="background:#f8f8f8;border-top:1px solid #ddd;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:7.5pt;color:#666;">
+        TOTAL GÉNÉRAL (rayon + entrepôt) —
+        <span style="font-family:'Courier New',monospace;font-weight:700;color:#1a1a2e;">{{ (products|sum(attribute='total_stock_entrepot') + products|sum(attribute='total_stock_magasin')) }} unités</span>
+      </div>
+      <div style="display:flex;gap:20px;align-items:center;">
+        <div style="text-align:right;">
+          <div style="font-size:6.5pt;color:#aaa;text-transform:uppercase;">Valeur vente HT</div>
+          <div style="font-family:'Courier New',monospace;font-size:10pt;font-weight:700;color:#1a1a2e;">
+            {{ "%.0f"|format(t_ray_ht.v + t_ent_ht.v) }} FCFA
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:6.5pt;color:#aaa;text-transform:uppercase;">Valeur vente TTC</div>
+          <div style="font-family:'Courier New',monospace;font-size:12pt;font-weight:900;color:#c05c00;">
+            {{ "%.0f"|format(t_ray_ttc.v + t_ent_ttc.v) }} FCFA
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    <div>{{ tenant.nom_boutique or tenant.activite }} — Catalogue produits</div>
+    <div>Généré le {{ today.strftime('%d/%m/%Y') }} · {{ products|length }} article(s)</div>
+  </div>
+
+</body>
+</html>

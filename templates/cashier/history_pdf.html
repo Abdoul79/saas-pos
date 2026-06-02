@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Rapport Caisse — {{ filter_date.strftime('%d/%m/%Y') }}</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Helvetica Neue',Arial,sans-serif; font-size:9.5pt; color:#1a1a2e; background:#fff; }
+    @page {
+      size: A4; margin: 15mm 14mm 20mm 14mm;
+      @bottom-center {
+        content: "Page " counter(page) " / " counter(pages) " — Rapport de Caisse";
+        font-size: 7.5pt; color: #aaa;
+      }
+    }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #1a1a2e; padding-bottom:12px; margin-bottom:16px; }
+    .brand h1 { font-size:16pt; font-weight:800; }
+    .brand .sub { font-size:8pt; color:#666; margin-top:2px; line-height:1.6; }
+    .doc-info { text-align:right; }
+    .doc-info .title { font-size:13pt; font-weight:700; color:#f5a623; text-transform:uppercase; letter-spacing:.8px; }
+    .doc-info .meta  { font-size:8pt; color:#555; margin-top:3px; line-height:1.6; }
+
+    .stats-bar { display:flex; gap:0; margin-bottom:14px; border:1px solid #ddd; border-radius:6px; overflow:hidden; }
+    .stat { flex:1; padding:8px 10px; border-right:1px solid #ddd; text-align:center; }
+    .stat:last-child { border-right:none; }
+    .stat .sv { font-size:12pt; font-weight:800; color:#1a1a2e; font-family:'Courier New',monospace; }
+    .stat .sl { font-size:6.5pt; text-transform:uppercase; letter-spacing:.5px; color:#999; margin-top:2px; }
+
+    /* Bandeau detail/gros */
+    .type-split { display:flex; gap:12px; margin-bottom:14px; }
+    .type-card { flex:1; border-radius:6px; padding:10px 14px; border:1px solid; }
+
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+    .box { border:1px solid #ddd; border-radius:6px; padding:10px 12px; }
+    .box-title { font-size:7.5pt; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#888; margin-bottom:8px; padding-bottom:5px; border-bottom:1px solid #eee; }
+
+    .method-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid #f5f5f5; font-size:8.5pt; }
+    .method-row:last-child { border-bottom:none; }
+    .method-bar { height:4px; border-radius:2px; background:#ddd; margin-top:3px; }
+    .method-bar-fill { height:4px; border-radius:2px; }
+
+    .top-row { display:flex; justify-content:space-between; padding:3.5px 0; border-bottom:1px solid #f5f5f5; font-size:8.5pt; }
+    .top-row:last-child { border-bottom:none; }
+
+    table { width:100%; border-collapse:collapse; font-size:8.5pt; }
+    thead tr { background:#1a1a2e; color:#fff; }
+    thead th { padding:6px 8px; font-size:7.5pt; font-weight:600; text-transform:uppercase; letter-spacing:.4px; text-align:left; }
+    thead th.r { text-align:right; }
+    tbody tr { border-bottom:1px solid #f0f0f0; }
+    tbody tr:nth-child(even) { background:#fafafa; }
+    tbody td { padding:0; vertical-align:top; }
+
+    .ticket-items { padding:4px 8px 6px; }
+    .ticket-item  { display:flex; justify-content:space-between; font-size:7.5pt; color:#666; padding:1.5px 0; }
+    .ticket-item-sub { font-family:'Courier New',monospace; color:#888; }
+
+    .badge { display:inline-block; padding:1px 5px; border-radius:3px; font-size:7pt; font-weight:700; }
+    .b-g { background:#e8f5e9; color:#2e7d32; }
+    .b-b { background:#e3f2fd; color:#1565c0; }
+    .b-p { background:#f3e8fd; color:#6a1b9a; }
+    .b-o { background:#fff3e0; color:#e65100; }
+    .b-detail { background:#e3f2fd; color:#1565c0; }
+    .b-engros { background:#e8f5e9; color:#2e7d32; }
+
+    tfoot tr { border-top:2px solid #1a1a2e; }
+    tfoot td { padding:7px 8px; font-weight:700; font-size:9.5pt; }
+    tfoot td.r { text-align:right; font-family:'Courier New',monospace; color:#c05c00; font-size:11pt; }
+
+    .footer { margin-top:14px; padding-top:10px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:7pt; color:#bbb; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="brand">
+      {% if tenant and tenant.logo_url %}
+      <img src="{{ tenant.logo_url }}" style="height:34px;object-fit:contain;margin-bottom:4px;display:block;">
+      {% endif %}
+      <h1>{{ tenant.nom_boutique if tenant and tenant.nom_boutique else (tenant.activite if tenant else 'SaaS POS') }}</h1>
+      <div class="sub">
+        {% if tenant %}
+        {{ tenant.adresse }}{% if tenant.adresse and tenant.ville %}, {% endif %}{{ tenant.ville }}<br>
+        {% if tenant.telephone_entreprise %}Tél : {{ tenant.telephone_entreprise }}{% endif %}
+        {% endif %}
+      </div>
+    </div>
+    <div class="doc-info">
+      <div class="title">Rapport de Caisse</div>
+      <div class="meta">
+        Journée du <strong>{{ filter_date.strftime('%d/%m/%Y') }}</strong><br>
+        Caissier : {{ cashier.full_name }}<br>
+        Généré le {{ today.strftime('%d/%m/%Y') }}
+      </div>
+    </div>
+  </div>
+
+  {% if not sales %}
+  <div style="text-align:center;padding:3rem;color:#888;font-size:11pt;">
+    Aucune transaction enregistrée pour le {{ filter_date.strftime('%d/%m/%Y') }}.
+  </div>
+  {% else %}
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="sv">{{ sales|length }}</div>
+      <div class="sl">Transactions</div>
+    </div>
+    <div class="stat">
+      <div class="sv">{{ "%.0f"|format(total) }}</div>
+      <div class="sl">Total TTC (FCFA)</div>
+    </div>
+    <div class="stat">
+      <div class="sv" style="color:#1565c0;">{{ nb_detail }}</div>
+      <div class="sl">Ventes Détail</div>
+    </div>
+    <div class="stat">
+      <div class="sv" style="color:#2e7d32;">{{ nb_engros }}</div>
+      <div class="sl">Ventes Gros</div>
+    </div>
+    <div class="stat">
+      <div class="sv">{{ "%.0f"|format(ticket_moyen) }}</div>
+      <div class="sl">Ticket moyen</div>
+    </div>
+    <div class="stat">
+      <div class="sv">{{ total_articles }}</div>
+      <div class="sl">Articles vendus</div>
+    </div>
+  </div>
+
+  <!-- ── Bandeau Détail vs Gros ── -->
+  <div class="type-split">
+    <div class="type-card" style="background:#e3f2fd;border-color:#90caf9;">
+      <div style="font-size:7.5pt;font-weight:700;text-transform:uppercase;color:#1565c0;margin-bottom:5px;">🛒 Ventes au Détail</div>
+      <div style="font-family:'Courier New',monospace;font-size:15pt;font-weight:800;color:#1565c0;">
+        {{ "%.0f"|format(total_detail) }} <span style="font-size:8pt;font-weight:400;">FCFA</span>
+      </div>
+      <div style="font-size:7.5pt;color:#555;margin-top:3px;">{{ nb_detail }} transaction(s)</div>
+    </div>
+    <div class="type-card" style="background:#e8f5e9;border-color:#a5d6a7;">
+      <div style="font-size:7.5pt;font-weight:700;text-transform:uppercase;color:#2e7d32;margin-bottom:5px;">🏭 Ventes en Gros</div>
+      <div style="font-family:'Courier New',monospace;font-size:15pt;font-weight:800;color:#2e7d32;">
+        {{ "%.0f"|format(total_engros) }} <span style="font-size:8pt;font-weight:400;">FCFA</span>
+      </div>
+      <div style="font-size:7.5pt;color:#555;margin-top:3px;">{{ nb_engros }} transaction(s)</div>
+    </div>
+  </div>
+
+  <!-- Modes paiement + Top produits -->
+  <div class="grid2">
+    <div class="box">
+      <div class="box-title">Répartition encaissements</div>
+      {% set method_labels = {'especes':('💵 Espèces','#16a34a'), 'carte':('💳 Carte','#0284c7'), 'mobile_money':('📱 Mobile Money','#7c3aed')} %}
+      {% for method, data in by_method.items() %}
+      {% set lbl, color = method_labels.get(method, (method, '#888')) %}
+      {% set pct = (data.total / total * 100) if total > 0 else 0 %}
+      <div class="method-row">
+        <div>
+          <span style="font-weight:600;">{{ lbl }}</span>
+          <span style="color:#aaa;font-size:7.5pt;margin-left:4px;">{{ data.count }} ticket(s)</span>
+        </div>
+        <div style="font-family:'Courier New',monospace;font-size:9pt;font-weight:700;">{{ "%.0f"|format(data.total) }} FCFA</div>
+      </div>
+      <div class="method-bar">
+        <div class="method-bar-fill" style="width:{{ "%.0f"|format(pct) }}%;background:{{ color }};"></div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="box">
+      <div class="box-title">Top 5 Articles vendus</div>
+      {% for name, qty in top_produits %}
+      {% set max_qty = top_produits[0][1] %}
+      <div class="top-row">
+        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%;">{{ loop.index }}. {{ name }}</div>
+        <div style="font-family:'Courier New',monospace;font-weight:700;color:#c05c00;">× {{ qty }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Tableau transactions -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:44px;">#</th>
+        <th style="width:52px;">Heure</th>
+        <th style="width:72px;">Type</th>
+        <th>Articles</th>
+        <th style="width:68px;">Mode</th>
+        <th style="width:50px;text-align:right;">Qté</th>
+        <th class="r" style="width:95px;">Total TTC</th>
+        {% if total_tva > 0 %}<th class="r" style="width:65px;">TVA</th>{% endif %}
+        <th class="r" style="width:70px;">Monnaie</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sales %}
+      {% set is_engros = s.sale_type == 'engros' %}
+      <tr style="border-left:4px solid {% if is_engros %}#2e7d32{% else %}#1565c0{% endif %};">
+        <td style="padding:4px 8px;font-family:'Courier New',monospace;font-size:8pt;color:#aaa;">#{{ s.id }}</td>
+        <td style="padding:4px 8px;font-family:'Courier New',monospace;font-size:8pt;color:#555;">{{ s.created_at.strftime('%H:%M') }}</td>
+        <td style="padding:4px 8px;">
+          {% if is_engros %}
+          <span class="badge b-engros">🏭 Gros</span>
+          {% else %}
+          <span class="badge b-detail">🛒 Détail</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="ticket-items">
+            {% for it in s.items %}
+            <div class="ticket-item">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">{{ it.designation }}</span>
+              <span class="ticket-item-sub">{{ it.quantity }} × {{ "%.0f"|format(it.prix_vente) }} = {{ "%.0f"|format(it.subtotal) }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </td>
+        <td style="padding:4px 8px;font-size:7.5pt;">
+          {% if s.payment_method == 'especes' %}<span class="badge b-g">Espèces</span>
+          {% elif s.payment_method == 'carte' %}<span class="badge b-b">Carte</span>
+          {% else %}<span class="badge b-p">Mobile</span>{% endif %}
+        </td>
+        <td style="text-align:right;padding:4px 8px;font-size:8pt;color:#888;">{{ s.items|sum(attribute='quantity') }}</td>
+        <td style="text-align:right;padding:4px 8px;font-family:'Courier New',monospace;font-weight:700;color:{% if is_engros %}#2e7d32{% else %}#1565c0{% endif %};font-size:9pt;">
+          {{ "%.0f"|format(s.total_amount) }}
+        </td>
+        {% if total_tva > 0 %}
+        <td style="text-align:right;padding:4px 8px;font-family:'Courier New',monospace;font-size:8pt;color:#888;">
+          {{ "%.0f"|format(s.total_tva) if s.total_tva else '—' }}
+        </td>
+        {% endif %}
+        <td style="text-align:right;padding:4px 8px;font-family:'Courier New',monospace;font-size:8pt;color:#555;">
+          {{ "%.0f"|format(s.change_given) if s.change_given else '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="{% if total_tva > 0 %}5{% else %}4{% endif %}">
+          TOTAL — {{ sales|length }} transaction(s) · {{ total_articles }} article(s) ·
+          <span style="color:#1565c0;">Détail : {{ "%.0f"|format(total_detail) }}</span> ·
+          <span style="color:#2e7d32;">Gros : {{ "%.0f"|format(total_engros) }}</span>
+        </td>
+        <td></td>
+        <td class="r">{{ "%.0f"|format(total) }} FCFA</td>
+        {% if total_tva > 0 %}
+        <td style="text-align:right;font-family:'Courier New',monospace;padding:7px 8px;color:#888;">{{ "%.0f"|format(total_tva) }}</td>
+        {% endif %}
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+  {% endif %}
+
+  <div class="footer">
+    <div>{{ tenant.nom_boutique if tenant and tenant.nom_boutique else 'SaaS POS' }} — {{ cashier.full_name }}</div>
+    <div>{{ filter_date.strftime('%d/%m/%Y') }} · Généré le {{ today.strftime('%d/%m/%Y') }}</div>
+  </div>
+
+</body>
+</html>

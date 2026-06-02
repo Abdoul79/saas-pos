@@ -1,0 +1,44 @@
+{% extends "shop/base.html" %}
+{% block title %}Panier — {{ tenant.nom_boutique }}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.5rem;">🛒 Mon Panier</h1>
+
+{% if cart %}
+<div class="card" style="margin-bottom:1.5rem;">
+  {% for item in cart %}
+  <div style="display:flex;align-items:center;gap:1rem;padding:1rem;border-bottom:1px solid var(--border);">
+    {% if item.image %}
+    <img src="{{ item.image }}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;">
+    {% else %}
+    <div style="width:60px;height:60px;background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;">📦</div>
+    {% endif %}
+    <div style="flex:1;">
+      <div style="font-weight:600;">{{ item.name }}</div>
+      <div style="color:var(--muted);font-size:.85rem;">{{ item.price|int }} FCFA × {{ item.qty }}</div>
+    </div>
+    <div style="font-weight:700;font-size:1.05rem;color:var(--accent);min-width:100px;text-align:right;">
+      {{ (item.price * item.qty)|int }} FCFA
+    </div>
+    <a href="{{ url_for('shop.remove_from_cart', slug=tenant.shop_slug, key=item.key) }}"
+       style="color:var(--danger);font-size:.85rem;">✕ Retirer</a>
+  </div>
+  {% endfor %}
+  <div style="padding:1rem;display:flex;justify-content:space-between;align-items:center;font-size:1.2rem;font-weight:800;">
+    <span>Total</span>
+    <span style="color:var(--accent);">{{ total|int }} FCFA</span>
+  </div>
+</div>
+
+<div style="display:flex;gap:1rem;">
+  <a href="{{ url_for('shop.clear_cart', slug=tenant.shop_slug) }}" class="btn btn-danger">🗑 Vider le panier</a>
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn">← Continuer mes achats</a>
+  <a href="{{ url_for('shop.checkout', slug=tenant.shop_slug) }}" class="btn btn-primary" style="margin-left:auto;">Passer commande →</a>
+</div>
+{% else %}
+<div style="text-align:center;padding:4rem;color:var(--muted);">
+  <div style="font-size:3rem;margin-bottom:1rem;">🛒</div>
+  <div>Votre panier est vide.</div>
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn btn-primary" style="margin-top:1rem;">Découvrir nos produits</a>
+</div>
+{% endif %}
+{% endblock %}

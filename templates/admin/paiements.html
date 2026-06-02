@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Historique Paiements — SaaS POS{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Historique Abonnements</div>
+  <div class="flex gap-1 items-center">
+    <form method="GET" class="flex gap-1 items-center">
+      <input type="month" name="mois" class="form-control" value="{{ mois }}" style="width:170px;">
+      <button type="submit" class="btn btn-secondary btn-sm">Filtrer</button>
+    </form>
+    <a href="{{ url_for('super_admin.dashboard') }}" class="btn btn-secondary btn-sm">← Retour</a>
+  </div>
+</div>
+
+<!-- Stats mois -->
+{% set payes    = paiements|selectattr('statut','equalto','paye')|list %}
+{% set attente  = paiements|selectattr('statut','equalto','en_attente')|list %}
+{% set retards  = paiements|selectattr('statut','equalto','retard')|list %}
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1rem;">
+  <div class="stat-card">
+    <div class="stat-label">Factures ce mois</div>
+    <div class="stat-value text-accent">{{ paiements|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total encaissé</div>
+    <div class="stat-value" style="color:var(--success);">
+      {{ "%.0f"|format(payes|sum(attribute='montant')) }}
+      <small style="font-size:.45em;">FCFA</small>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Payés</div>
+    <div class="stat-value" style="color:var(--success);">{{ payes|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">En attente / Retard</div>
+    <div class="stat-value" style="color:var(--warning);">{{ attente|length + retards|length }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Commerçant</th>
+          <th>Contacts &amp; Adresse</th>
+          <th>Période</th>
+          <th>Montant</th>
+          <th>Statut</th>
+          <th>Date paiement</th>
+          <th>Référence</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in paiements %}
+        {% set lbl, badge = p.status_label %}
+        <tr>
+          <td>
+            <strong>{{ p.tenant.prenom }} {{ p.tenant.nom }}</strong>
+            {% if p.tenant.nom_boutique %}
+            <div style="font-size:.74rem;color:var(--accent);">{{ p.tenant.nom_boutique }}</div>
+            {% endif %}
+            <div style="font-size:.72rem;color:var(--muted);">{{ p.tenant.activite }}</div>
+          </td>
+          <td>
+            {% if p.tenant.telephone_entreprise %}
+            <div style="font-family:var(--mono);font-size:.78rem;">🏢 {{ p.tenant.telephone_entreprise }}</div>
+            {% endif %}
+            <div style="font-size:.74rem;color:var(--muted);">
+              {{ p.tenant.adresse }}{% if p.tenant.adresse %}, {% endif %}{{ p.tenant.ville }}
+            </div>
+          </td>
+          <td class="text-mono" style="font-size:.82rem;">{{ p.mois_display }}</td>
+          <td class="text-accent text-mono" style="font-weight:700;">
+            {{ "%.0f"|format(p.montant) }} FCFA
+          </td>
+          <td><span class="badge {{ badge }}">{{ lbl }}</span></td>
+          <td class="text-muted" style="font-size:.8rem;">
+            {{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '—' }}
+          </td>
+          <td class="text-mono" style="font-size:.78rem;">{{ p.reference or '—' }}</td>
+          <td>
+            <div class="flex gap-1">
+              {% if p.statut == 'paye' %}
+              <a href="{{ url_for('super_admin.paiement_pdf', tenant_id=p.tenant_id, mois=p.mois) }}"
+                 class="btn btn-sm"
+                 style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a44;">
+                📄 PDF
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-muted" style="text-align:center;padding:3rem;">
+            Aucun paiement enregistré pour {{ mois }}.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if paiements %}
+      <tfoot>
+        <tr style="border-top:2px solid var(--border);">
+          <td colspan="3" style="padding:.75rem 1rem;font-weight:600;">
+            TOTAL ENCAISSÉ — {{ payes|length }}/{{ paiements|length }} payé(s)
+          </td>
+          <td class="text-accent text-mono" style="font-size:1rem;font-weight:700;padding:.75rem 1rem;">
+            {{ "%.0f"|format(payes|sum(attribute='montant')) }} FCFA
+          </td>
+          <td colspan="4"></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

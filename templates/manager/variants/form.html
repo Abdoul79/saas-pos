@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% block title %}{% if variant %}Éditer{% else %}Nouvelle{% endif %} Variante — {{ product.designation }}{% endblock %}
+{% block head %}
+<style>
+  .attr-row { display:grid; grid-template-columns:1fr 1fr auto; gap:.5rem; align-items:center; margin-bottom:.5rem; }
+  .section-header { font-family:var(--mono); font-size:.7rem; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; padding:.6rem 0 .75rem; border-bottom:1px solid var(--border); margin-bottom:1.25rem; }
+  .ttc-display { background:#f5a62315; border:1px solid #f5a62355; border-radius:8px; padding:.65rem 1rem; font-family:var(--mono); font-size:1.05rem; color:var(--accent); text-align:right; }
+  .tax-row { display:grid; grid-template-columns:1fr auto 1fr auto 1fr; gap:.6rem; align-items:end; }
+  .tax-op { display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:1.1rem; padding-bottom:.4rem; }
+  .tva-presets { display:flex; gap:.35rem; flex-wrap:wrap; margin-top:.4rem; }
+  .tva-preset { padding:.18rem .55rem; border-radius:99px; background:var(--border); border:1px solid transparent; color:var(--muted); font-size:.72rem; cursor:pointer; font-family:var(--mono); transition:all .12s; }
+  .tva-preset.active, .tva-preset:hover { border-color:var(--accent); color:var(--accent); background:#f5a62315; }
+  .cat-tab {
+    padding:.3rem .75rem; border-radius:8px;
+    background:var(--bg); border:1px solid var(--border);
+    color:var(--muted); font-size:.78rem; cursor:pointer;
+    transition:all .12s; white-space:nowrap;
+  }
+  .cat-tab:hover { border-color:var(--muted); color:var(--text); }
+  .cat-tab.active { background:#f5a62318; border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .cat-values.hidden { display:none !important; }
+  .img-drop { border:2px dashed var(--border); border-radius:10px; padding:1.5rem; text-align:center; cursor:pointer; transition:border-color .2s; position:relative; overflow:hidden; }
+  .img-drop:hover { border-color:var(--accent); background:#f5a62308; }
+  .img-drop input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .img-preview { width:100%; max-height:160px; object-fit:contain; border-radius:6px; margin-bottom:.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;margin:0 auto;">
+  <div class="flex justify-between items-center mb-3">
+    <div>
+      <div class="text-muted" style="font-size:.78rem;margin-bottom:.2rem;">{{ product.designation }}</div>
+      <div class="page-title" style="margin-bottom:0">
+        {% if variant %}Modifier « {{ variant.nom }} »{% else %}Nouvelle Variante{% endif %}
+      </div>
+    </div>
+    <a href="{{ url_for('variants.index', pid=product.id) }}" class="btn btn-secondary btn-sm">← Variantes</a>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data">
+
+    <!-- ── Attributs ── -->
+    <div class="card mb-2">
+      <div class="section-header">// 1. Attributs de la variante</div>
+      <div class="text-muted" style="font-size:.8rem;margin-bottom:.9rem;">
+        Définissez les dimensions qui différencient cette variante (Taille, Couleur, Pointure…)
+      </div>
+      <div id="attrsContainer">
+        {% if variant and variant.attributs %}
+          {% for k, v in variant.attributs.items() %}
+          <div class="attr-row">
+            <input class="form-control" name="attr_key[]" value="{{ k }}" placeholder="ex: Taille">
+            <input class="form-control" name="attr_val[]" value="{{ v }}" placeholder="ex: M">
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeAttr(this)">✕</button>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="attr-row">
+            <input class="form-control" name="attr_key[]" placeholder="ex: Taille">
+            <input class="form-control" name="attr_val[]" placeholder="ex: M">
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeAttr(this)">✕</button>
+          </div>
+        {% endif %}
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" style="margin-top:.5rem;" onclick="addAttr()">+ Ajouter un attribut</button>
+
+      <!-- Suggestions rapides par catégorie -->
+      <div style="margin-top:1rem;">
+        <div style="font-size:.72rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.5rem;">
+          Ajouter rapidement par catégorie :
+        </div>
+
+        <!-- Onglets catégories -->
+        <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem;" id="catTabs">
+          {% set cats = [
+            ('Taille',   '👗', ['XS','S','M','L','XL','XXL','XXXL']),
+            ('Pointure', '👟', ['32','33','34','35','36','37','38','39','40','41','42','43','44','45','46']),
+            ('Couleur',  '🎨', ['Noir','Blanc','Rouge','Bleu','Vert','Jaune','Orange','Rose','Gris','Marron','Beige','Violet']),
+            ('Mètre',    '📏', ['0.25m','0.5m','0.75m','1m','1.5m','2m','2.5m','3m','4m','5m','10m']),
+            ('Gramme/Kg','⚖️', ['5g','10g','25g','50g','100g','200g','250g','500g','1kg','2kg','5kg','10kg']),
+            ('Ml/Litre', '🧴', ['5ml','10ml','20ml','50ml','100ml','200ml','250ml','500ml','1L','1.5L','2L','5L']),
+          ] %}
+          {% for cat_name, cat_icon, _ in cats %}
+          <button type="button"
+                  class="cat-tab {% if loop.first %}active{% endif %}"
+                  data-cat="{{ loop.index0 }}"
+                  onclick="switchCat({{ loop.index0 }}, this)">
+            {{ cat_icon }} {{ cat_name }}
+          </button>
+          {% endfor %}
+        </div>
+
+        <!-- Valeurs de la catégorie sélectionnée -->
+        {% for cat_name, cat_icon, values in cats %}
+        <div class="cat-values {% if not loop.first %}hidden{% endif %}" data-cat="{{ loop.index0 }}"
+             style="display:flex;gap:.35rem;flex-wrap:wrap;">
+          {% for val in values %}
+          <button type="button" class="tva-preset"
+                  onclick="addAttrValue('{{ cat_name }}','{{ val }}')">
+            {{ val }}
+          </button>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label">Nom affiché (auto-généré si vide)</label>
+        <input class="form-control" name="nom" id="nomInput"
+               value="{{ variant.nom if variant else '' }}"
+               placeholder="Rouge / M — sera calculé automatiquement">
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">SKU / Code interne</label>
+          <input class="form-control text-mono" name="sku"
+                 value="{{ variant.sku or '' if variant else '' }}"
+                 placeholder="ex: TSHIRT-RG-M">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Code-barres</label>
+          <input class="form-control text-mono" name="barcode" id="bcField"
+                 value="{{ variant.barcode or '' if variant else '' }}"
+                 placeholder="Vide = EAN-13 auto">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.78rem;color:var(--muted);margin-top:.3rem;">
+            <input type="checkbox" name="generate_barcode" value="1" id="genCb" style="accent-color:var(--accent);">
+            Générer EAN-13
+          </label>
+        </div>
+      </div>
+
+      {% if variant %}
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+          <input type="hidden" name="is_active" value="0">
+          <input type="checkbox" name="is_active" value="1" {% if variant.is_active %}checked{% endif %}
+                 style="accent-color:var(--accent);">
+          <span class="form-label" style="margin:0;">Variante active (visible en caisse)</span>
+        </label>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Prix ── -->
+    <div class="card mb-2">
+      <div class="section-header">// 2. Prix & TVA</div>
+      <div class="form-group">
+        <label class="form-label">Prix d'achat (FCFA)</label>
+        <input class="form-control text-mono" type="number" name="prix_achat" id="prixAchat"
+               step="1" min="0" value="{{ variant.prix_achat|int if variant else product.prix_achat|int }}"
+               style="max-width:200px;">
+      </div>
+      <div class="tax-row">
+        <div>
+          <label class="form-label">Prix HT (FCFA) *</label>
+          <input class="form-control text-mono" type="number" name="prix_vente_ht" id="prixHT"
+                 step="1" min="0" required
+                 value="{{ variant.prix_vente_ht|int if variant else product.prix_vente_ht|int }}">
+        </div>
+        <div class="tax-op">×</div>
+        <div>
+          <label class="form-label">TVA (%)</label>
+          <input class="form-control text-mono" type="number" name="taux_tva" id="tauxTVA"
+                 step="0.01" min="0" max="100"
+                 value="{{ variant.taux_tva if variant else product.taux_tva }}"
+                 style="text-align:center;">
+          <div class="tva-presets">
+            {% for r in [0,5,10,18,20] %}
+            <button type="button" class="tva-preset {% if (variant and variant.taux_tva == r) or (not variant and product.taux_tva == r) %}active{% endif %}"
+                    data-rate="{{ r }}" onclick="setTVA({{ r }},this)">{{ r }}%</button>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="tax-op">=</div>
+        <div>
+          <label class="form-label" style="color:var(--accent);">Prix TTC (Caisse)</label>
+          <div class="ttc-display" id="ttcDisplay">0 FCFA</div>
+          <input type="hidden" name="prix_vente_ttc" id="prixTTC" value="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Stock ── -->
+    <div class="card mb-2">
+      <div class="section-header">// 3. Stock initial</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Stock entrepôt</label>
+          <input class="form-control" type="number" name="stock_initial"
+                 value="{{ variant.stock_entrepot if variant else 0 }}" min="0" style="max-width:160px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ordre d'affichage</label>
+          <input class="form-control" type="number" name="ordre"
+                 value="{{ variant.ordre if variant else 0 }}" min="0" style="max-width:120px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Image ── -->
+    <div class="card mb-2">
+      <div class="section-header">// 4. Image spécifique (optionnel)</div>
+      <div class="img-drop" id="dropZone">
+        <input type="file" name="image" id="imgInput" accept="image/*">
+        {% if variant and variant.image_filename %}
+          <img src="{{ variant.image_url }}" class="img-preview" id="imgPreview">
+          <div class="text-muted" style="font-size:.78rem;">Cliquer pour remplacer</div>
+        {% else %}
+          <div style="font-size:1.8rem;margin-bottom:.4rem;">🖼</div>
+          <div style="font-size:.84rem;font-weight:500;">Glisser ou cliquer</div>
+          <div class="text-muted" style="font-size:.75rem;">Laissez vide pour utiliser l'image du produit</div>
+        {% endif %}
+      </div>
+      {% if variant and variant.image_filename %}
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.82rem;color:var(--danger);margin-top:.5rem;">
+        <input type="checkbox" name="delete_image" value="1" style="accent-color:var(--danger);">
+        Supprimer l'image
+      </label>
+      {% endif %}
+    </div>
+
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary" style="padding:.7rem 2rem;">
+        {% if variant %}Sauvegarder{% else %}Créer la variante{% endif %}
+      </button>
+      <a href="{{ url_for('variants.index', pid=product.id) }}" class="btn btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Attributs dynamiques ───────────────────────────────────────────────────
+function addAttr() {
+  const div = document.createElement('div');
+  div.className = 'attr-row';
+  div.innerHTML = `<input class="form-control" name="attr_key[]" placeholder="ex: Couleur">
+    <input class="form-control" name="attr_val[]" placeholder="ex: Rouge">
+    <button type="button" class="btn btn-danger btn-sm" onclick="removeAttr(this)">✕</button>`;
+  document.getElementById('attrsContainer').appendChild(div);
+}
+function removeAttr(btn) {
+  const rows = document.querySelectorAll('.attr-row');
+  if (rows.length > 1) btn.closest('.attr-row').remove();
+}
+function addAttrValue(key, val) {
+  // Chercher si la clé existe déjà
+  const keys = document.querySelectorAll('[name="attr_key[]"]');
+  for (const k of keys) {
+    if (k.value.trim().toLowerCase() === key.toLowerCase()) {
+      k.nextElementSibling.value = val; return;
+    }
+  }
+  const div = document.createElement('div');
+  div.className = 'attr-row';
+  div.innerHTML = `<input class="form-control" name="attr_key[]" value="${key}">
+    <input class="form-control" name="attr_val[]" value="${val}">
+    <button type="button" class="btn btn-danger btn-sm" onclick="removeAttr(this)">✕</button>`;
+  document.getElementById('attrsContainer').appendChild(div);
+}
+
+// ── Calculateur TVA ────────────────────────────────────────────────────────
+const prixHT = document.getElementById('prixHT');
+const tauxTV = document.getElementById('tauxTVA');
+const ttcDisp= document.getElementById('ttcDisplay');
+const prixTTC= document.getElementById('prixTTC');
+
+function calcTTC() {
+  const ht  = parseFloat(prixHT.value)  || 0;
+  const tva = parseFloat(tauxTV.value)  || 0;
+  const ttc = Math.round(ht * (1 + tva / 100));
+  ttcDisp.textContent = ttc.toLocaleString('fr-FR') + ' FCFA';
+  prixTTC.value = ttc;
+}
+function setTVA(r, btn) {
+  tauxTV.value = r;
+  document.querySelectorAll('.tva-preset').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); calcTTC();
+}
+[prixHT, tauxTV].forEach(el => el.addEventListener('input', calcTTC));
+calcTTC();
+
+// ── Image drop ─────────────────────────────────────────────────────────────
+const imgInput = document.getElementById('imgInput');
+const dropZone = document.getElementById('dropZone');
+imgInput.addEventListener('change', e => showPrev(e.target.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
+dropZone.addEventListener('dragleave', () => dropZone.style.borderColor = '');
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.style.borderColor = '';
+  const f = e.dataTransfer.files[0];
+  if (f) { const dt = new DataTransfer(); dt.items.add(f); imgInput.files = dt.files; showPrev(f); }
+});
+function showPrev(f) {
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    let img = document.getElementById('imgPreview');
+    if (!img) { img = document.createElement('img'); img.id = 'imgPreview'; img.className = 'img-preview'; dropZone.prepend(img); }
+    img.src = e.target.result;
+  };
+  r.readAsDataURL(f);
+}
+
+// ── Catégorie tabs ────────────────────────────────────────────────────────
+function switchCat(idx, btn) {
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.cat-values').forEach(v => v.classList.add('hidden'));
+  btn.classList.add('active');
+  document.querySelector(`.cat-values[data-cat="${idx}"]`).classList.remove('hidden');
+}
+
+// ── Barcode checkbox ───────────────────────────────────────────────────────
+const genCb = document.getElementById('genCb');
+const bcField= document.getElementById('bcField');
+if (genCb) genCb.addEventListener('change', () => { bcField.disabled = genCb.checked; if (genCb.checked) bcField.value=''; });
+</script>
+{% endblock %}

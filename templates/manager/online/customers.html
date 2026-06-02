@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Clients en Ligne — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">👥 Clients en Ligne</div>
+  <a href="{{ url_for('online.dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+</div>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Ville</th><th>Inscrit le</th><th>Commandes</th></tr></thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td><strong>{{ c.full_name }}</strong></td>
+          <td style="font-size:.82rem;">{{ c.email }}</td>
+          <td>{{ c.telephone or '—' }}</td>
+          <td>{{ c.ville or '—' }}</td>
+          <td style="font-size:.82rem;">{{ c.created_at.strftime('%d/%m/%Y') }}</td>
+          <td><span class="badge badge-blue">{{ c.orders.count() }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem;">Aucun client inscrit.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

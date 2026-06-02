@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Catégories — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Catégories de produits</div>
+  <a href="{{ url_for('categories.create') }}" class="btn btn-primary">+ Nouvelle catégorie</a>
+</div>
+
+{% if categories %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
+  {% for c in categories %}
+  <div class="card" style="border-left:4px solid {{ c.couleur }};">
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;">
+      <span style="font-size:2rem;line-height:1;">{{ c.icone }}</span>
+      <div>
+        <div style="font-weight:600;font-size:.95rem;">{{ c.nom }}</div>
+        <div class="text-muted" style="font-size:.75rem;">{{ c.product_count }} produit(s)</div>
+      </div>
+    </div>
+    {% if c.description %}
+    <div class="text-muted" style="font-size:.8rem;margin-bottom:.75rem;">{{ c.description }}</div>
+    {% endif %}
+    <div class="flex gap-1">
+      <a href="{{ url_for('categories.edit', cid=c.id) }}" class="btn btn-secondary btn-sm">Éditer</a>
+      <form method="POST" action="{{ url_for('categories.delete', cid=c.id) }}">
+        <button type="submit" class="btn btn-danger btn-sm"
+                onclick="return confirm('Supprimer « {{ c.nom }} » ?')">Supprimer</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:3rem;">
+  <div style="font-size:3rem;margin-bottom:1rem;">📂</div>
+  <div class="text-muted">Aucune catégorie créée.</div>
+  <a href="{{ url_for('categories.create') }}" class="btn btn-primary" style="margin-top:1rem;">Créer la première</a>
+</div>
+{% endif %}
+{% endblock %}

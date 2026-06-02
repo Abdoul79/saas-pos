@@ -1,0 +1,75 @@
+{% extends "shop/base.html" %}
+{% block title %}{{ tenant.nom_boutique or tenant.activite }} — Boutique en ligne{% endblock %}
+{% block head %}
+<style>
+  .shop-hero { background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border-radius:14px;padding:2.5rem;margin-bottom:2rem;text-align:center; }
+  .shop-hero h1 { font-size:2rem;font-weight:800;margin-bottom:.5rem; }
+  .shop-hero p { color:#94a3b8;font-size:1rem; }
+
+  .cat-pills { display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem; }
+  .cat-pill { padding:.45rem 1rem;border-radius:99px;font-size:.82rem;font-weight:500;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s; }
+  .cat-pill:hover { border-color:var(--accent);color:var(--accent); }
+  .cat-pill.active { background:var(--accent);color:#fff;border-color:var(--accent); }
+
+  .products-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.25rem; }
+  .prod-card { border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#fff;transition:transform .15s,box-shadow .15s; }
+  .prod-card:hover { transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,.08); }
+  .prod-img { width:100%;aspect-ratio:1;object-fit:cover;background:var(--surface); }
+  .prod-img-ph { width:100%;aspect-ratio:1;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:3rem;color:var(--border); }
+  .prod-body { padding:.85rem 1rem; }
+  .prod-name { font-size:.9rem;font-weight:600;margin-bottom:.25rem; }
+  .prod-price { font-size:1.1rem;font-weight:800;color:var(--accent); }
+  .prod-cat { font-size:.72rem;color:var(--muted);margin-top:.25rem; }
+  .prod-stars { font-size:.75rem;margin-top:.3rem; }
+  .prod-stock { font-size:.72rem;margin-top:.25rem; }
+  .prod-stock.ok { color:var(--success); }
+  .prod-stock.low { color:var(--warning); }
+  .prod-stock.out { color:var(--danger); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="shop-hero">
+  <h1>{{ tenant.nom_boutique or tenant.activite }}</h1>
+  <p>{{ tenant.shop_description or 'Bienvenue dans notre boutique en ligne' }}</p>
+</div>
+
+<div class="cat-pills">
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}"
+     class="cat-pill {% if not current_cat %}active{% endif %}">Tout</a>
+  {% for c in categories %}
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=c.id) }}"
+     class="cat-pill {% if current_cat == c.id %}active{% endif %}">{{ c.icone }} {{ c.nom }}</a>
+  {% endfor %}
+</div>
+
+{% if products %}
+<div class="products-grid">
+  {% for p in products %}
+  <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=p.id) }}" class="prod-card">
+    {% if p.image_url %}
+    <img src="{{ p.image_url }}" class="prod-img" alt="{{ p.designation }}">
+    {% else %}
+    <div class="prod-img-ph">📦</div>
+    {% endif %}
+    <div class="prod-body">
+      <div class="prod-name">{{ p.designation }}</div>
+      <div class="prod-price">{{ (p.prix_vente_ttc or 0)|int }} FCFA</div>
+      {% if p.category %}
+      <div class="prod-cat">{{ p.category.icone }} {{ p.category.nom }}</div>
+      {% endif %}
+      {% set stock = p.total_stock_magasin + p.total_stock_entrepot %}
+      <div class="prod-stock {% if stock > 10 %}ok{% elif stock > 0 %}low{% else %}out{% endif %}">
+        {% if stock > 10 %}En stock{% elif stock > 0 %}Stock limité{% else %}Rupture{% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center;padding:4rem;color:var(--muted);">
+  <div style="font-size:3rem;margin-bottom:1rem;">🏪</div>
+  <div>Aucun produit disponible pour le moment.</div>
+</div>
+{% endif %}
+{% endblock %}

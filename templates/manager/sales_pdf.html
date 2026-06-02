@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Rapport Ventes {% if filter_date %}— {{ filter_date.strftime('%d/%m/%Y') }}{% endif %}</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Helvetica Neue',Arial,sans-serif; font-size:9.5pt; color:#1a1a2e; background:#fff; }
+    @page { size:A4; margin:14mm 14mm 18mm 14mm;
+      @bottom-center { content:"Page " counter(page) " / " counter(pages); font-size:7.5pt; color:#999; }
+    }
+
+    /* ── Header ── */
+    .doc-header { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #1a1a2e; }
+    .company h1 { font-size:16pt;font-weight:800;color:#1a1a2e; }
+    .company .sub { font-size:8pt;color:#666;margin-top:2px; }
+    .doc-meta { text-align:right; }
+    .doc-type { font-size:13pt;font-weight:700;color:#1a6e2e;text-transform:uppercase;letter-spacing:1px; }
+    .doc-sub  { font-size:8pt;color:#555;margin-top:3px; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display:flex;gap:0;margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden; }
+    .stat-item { flex:1;padding:9px 12px;border-right:1px solid #ddd;text-align:center; }
+    .stat-item:last-child { border-right:none; }
+    .stat-item .sv { font-size:13pt;font-weight:800;color:#1a1a2e;font-family:'Courier New',monospace; }
+    .stat-item .sl { font-size:7pt;text-transform:uppercase;letter-spacing:.5px;color:#999;margin-top:2px; }
+
+    /* ── Mode paiement ── */
+    .methods { display:flex;gap:10px;margin-bottom:16px; }
+    .method-box { flex:1;padding:7px 10px;border-radius:5px;border:1px solid; }
+    .method-box.especes { background:#e8f5e9;border-color:#a5d6a7; }
+    .method-box.carte   { background:#e3f2fd;border-color:#90caf9; }
+    .method-box.mobile  { background:#f3e8fd;border-color:#ce93d8; }
+    .method-box .mt { font-size:7pt;font-weight:700;text-transform:uppercase;color:#555; }
+    .method-box .mv { font-size:11pt;font-weight:800;font-family:'Courier New',monospace;color:#1a1a2e;margin-top:2px; }
+    .method-box .mc { font-size:7pt;color:#777; }
+
+    /* ── Top produits ── */
+    .section-title { font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#555;margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:4px; }
+    .top-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:16px; }
+    .top-card { border:1px solid #e8e8e8;border-radius:5px;padding:7px 9px;background:#fafafa; }
+    .top-rank { font-size:9pt;font-weight:800;margin-bottom:2px; }
+    .top-name { font-size:7.5pt;font-weight:600;color:#1a1a2e;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .top-qty  { font-size:7pt;color:#666;font-family:'Courier New',monospace; }
+    .top-bar  { height:3px;background:#e8e8e8;border-radius:99px;margin-top:5px; }
+    .top-fill { height:3px;border-radius:99px; }
+
+    /* ── Blocs caissiers ── */
+    .cashier-block { margin-bottom:14px;border-radius:6px;overflow:hidden;border:2px solid; page-break-inside:avoid; }
+    .cashier-header { display:flex;justify-content:space-between;align-items:center;padding:8px 12px; }
+    .cashier-name { font-size:11pt;font-weight:800; }
+    .cashier-sub  { font-size:7.5pt;opacity:.75;margin-top:1px; }
+    .cashier-total{ font-size:13pt;font-weight:800;font-family:'Courier New',monospace; }
+
+    /* Tableau ventes caissier */
+    table { width:100%;border-collapse:collapse;font-size:8pt; }
+    thead tr { background:#f0f0f0; }
+    thead th { padding:5px 7px;font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:.3px;text-align:left;color:#555; }
+    thead th.r { text-align:right; }
+    tbody tr { border-bottom:1px solid #f0f0f0; }
+    tbody td { padding:5px 7px;vertical-align:top; }
+    tbody td.r { text-align:right; }
+    tbody td.mono { font-family:'Courier New',monospace; }
+
+    .badge { display:inline-block;padding:1px 5px;border-radius:3px;font-size:6.5pt;font-weight:700; }
+    .badge-g { background:#c8e6c9;color:#1b5e20; }
+    .badge-b { background:#bbdefb;color:#0d47a1; }
+    .badge-p { background:#e1bee7;color:#4a148c; }
+
+    .prod-list { display:flex;flex-wrap:wrap;gap:3px; }
+    .prod-tag  { display:inline-block;padding:1px 5px;border-radius:3px;background:#f0f0f0;font-size:7pt;border:1px solid #e0e0e0; }
+    .prod-qty  { font-weight:700; }
+
+    .cashier-footer { display:flex;justify-content:space-between;align-items:center;padding:6px 12px;font-size:8.5pt;font-weight:700;border-top:1px solid rgba(0,0,0,.08); }
+
+    /* Footer doc */
+    .doc-footer { margin-top:14px;padding-top:8px;border-top:1px solid #ddd;display:flex;justify-content:space-between;font-size:7pt;color:#aaa; }
+  </style>
+</head>
+<body>
+
+  <!-- En-tête -->
+  <div class="doc-header">
+    <div class="company">
+      <h1>{{ tenant.nom_boutique or tenant.activite }}</h1>
+      <div class="sub">{{ tenant.activite }}</div>
+      <div class="sub">{{ tenant.adresse }}{% if tenant.ville %}, {{ tenant.ville }}{% endif %}</div>
+      {% if tenant.telephone_entreprise %}<div class="sub">{{ tenant.telephone_entreprise }}</div>{% endif %}
+    </div>
+    <div class="doc-meta">
+      <div class="doc-type">Rapport des Ventes</div>
+      {% if filter_date %}
+      <div class="doc-sub">Journée du <strong>{{ filter_date.strftime('%d/%m/%Y') }}</strong></div>
+      {% else %}
+      <div class="doc-sub">Toutes les ventes</div>
+      {% endif %}
+      <div class="doc-sub">Généré le {{ today.strftime('%d/%m/%Y') }} par {{ generated_by }}</div>
+    </div>
+  </div>
+
+  <!-- Stats globales -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="sv">{{ nb_transactions }}</div>
+      <div class="sl">Transactions</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv">{{ "%.0f"|format(total_ttc) }}</div>
+      <div class="sl">Total TTC (FCFA)</div>
+    </div>
+    {% if total_tva > 0 %}
+    <div class="stat-item">
+      <div class="sv">{{ "%.0f"|format(total_ht) }}</div>
+      <div class="sl">Total HT (FCFA)</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv">{{ "%.0f"|format(total_tva) }}</div>
+      <div class="sl">TVA (FCFA)</div>
+    </div>
+    {% endif %}
+    <div class="stat-item">
+      <div class="sv">{{ "%.0f"|format(ticket_moyen) }}</div>
+      <div class="sl">Ticket moyen</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv">{{ sales_by_cashier|length }}</div>
+      <div class="sl">Caissier(s)</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv" style="color:#0d47a1;">{{ nb_detail }}</div>
+      <div class="sl">Ventes Détail</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv" style="color:#1b5e20;">{{ nb_engros }}</div>
+      <div class="sl">Ventes Gros</div>
+    </div>
+  </div>
+
+  <!-- Mode de paiement -->
+  {% if by_method %}
+  <div class="methods">
+    {% if by_method.get('especes') %}
+    <div class="method-box especes">
+      <div class="mt">💵 Espèces</div>
+      <div class="mv">{{ "%.0f"|format(by_method.especes.total) }} FCFA</div>
+      <div class="mc">{{ by_method.especes.count }} transaction(s)</div>
+    </div>
+    {% endif %}
+    {% if by_method.get('carte') %}
+    <div class="method-box carte">
+      <div class="mt">💳 Carte</div>
+      <div class="mv">{{ "%.0f"|format(by_method.carte.total) }} FCFA</div>
+      <div class="mc">{{ by_method.carte.count }} transaction(s)</div>
+    </div>
+    {% endif %}
+    {% if by_method.get('mobile_money') %}
+    <div class="method-box mobile">
+      <div class="mt">📱 Mobile Money</div>
+      <div class="mv">{{ "%.0f"|format(by_method.mobile_money.total) }} FCFA</div>
+      <div class="mc">{{ by_method.mobile_money.count }} transaction(s)</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ── Détail vs Gros ── -->
+  <div style="display:flex;gap:10px;margin-bottom:14px;">
+    <div style="flex:1;border:1px solid #90caf9;border-radius:5px;padding:8px 12px;background:#e3f2fd;">
+      <div style="font-size:7pt;font-weight:700;text-transform:uppercase;color:#0d47a1;margin-bottom:4px;">🛒 Ventes au Détail</div>
+      <div style="font-family:'Courier New',monospace;font-size:13pt;font-weight:800;color:#0d47a1;">{{ "%.0f"|format(total_detail) }} <span style="font-size:7.5pt;font-weight:400;">FCFA</span></div>
+      <div style="font-size:7pt;color:#555;margin-top:2px;">{{ nb_detail }} transaction(s)</div>
+    </div>
+    <div style="flex:1;border:1px solid #a5d6a7;border-radius:5px;padding:8px 12px;background:#e8f5e9;">
+      <div style="font-size:7pt;font-weight:700;text-transform:uppercase;color:#1b5e20;margin-bottom:4px;">🏭 Ventes en Gros</div>
+      <div style="font-family:'Courier New',monospace;font-size:13pt;font-weight:800;color:#1b5e20;">{{ "%.0f"|format(total_engros) }} <span style="font-size:7.5pt;font-weight:400;">FCFA</span></div>
+      <div style="font-size:7pt;color:#555;margin-top:2px;">{{ nb_engros }} transaction(s)</div>
+    </div>
+  </div>
+
+  <!-- Top produits -->
+  {% if top_products %}
+  {% set max_qty = top_products[0].qty if top_products else 1 %}
+  {% set tp_colors = ['#f5a623','#3b82f6','#22c55e','#a78bfa','#f43f5e','#06b6d4','#fb923c','#84cc16'] %}
+  <div class="section-title">Top produits vendus</div>
+  <div class="top-grid">
+    {% for p in top_products %}
+    {% set col = tp_colors[loop.index0 % tp_colors|length] %}
+    <div class="top-card">
+      <div class="top-rank" style="color:{{ col }};">
+        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}#{{ loop.index }}{% endif %}
+      </div>
+      <div class="top-name" title="{{ p.designation }}">{{ p.designation }}</div>
+      <div class="top-qty">{{ p.qty }} vendus · {{ "%.0f"|format(p.total) }} FCFA</div>
+      <div class="top-bar">
+        <div class="top-fill" style="width:{{ ((p.qty / max_qty) * 100)|int }}%;background:{{ col }};"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Ventes par caissier -->
+  {% set colors    = ['#1a6e2e','#0d47a1','#4a148c','#b71c1c','#e65100','#006064','#1b5e20','#880e4f'] %}
+  {% set bg_colors = ['#e8f5e9','#e3f2fd','#f3e8fd','#ffebee','#fff3e0','#e0f7fa','#f1f8e9','#fce4ec'] %}
+
+  {% for cid, data in sales_by_cashier.items() %}
+  {% set color    = colors[loop.index0 % colors|length] %}
+  {% set bg_color = bg_colors[loop.index0 % bg_colors|length] %}
+  {% set cashier  = data.cashier %}
+
+  <div class="cashier-block" style="border-color:{{ color }};">
+
+    <!-- En-tête caissier -->
+    <div class="cashier-header" style="background:{{ bg_color }};">
+      <div>
+        <div class="cashier-name" style="color:{{ color }};">
+          {% if cashier %}{{ cashier.prenom }} {{ cashier.nom }}{% else %}Inconnu{% endif %}
+        </div>
+        <div class="cashier-sub">{{ data.sales|length }} vente(s) · {{ data.nb_items }} article(s) vendu(s)</div>
+      </div>
+      <div class="cashier-total" style="color:{{ color }};">{{ "%.0f"|format(data.total) }} FCFA</div>
+    </div>
+
+    <!-- Tableau des ventes -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th style="width:52px;">Heure</th>
+          <th style="width:60px;">Type</th>
+          <th style="width:65px;">Mode</th>
+          <th>Produits vendus</th>
+          <th class="r" style="width:85px;">Total TTC</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in data.sales %}
+        <tr>
+          <td class="mono" style="color:#aaa;font-size:7.5pt;border-left:3px solid {% if s.sale_type == 'engros' %}#1b5e20{% else %}#0d47a1{% endif %};">#{{ s.id }}</td>
+          <td class="mono">{{ s.created_at.strftime('%H:%M') }}</td>
+          <td>
+            {% if s.sale_type == 'engros' %}
+            <span class="badge" style="background:#c8e6c9;color:#1b5e20;">🏭 Gros</span>
+            {% else %}
+            <span class="badge" style="background:#bbdefb;color:#0d47a1;">🛒 Détail</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.payment_method == 'especes' %}<span class="badge badge-g">Espèces</span>
+            {% elif s.payment_method == 'carte' %}<span class="badge badge-b">Carte</span>
+            {% else %}<span class="badge badge-p">Mobile</span>{% endif %}
+          </td>
+          <td>
+            <div class="prod-list">
+              {% for item in s.items %}
+              <span class="prod-tag">
+                <span class="prod-qty" style="color:{{ color }};">{{ item.quantity }}×</span>
+                {{ item.designation or 'Article supprimé' }}
+                <span style="color:#888;font-family:'Courier New',monospace;">{{ "%.0f"|format(item.subtotal) }}</span>
+              </span>
+              {% endfor %}
+            </div>
+          </td>
+          <td class="r mono" style="font-weight:700;color:{{ color }};">{{ "%.0f"|format(s.total_amount) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Pied caissier -->
+    <div class="cashier-footer" style="background:{{ bg_color }};color:{{ color }};">
+      <span>
+        {{ data.sales|length }} vente(s) · {{ data.nb_items }} article(s)
+        {% set cd = data.sales|selectattr('sale_type','ne','engros')|list %}
+        {% set cg = data.sales|selectattr('sale_type','eq','engros')|list %}
+        {% if cg %}
+        · <span style="color:#0d47a1;">Détail : {{ "%.0f"|format(cd|sum(attribute='total_amount')) }}</span>
+        · <span style="color:#1b5e20;">Gros : {{ "%.0f"|format(cg|sum(attribute='total_amount')) }}</span>
+        {% endif %}
+      </span>
+      <span>TOTAL = {{ "%.0f"|format(data.total) }} FCFA</span>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="doc-footer">
+    <div>{{ tenant.nom_boutique or tenant.activite }} · {{ tenant.ville }}</div>
+    <div>Rapport généré le {{ today.strftime('%d/%m/%Y') }} par {{ generated_by }}</div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Paramètres — Super Admin{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Paramètres</div>
+  <a href="{{ url_for('super_admin.dashboard') }}" class="btn btn-secondary btn-sm">← Tableau de bord</a>
+</div>
+
+<div style="max-width:760px;display:flex;flex-direction:column;gap:1rem;">
+
+  <!-- ── 1. Profil & Adresse SaaS ── -->
+  <div class="card">
+    <div class="card-header">// 1. Identité &amp; Coordonnées de la plateforme</div>
+    <form method="POST">
+      <input type="hidden" name="action" value="profil">
+      <div class="grid-2" style="margin-top:1rem;">
+        <div class="form-group">
+          <label class="form-label">Nom de l'administrateur</label>
+          <input class="form-control" name="nom" value="{{ current_user.nom }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prénom</label>
+          <input class="form-control" name="prenom" value="{{ current_user.prenom }}" required>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Email de contact SaaS</label>
+          <input class="form-control" type="email" name="saas_email"
+                 value="{{ cfg.saas_email }}" placeholder="admin@saaspos.local">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Téléphone</label>
+          <input class="form-control" type="tel" name="saas_telephone"
+                 value="{{ cfg.saas_telephone }}" placeholder="+225 07 XX XX XX">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Adresse</label>
+          <input class="form-control" name="saas_adresse"
+                 value="{{ cfg.saas_adresse }}" placeholder="Rue, Quartier…">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ville</label>
+          <input class="form-control" name="saas_ville"
+                 value="{{ cfg.saas_ville }}" placeholder="Abidjan">
+        </div>
+      </div>
+      <div class="text-muted" style="font-size:.75rem;margin-bottom:.75rem;">
+        Ces coordonnées apparaissent sur les reçus de paiement et les CGU PDF.
+      </div>
+      <button type="submit" class="btn btn-primary">💾 Mettre à jour le profil</button>
+    </form>
+  </div>
+
+  <!-- ── 2. Montant mensuel par défaut ── -->
+  <div class="card">
+    <div class="card-header">// 2. Tarification — Montant mensuel par défaut</div>
+    <form method="POST" style="margin-top:1rem;">
+      <input type="hidden" name="action" value="montant">
+      <div class="form-group">
+        <label class="form-label">
+          Montant mensuel d'abonnement par défaut (FCFA)
+          <span class="text-muted" style="font-weight:400;font-size:.75rem;">— pré-rempli lors de l'enregistrement d'un paiement</span>
+        </label>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <input class="form-control text-mono" type="number" name="montant_defaut"
+                 value="{{ cfg.montant_mensuel_defaut }}"
+                 placeholder="ex: 15000" min="0" step="500" style="max-width:220px;">
+          <span class="text-muted" style="font-size:.85rem;">FCFA / mois</span>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+    </form>
+  </div>
+
+  <!-- ── 3. Changer le mot de passe ── -->
+  <div class="card">
+    <div class="card-header">// 3. Changer le mot de passe</div>
+    <form method="POST" style="margin-top:1rem;">
+      <input type="hidden" name="action" value="password">
+      <div class="form-group">
+        <label class="form-label">Mot de passe actuel</label>
+        <input class="form-control" type="password" name="old_password" required
+               style="max-width:320px;">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Nouveau mot de passe</label>
+          <input class="form-control" type="password" name="new_password" required
+                 placeholder="Min. 8 car. avec majuscule, chiffre, spécial"
+                 id="newPwd" oninput="checkPwd(this.value)">
+          <div style="height:4px;border-radius:99px;margin-top:.3rem;transition:all .3s;"
+               id="pwdBar" style="background:var(--border);"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirmer le nouveau mot de passe</label>
+          <input class="form-control" type="password" name="confirm_password" required
+                 id="confPwd" oninput="checkConf()">
+          <div id="confHint" style="font-size:.72rem;margin-top:.2rem;"></div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">🔐 Changer le mot de passe</button>
+    </form>
+  </div>
+
+  <!-- ── 4. Activateurs ── -->
+  <div class="card">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>// 4. Comptes Activateurs
+        <span class="text-muted" style="font-weight:400;font-size:.74rem;">— peuvent uniquement activer / rejeter des comptes</span>
+      </span>
+      <span class="badge badge-blue" style="font-size:.72rem;">{{ activateurs|length }}</span>
+    </div>
+
+    <!-- Liste des activateurs existants -->
+    {% if activateurs %}
+    <div class="table-wrap" style="margin-top:.75rem;">
+      <table>
+        <thead>
+          <tr><th>Nom</th><th>Email</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for a in activateurs %}
+          <tr>
+            <td><strong>{{ a.full_name }}</strong></td>
+            <td class="text-mono" style="font-size:.82rem;">{{ a.email }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('super_admin.delete_activateur', uid=a.id) }}">
+                <button type="submit" class="btn btn-danger btn-sm"
+                        onclick="return confirm('Supprimer {{ a.full_name }} ?')">✕ Supprimer</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-muted" style="padding:1rem;font-size:.84rem;">Aucun activateur créé.</div>
+    {% endif %}
+
+    <!-- Formulaire création activateur -->
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem;">Ajouter un nouvel activateur :</div>
+      <form method="POST" action="{{ url_for('super_admin.create_activateur') }}">
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Nom</label>
+            <input class="form-control" name="nom" required placeholder="Diallo">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Prénom</label>
+            <input class="form-control" name="prenom" required placeholder="Ibrahim">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-control" type="email" name="email" required placeholder="activateur@saaspos.local">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mot de passe provisoire</label>
+            <input class="form-control" type="password" name="password" required placeholder="Min. 8 caractères">
+          </div>
+        </div>
+        <div style="background:#f5a62312;border:1px solid #f5a62344;border-radius:8px;padding:.65rem .9rem;margin-bottom:.85rem;font-size:.78rem;color:var(--muted);">
+          ℹ Ce compte peut <strong style="color:var(--text);">uniquement activer ou rejeter</strong> des demandes en attente. Il n'a pas accès aux paiements, aux options, ni aux autres fonctionnalités.
+        </div>
+        <button type="submit" class="btn btn-primary">+ Créer l'activateur</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function checkPwd(v) {
+  const bar = document.getElementById('pwdBar');
+  const checks = [v.length >= 8, /[A-Z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)];
+  const score  = checks.filter(Boolean).length;
+  const colors = ['#ef4444','#f97316','#eab308','#22c55e'];
+  bar.style.background = colors[score-1] || 'var(--border)';
+  bar.style.width      = (score * 25) + '%';
+}
+function checkConf() {
+  const pw   = document.getElementById('newPwd').value;
+  const conf = document.getElementById('confPwd').value;
+  const hint = document.getElementById('confHint');
+  if (!conf) { hint.textContent = ''; return; }
+  if (pw === conf) { hint.textContent = '✓ Correspond'; hint.style.color = 'var(--success)'; }
+  else             { hint.textContent = '✕ Ne correspond pas'; hint.style.color = 'var(--danger)'; }
+}
+</script>
+{% endblock %}

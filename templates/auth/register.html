@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block title %}Inscription — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  .req { color:var(--danger); margin-left:2px; }
+  .section-sep {
+    font-family:var(--mono);font-size:.68rem;color:var(--muted);
+    letter-spacing:.1em;text-transform:uppercase;
+    padding:.5rem 0 .65rem;border-bottom:1px solid var(--border);
+    margin-bottom:1rem;margin-top:.5rem;
+  }
+  .logo-drop {
+    border:2px dashed var(--border);border-radius:10px;
+    padding:1.25rem;text-align:center;cursor:pointer;
+    transition:border-color .2s;position:relative;overflow:hidden;
+  }
+  .logo-drop:hover { border-color:var(--accent);background:#f5a62308; }
+  .logo-drop input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+  .logo-preview { max-height:80px;max-width:200px;object-fit:contain;border-radius:6px;margin-bottom:.4rem; }
+  .password-strength { height:4px;border-radius:99px;margin-top:.3rem;transition:all .3s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;margin:0 auto;">
+  <div class="page-title">Demande d'accès commerçant</div>
+  <div class="card">
+    <div class="card-header">// Formulaire d'inscription</div>
+
+    <form method="POST" action="{{ url_for('auth.register') }}" enctype="multipart/form-data">
+
+      <!-- ── 1. Responsable légal ── -->
+      <div class="section-sep" style="margin-top:1rem;">// 1. Responsable légal</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Nom <span class="req">*</span></label>
+          <input class="form-control" name="nom" value="{{ form_data.nom if form_data else '' }}" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prénom <span class="req">*</span></label>
+          <input class="form-control" name="prenom" value="{{ form_data.prenom if form_data else '' }}" required>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Email <span class="req">*</span>
+            <span style="font-size:.7rem;color:var(--muted);font-weight:400;">(identifiant de connexion)</span>
+          </label>
+          <input class="form-control" type="email" name="email"
+                 value="{{ form_data.email if form_data else '' }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Téléphone personnel</label>
+          <input class="form-control" type="tel" name="telephone_personnel"
+                 value="{{ form_data.telephone_personnel if form_data else '' }}"
+                 placeholder="+225 07 XX XX XX">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe <span class="req">*</span></label>
+        <input class="form-control" type="password" name="password" id="pwdInput" required
+               placeholder="Min. 8 car. avec majuscule, chiffre, caractère spécial"
+               oninput="checkPwd(this.value)">
+        <div class="password-strength" id="pwdBar" style="background:var(--border);width:0;"></div>
+        <div id="pwdHint" style="font-size:.72rem;color:var(--muted);margin-top:.2rem;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmer le mot de passe <span class="req">*</span></label>
+        <div style="position:relative;">
+          <input class="form-control" type="password" name="confirm_password" id="confirmPwdInput"
+                 required placeholder="Répétez le mot de passe"
+                 oninput="checkConfirm()"
+                 style="padding-right:2.2rem;">
+          <span id="confirmIcon" style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);font-size:1rem;"></span>
+        </div>
+        <div id="confirmHint" style="font-size:.72rem;margin-top:.2rem;"></div>
+      </div>
+
+      <!-- ── 2. Établissement ── -->
+      <div class="section-sep">// 2. Informations de l'établissement</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Nom de la boutique / enseigne</label>
+          <input class="form-control" name="nom_boutique"
+                 value="{{ form_data.nom_boutique if form_data else '' }}"
+                 placeholder="ex: Supermarché Chez Koné">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Téléphone entreprise</label>
+          <input class="form-control" type="tel" name="telephone_entreprise"
+                 value="{{ form_data.telephone_entreprise if form_data else '' }}"
+                 placeholder="+225 27 XX XX XX">
+        </div>
+      </div>
+
+      <!-- Secteur avec option "Autre" -->
+      <div class="form-group">
+        <label class="form-label">Secteur d'activité <span class="req">*</span></label>
+        <select class="form-control" name="activite" id="activiteSel" required
+                onchange="toggleCustomActivity(this.value)">
+          <option value="">-- Choisir --</option>
+          {% for act in activities %}
+            <option value="{{ act }}"
+                    {% if form_data and form_data.activite == act %}selected{% endif %}>
+              {{ act }}
+            </option>
+          {% endfor %}
+          <option value="Autre"
+                  {% if form_data and form_data.activite not in activities and form_data.activite %}selected{% endif %}>
+            Autre (préciser)
+          </option>
+        </select>
+        <div id="customActivityDiv" style="display:none;margin-top:.45rem;">
+          <input class="form-control" name="activite_custom" id="activiteCustom"
+                 placeholder="Précisez votre secteur d'activité…"
+                 value="{{ form_data.activite_custom if form_data and form_data.activite not in activities else '' }}">
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Ville <span class="req">*</span></label>
+          <input class="form-control" name="ville"
+                 value="{{ form_data.ville if form_data else '' }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Adresse complète <span class="req">*</span></label>
+          <textarea class="form-control" name="adresse" rows="2" required>{{ form_data.adresse if form_data else '' }}</textarea>
+        </div>
+      </div>
+
+      <!-- ── 3. Logo ── -->
+      <div class="section-sep">// 3. Logo (optionnel)</div>
+      <div class="logo-drop" id="logoZone">
+        <input type="file" name="logo" id="logoInput" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+        <div id="logoContent">
+          <div style="font-size:1.5rem;margin-bottom:.3rem;">🖼</div>
+          <div style="font-size:.84rem;font-weight:500;">Cliquer ou glisser votre logo</div>
+          <div class="text-muted" style="font-size:.74rem;">PNG, JPG, WEBP, SVG — max 2 Mo · Optionnel</div>
+        </div>
+      </div>
+
+      <!-- ── 4. CGU ── -->
+      <div class="section-sep" style="margin-top:1.25rem;">// 4. Conditions d'utilisation</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;margin-bottom:.85rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <div style="font-size:2rem;flex-shrink:0;">📄</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:.9rem;margin-bottom:.2rem;">Conditions Générales d'Utilisation</div>
+          <div class="text-muted" style="font-size:.78rem;">Lisez attentivement les CGU avant de cocher la case ci-dessous.</div>
+        </div>
+        <a href="{{ url_for('auth.cgu_pdf') }}" target="_blank"
+           class="btn btn-secondary btn-sm"
+           style="white-space:nowrap;flex-shrink:0;">
+          📥 Lire les CGU (PDF)
+        </a>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:flex-start;gap:.65rem;cursor:pointer;
+                      padding:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;"
+               id="cguLabel">
+          <input type="checkbox" name="cgu" value="1" id="cguCheck"
+                 style="accent-color:var(--accent);margin-top:.15rem;flex-shrink:0;"
+                 {% if form_data and form_data.get('cgu') %}checked{% endif %}
+                 onchange="onCguChange(this)">
+          <span style="font-size:.84rem;line-height:1.5;">
+            J'ai lu et j'accepte les
+            <a href="{{ url_for('auth.cgu_pdf') }}" target="_blank"
+               style="color:var(--accent);text-decoration:none;font-weight:600;"
+               onclick="event.stopPropagation()">
+              Conditions Générales d'Utilisation
+            </a>
+            de la plateforme SaaS POS. <span class="req">*</span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Submit -->
+      <div class="flex gap-2 items-center" style="margin-top:1.25rem;">
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          Soumettre la demande →
+        </button>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Retour</a>
+      </div>
+    </form>
+
+    <p class="text-muted" style="margin-top:1rem;font-size:.8rem;">
+      Votre demande sera examinée par un Super Administrateur. Vous recevrez une confirmation une fois votre compte activé.
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Secteur custom ────────────────────────────────────────────────────────
+function toggleCustomActivity(val) {
+  const div = document.getElementById('customActivityDiv');
+  const inp = document.getElementById('activiteCustom');
+  if (val === 'Autre') {
+    div.style.display = 'block';
+    inp.required = true;
+    inp.focus();
+  } else {
+    div.style.display = 'none';
+    inp.required = false;
+  }
+}
+// Init si "Autre" déjà sélectionné (retour erreur)
+const selAct = document.getElementById('activiteSel');
+if (selAct && selAct.value === 'Autre') toggleCustomActivity('Autre');
+
+// ── Indicateur force mot de passe ────────────────────────────────────────
+function checkPwd(v) {
+  const bar  = document.getElementById('pwdBar');
+  const hint = document.getElementById('pwdHint');
+  let score  = 0;
+  const checks = [
+    [v.length >= 8,        '8 caractères minimum'],
+    [/[A-Z]/.test(v),      'une majuscule'],
+    [/[0-9]/.test(v),      'un chiffre'],
+    [/[^A-Za-z0-9]/.test(v),'un caractère spécial'],
+  ];
+  const missing = checks.filter(([ok]) => !ok).map(([,msg]) => msg);
+  score = checks.filter(([ok]) => ok).length;
+
+  const colors = ['#ef4444','#f97316','#eab308','#22c55e'];
+  const labels = ['Très faible','Faible','Moyen','Fort'];
+  bar.style.background = colors[score - 1] || 'var(--border)';
+  bar.style.width      = (score * 25) + '%';
+  hint.textContent     = score === 4 ? '✓ Mot de passe fort' : 'Manque : ' + missing.join(', ');
+  hint.style.color     = score === 4 ? 'var(--success)' : 'var(--muted)';
+}
+
+// ── Confirmation mot de passe ────────────────────────────────────────────
+function checkConfirm() {
+  const pwd  = document.getElementById('pwdInput').value;
+  const conf = document.getElementById('confirmPwdInput').value;
+  const icon = document.getElementById('confirmIcon');
+  const hint = document.getElementById('confirmHint');
+  if (!conf) { icon.textContent=''; hint.textContent=''; return; }
+  if (pwd === conf) {
+    icon.textContent = '✓'; icon.style.color = 'var(--success)';
+    hint.textContent = 'Les mots de passe correspondent.'; hint.style.color = 'var(--success)';
+  } else {
+    icon.textContent = '✕'; icon.style.color = 'var(--danger)';
+    hint.textContent = 'Les mots de passe ne correspondent pas.'; hint.style.color = 'var(--danger)';
+  }
+}
+
+// ── CGU checkbox style ────────────────────────────────────────────────────
+function onCguChange(cb) {
+  const label = document.getElementById('cguLabel');
+  if (cb.checked) {
+    label.style.borderColor = 'var(--success)';
+    label.style.background  = '#16a34a15';
+  } else {
+    label.style.borderColor = 'var(--border)';
+    label.style.background  = 'var(--surface)';
+  }
+}
+// Init si déjà coché
+const cguCb = document.getElementById('cguCheck');
+if (cguCb && cguCb.checked) onCguChange(cguCb);
+
+// ── Logo drop ─────────────────────────────────────────────────────────────
+const logoZone  = document.getElementById('logoZone');
+const logoInput = document.getElementById('logoInput');
+const logoContent = document.getElementById('logoContent');
+
+logoInput.addEventListener('change', e => showLogo(e.target.files[0]));
+logoZone.addEventListener('dragover', e => { e.preventDefault(); logoZone.style.borderColor = 'var(--accent)'; });
+logoZone.addEventListener('dragleave', () => logoZone.style.borderColor = '');
+logoZone.addEventListener('drop', e => {
+  e.preventDefault(); logoZone.style.borderColor = '';
+  const f = e.dataTransfer.files[0];
+  if (f) { const dt = new DataTransfer(); dt.items.add(f); logoInput.files = dt.files; showLogo(f); }
+});
+
+function showLogo(f) {
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    logoContent.innerHTML = `
+      <img src="${e.target.result}" class="logo-preview" alt="Logo">
+      <div style="font-size:.75rem;color:var(--muted);">${f.name} · ${(f.size/1024).toFixed(1)} Ko</div>
+      <div style="font-size:.72rem;color:var(--accent);">Cliquer pour changer</div>`;
+  };
+  r.readAsDataURL(f);
+}
+</script>
+{% endblock %}
