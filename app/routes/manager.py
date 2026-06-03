@@ -679,6 +679,15 @@ def sales():
             total_detail += float(s.total_amount or 0)
             nb_detail    += 1
 
+    # Commandes en ligne du jour
+    from app.models import OnlineOrder, OnlineOrderStatus
+    online_q = OnlineOrder.query.filter_by(tenant_id=_tid())
+    if date_str:
+        online_q = online_q.filter(func.date(OnlineOrder.created_at) == date_str)
+    online_orders = online_q.order_by(OnlineOrder.created_at.desc()).all()
+    online_total  = sum(float(o.total_amount) for o in online_orders if o.status != OnlineOrderStatus.CANCELLED)
+    online_pending = sum(1 for o in online_orders if o.status == OnlineOrderStatus.PENDING)
+
     return render_template('manager/sales.html',
                            sales=sales_page,
                            sales_by_cashier=sales_by_cashier,
@@ -696,7 +705,11 @@ def sales():
                            nb_transactions=len(all_sales),
                            ticket_moyen=total_ttc/len(all_sales) if all_sales else 0,
                            cashiers=cashiers,
-                           current_cashier=cashier_id)
+                           current_cashier=cashier_id,
+                           online_orders=online_orders,
+                           online_total=online_total,
+                           online_pending=online_pending,
+                           OnlineOrderStatus=OnlineOrderStatus)
 
 
 @manager_bp.route('/sales/pdf')
@@ -879,6 +892,3 @@ def cashiers_presence():
             'pos_state': pos_state,
         })
     return {'cashiers': result}
-
-
-

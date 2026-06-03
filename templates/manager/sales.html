@@ -69,16 +69,20 @@
 </div>
 
 <!-- Stats globales -->
-<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:.75rem;">
+<div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:.75rem;">
   <div class="stat-card">
-    <div class="stat-label">Transactions</div>
+    <div class="stat-label">POS Transactions</div>
     <div class="stat-value text-accent">{{ nb_transactions }}</div>
     <div class="stat-sub">{{ sales_by_cashier|length }} caissier(s)</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">Total TTC</div>
+    <div class="stat-label">POS Total TTC</div>
     <div class="stat-value">{{ "%.0f"|format(total_ttc) }} <small style="font-size:.45em;color:var(--muted);">FCFA</small></div>
-    {% if total_tva > 0 %}<div class="stat-sub">TVA : {{ "%.0f"|format(total_tva) }}</div>{% endif %}
+  </div>
+  <div class="stat-card" style="border-color:#06b6d433;">
+    <div class="stat-label" style="color:#06b6d4;">🌐 En Ligne</div>
+    <div class="stat-value" style="color:#06b6d4;">{{ "%.0f"|format(online_total) }} <small style="font-size:.45em;opacity:.5;">FCFA</small></div>
+    <div class="stat-sub">{{ online_orders|length }} commande(s)</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Ticket moyen</div>
@@ -114,6 +118,51 @@
     <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem;">{{ nb_engros }} transaction(s)</div>
   </div>
   {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Ventes en ligne ── -->
+{% if online_orders %}
+<div style="background:#06b6d408;border:1px solid #06b6d433;border-radius:12px;overflow:hidden;margin-bottom:1rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:.7rem 1.1rem;border-bottom:1px solid #06b6d422;">
+    <div style="display:flex;align-items:center;gap:.65rem;">
+      <span style="font-size:1.2rem;">🌐</span>
+      <div>
+        <div style="color:#06b6d4;font-weight:700;font-size:.9rem;">Commandes en Ligne</div>
+        <div style="font-size:.68rem;color:var(--muted);">{{ online_orders|length }} commande(s){% if online_pending %} · <span style="color:#f59e0b;">{{ online_pending }} en attente</span>{% endif %}</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <div style="font-family:monospace;font-size:1.05rem;font-weight:700;color:#06b6d4;">
+        {{ "%.0f"|format(online_total) }} <span style="font-size:.6rem;opacity:.6;">FCFA</span>
+      </div>
+      <a href="{{ url_for('online.orders_list') }}" class="btn btn-sm" style="background:#06b6d418;color:#06b6d4;border:1px solid #06b6d444;font-size:.72rem;">Gérer →</a>
+    </div>
+  </div>
+  <div style="background:var(--surface);">
+    {% for o in online_orders[:10] %}
+    <div style="display:grid;grid-template-columns:90px 1fr 100px 80px 120px;gap:.5rem;align-items:center;padding:.5rem 1.1rem;border-bottom:1px solid var(--border);font-size:.82rem;">
+      <div style="font-family:monospace;font-size:.72rem;color:var(--muted);">{{ o.reference[-8:] }}</div>
+      <div>
+        <span style="font-weight:600;">{{ o.customer.full_name }}</span>
+        <span style="color:var(--muted);font-size:.72rem;margin-left:.3rem;">
+          {% for item in o.items[:2] %}{{ item.quantity }}× {{ item.designation[:15] }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% if o.items|length > 2 %}+{{ o.items|length - 2 }}{% endif %}
+        </span>
+      </div>
+      <div>
+        <span class="badge" style="background:{{ OnlineOrderStatus.color(o.status) }}22;color:{{ OnlineOrderStatus.color(o.status) }};border:1px solid {{ OnlineOrderStatus.color(o.status) }}44;font-size:.64rem;">
+          {{ OnlineOrderStatus.icon(o.status) }} {{ OnlineOrderStatus.label(o.status) }}
+        </span>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);">{{ o.created_at.strftime('%H:%M') }}</div>
+      <div style="text-align:right;font-family:monospace;font-weight:700;color:#06b6d4;">{{ o.total_amount|int }} FCFA</div>
+    </div>
+    {% endfor %}
+    {% if online_orders|length > 10 %}
+    <div style="text-align:center;padding:.5rem;font-size:.75rem;color:#06b6d4;">+{{ online_orders|length - 10 }} autres commandes →</div>
+    {% endif %}
+  </div>
 </div>
 {% endif %}
 
