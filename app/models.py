@@ -89,6 +89,8 @@ class Tenant(db.Model):
     shop_slug                = db.Column(db.String(100), nullable=True, unique=True, index=True)
     shop_description         = db.Column(db.Text, nullable=True)
     shop_banner_filename     = db.Column(db.String(255), nullable=True)
+    frais_livraison          = db.Column(db.Numeric(10, 2), nullable=True, default=0)
+    seuil_livraison_gratuite = db.Column(db.Numeric(10, 2), nullable=True, default=0)
 
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -734,6 +736,7 @@ class OnlineOrder(db.Model):
     total_ht       = db.Column(db.Numeric(10, 2), default=0)
     total_tva      = db.Column(db.Numeric(10, 2), default=0)
     total_amount   = db.Column(db.Numeric(10, 2), default=0)
+    frais_livraison = db.Column(db.Numeric(10, 2), default=0)
 
     adresse_livraison = db.Column(db.Text, nullable=True)
     ville_livraison   = db.Column(db.String(100), nullable=True)

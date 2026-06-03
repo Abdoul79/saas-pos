@@ -448,6 +448,8 @@ def settings():
                 return redirect(url_for('online.settings'))
             t.shop_slug = slug
         t.shop_description = request.form.get('description', '').strip()
+        t.frais_livraison = request.form.get('frais_livraison', 0, type=int)
+        t.seuil_livraison_gratuite = request.form.get('seuil_livraison_gratuite', 0, type=int)
         db.session.commit()
         flash('Paramètres boutique en ligne sauvegardés.', 'success')
         return redirect(url_for('online.settings'))

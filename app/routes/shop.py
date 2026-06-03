@@ -125,10 +125,17 @@ def add_to_cart(slug):
 def cart_view(slug):
     t = _get_tenant(slug)
     cart = _get_cart(t.id)
-    total = sum(item['price'] * item['qty'] for item in cart)
+    subtotal = sum(item['price'] * item['qty'] for item in cart)
+    frais = float(t.frais_livraison or 0)
+    seuil = float(t.seuil_livraison_gratuite or 0)
+    livraison_gratuite = (frais == 0) or (seuil > 0 and subtotal >= seuil)
+    frais_final = 0 if livraison_gratuite else frais
+    total = subtotal + frais_final
     customer = _get_customer(t.id)
     return render_template('shop/cart.html', tenant=t, cart=cart,
-                           total=total, customer=customer)
+                           subtotal=subtotal, frais_livraison=frais_final,
+                           livraison_gratuite=livraison_gratuite,
+                           seuil=seuil, total=total, customer=customer)
 
 
 @shop_bp.route('/<slug>/panier/supprimer/<key>')
@@ -212,7 +219,12 @@ def checkout(slug):
         flash('Votre panier est vide.', 'warning')
         return redirect(url_for('shop.home', slug=slug))
 
-    total = sum(item['price'] * item['qty'] for item in cart)
+    subtotal = sum(item['price'] * item['qty'] for item in cart)
+    frais = float(t.frais_livraison or 0)
+    seuil = float(t.seuil_livraison_gratuite or 0)
+    livraison_gratuite = (frais == 0) or (seuil > 0 and subtotal >= seuil)
+    frais_final = 0 if livraison_gratuite else frais
+    total = subtotal + frais_final
 
     if request.method == 'POST':
         ref = f"WEB-{t.id}-{datetime.utcnow().strftime('%y%m%d%H%M')}-{secrets.token_hex(2).upper()}"
@@ -221,8 +233,9 @@ def checkout(slug):
             customer_id=customer.id,
             reference=ref,
             total_amount=total,
-            total_ht=total,
+            total_ht=subtotal,
             total_tva=0,
+            frais_livraison=frais_final,
             adresse_livraison=request.form.get('adresse', customer.adresse or ''),
             ville_livraison=request.form.get('ville', customer.ville or ''),
             telephone_contact=request.form.get('telephone', customer.telephone or ''),
@@ -250,7 +263,8 @@ def checkout(slug):
         return redirect(url_for('shop.order_detail', slug=slug, ref=ref))
 
     return render_template('shop/checkout.html', tenant=t, customer=customer,
-                           cart=cart, total=total)
+                           cart=cart, subtotal=subtotal, frais_livraison=frais_final,
+                           livraison_gratuite=livraison_gratuite, seuil=seuil, total=total)
 
 
 @shop_bp.route('/<slug>/commande/<ref>')

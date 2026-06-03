@@ -1,39 +1,133 @@
 {% extends "base.html" %}
 {% block title %}Paramètres Boutique en Ligne — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  .settings-section { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem;margin-bottom:1rem; }
+  .section-title { font-family:monospace;font-size:.75rem;color:var(--accent);letter-spacing:.08em;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem; }
+  .delivery-option { background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.75rem;transition:border-color .15s; }
+  .delivery-option:hover { border-color:var(--accent); }
+  .do-header { display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem; }
+  .do-icon { font-size:1.2rem; }
+  .do-title { font-weight:600;font-size:.9rem; }
+  .do-desc { font-size:.78rem;color:var(--muted);margin-bottom:.6rem; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="flex justify-between items-center mb-3">
   <div class="page-title" style="margin-bottom:0">⚙ Paramètres Boutique en Ligne</div>
   <a href="{{ url_for('online.dashboard') }}" class="btn btn-secondary">← Dashboard</a>
 </div>
 
-<div class="card" style="max-width:600px;padding:1.5rem;">
-  <form method="POST">
-    <div style="background:#16a34a15;border:1px solid #16a34a44;border-radius:8px;padding:.65rem 1rem;margin-bottom:1.25rem;font-size:.85rem;color:#4ade80;">
+<form method="POST" style="max-width:650px;">
+
+  <!-- Statut -->
+  <div class="settings-section">
+    <div class="section-title">🌐 Statut</div>
+    <div style="background:#16a34a15;border:1px solid #16a34a44;border-radius:8px;padding:.65rem 1rem;font-size:.85rem;color:#4ade80;">
       ✓ Boutique en ligne activée par l'administrateur
     </div>
+  </div>
+
+  <!-- Identité boutique -->
+  <div class="settings-section">
+    <div class="section-title">🏪 Identité de la boutique</div>
     <div class="form-group">
       <label class="form-label">Slug (URL de la boutique)</label>
       <div style="display:flex;align-items:center;gap:.5rem;">
-        <span style="color:var(--muted);font-size:.82rem;">votre-domaine.com/shop/</span>
-        <input name="slug" class="form-control" value="{{ tenant.shop_slug or '' }}" placeholder="ma-boutique" style="flex:1;">
+        <span style="color:var(--muted);font-size:.82rem;white-space:nowrap;">/shop/</span>
+        <input name="slug" class="form-control" value="{{ tenant.shop_slug or '' }}" placeholder="ma-boutique" style="flex:1;font-family:monospace;">
       </div>
       <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;">Lettres minuscules et tirets uniquement.</div>
     </div>
     <div class="form-group">
       <label class="form-label">Description de la boutique</label>
-      <textarea name="description" class="form-control" rows="3">{{ tenant.shop_description or '' }}</textarea>
+      <textarea name="description" class="form-control" rows="3" placeholder="Décrivez votre boutique pour vos clients...">{{ tenant.shop_description or '' }}</textarea>
     </div>
 
-    {% if tenant.boutique_en_ligne_active and tenant.shop_slug %}
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem;margin-bottom:1rem;font-size:.82rem;">
-      🔗 URL de votre boutique :
-      <a href="{{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }}" target="_blank" style="color:var(--accent);font-weight:600;">
+    {% if tenant.shop_slug %}
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.65rem 1rem;font-size:.82rem;">
+      🔗 URL :
+      <a href="{{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }}" target="_blank" style="color:var(--accent);font-weight:600;font-family:monospace;">
         {{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }}
       </a>
     </div>
     {% endif %}
+  </div>
 
-    <button type="submit" class="btn btn-primary" style="width:100%;">💾 Sauvegarder</button>
-  </form>
-</div>
+  <!-- Options de livraison -->
+  <div class="settings-section">
+    <div class="section-title">🚚 Options de Livraison</div>
+
+    <div class="delivery-option">
+      <div class="do-header">
+        <span class="do-icon">💰</span>
+        <span class="do-title">Frais de livraison</span>
+      </div>
+      <div class="do-desc">Montant fixe ajouté à chaque commande. Mettre 0 si la livraison est toujours gratuite.</div>
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <input type="number" name="frais_livraison" class="form-control"
+               value="{{ tenant.frais_livraison|int if tenant.frais_livraison else 0 }}"
+               min="0" step="100" placeholder="0"
+               style="width:150px;font-family:monospace;font-size:1rem;font-weight:700;text-align:center;">
+        <span style="color:var(--muted);font-size:.88rem;">FCFA</span>
+      </div>
+    </div>
+
+    <div class="delivery-option">
+      <div class="do-header">
+        <span class="do-icon">🎁</span>
+        <span class="do-title">Livraison gratuite à partir de…</span>
+      </div>
+      <div class="do-desc">Si le panier dépasse ce montant, les frais de livraison sont supprimés. Mettre 0 pour désactiver.</div>
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <input type="number" name="seuil_livraison_gratuite" class="form-control"
+               value="{{ tenant.seuil_livraison_gratuite|int if tenant.seuil_livraison_gratuite else 0 }}"
+               min="0" step="500" placeholder="0"
+               style="width:150px;font-family:monospace;font-size:1rem;font-weight:700;text-align:center;">
+        <span style="color:var(--muted);font-size:.88rem;">FCFA</span>
+      </div>
+    </div>
+
+    <!-- Prévisualisation -->
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin-top:.5rem;">
+      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.4rem;">Prévisualisation</div>
+      <div style="font-size:.85rem;color:var(--text);" id="deliveryPreview">
+        {% set frais = tenant.frais_livraison|int if tenant.frais_livraison else 0 %}
+        {% set seuil = tenant.seuil_livraison_gratuite|int if tenant.seuil_livraison_gratuite else 0 %}
+        {% if frais == 0 %}
+          🎁 Livraison toujours gratuite
+        {% elif seuil > 0 %}
+          🚚 Livraison : {{ frais }} FCFA · 🎁 Gratuite à partir de {{ seuil }} FCFA
+        {% else %}
+          🚚 Livraison : {{ frais }} FCFA (toujours)
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary" style="width:100%;padding:.75rem;font-size:1rem;">💾 Sauvegarder les paramètres</button>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const fraisInput = document.querySelector('[name="frais_livraison"]');
+const seuilInput = document.querySelector('[name="seuil_livraison_gratuite"]');
+const preview    = document.getElementById('deliveryPreview');
+
+function updatePreview() {
+  const frais = parseInt(fraisInput.value) || 0;
+  const seuil = parseInt(seuilInput.value) || 0;
+  if (frais === 0) {
+    preview.textContent = '🎁 Livraison toujours gratuite';
+  } else if (seuil > 0) {
+    preview.textContent = `🚚 Livraison : ${frais.toLocaleString('fr-FR')} FCFA · 🎁 Gratuite à partir de ${seuil.toLocaleString('fr-FR')} FCFA`;
+  } else {
+    preview.textContent = `🚚 Livraison : ${frais.toLocaleString('fr-FR')} FCFA (toujours)`;
+  }
+}
+fraisInput.addEventListener('input', updatePreview);
+seuilInput.addEventListener('input', updatePreview);
+</script>
 {% endblock %}

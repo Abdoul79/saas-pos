@@ -20,9 +20,33 @@
       {{ (item.price * item.qty)|int }} FCFA
     </div>
     <a href="{{ url_for('shop.remove_from_cart', slug=tenant.shop_slug, key=item.key) }}"
-       style="color:var(--danger);font-size:.85rem;">✕ Retirer</a>
+       style="color:var(--danger);font-size:.85rem;">✕</a>
   </div>
   {% endfor %}
+
+  <!-- Sous-total + livraison -->
+  <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;font-size:.92rem;margin-bottom:.4rem;">
+      <span>Sous-total</span>
+      <span style="font-weight:600;">{{ subtotal|int }} FCFA</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:.92rem;align-items:center;">
+      <span>🚚 Livraison</span>
+      {% if livraison_gratuite %}
+      <span style="color:#22c55e;font-weight:600;">🎁 Gratuite</span>
+      {% else %}
+      <span style="font-weight:600;">{{ frais_livraison|int }} FCFA</span>
+      {% endif %}
+    </div>
+    {% if not livraison_gratuite and seuil > 0 %}
+    {% set reste = seuil - subtotal %}
+    <div style="font-size:.78rem;color:var(--accent);margin-top:.35rem;background:#f5a62312;padding:.4rem .65rem;border-radius:6px;">
+      🎁 Plus que <strong>{{ reste|int }} FCFA</strong> pour la livraison gratuite !
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Total -->
   <div style="padding:1rem;display:flex;justify-content:space-between;align-items:center;font-size:1.2rem;font-weight:800;">
     <span>Total</span>
     <span style="color:var(--accent);">{{ total|int }} FCFA</span>
@@ -30,8 +54,8 @@
 </div>
 
 <div style="display:flex;gap:1rem;">
-  <a href="{{ url_for('shop.clear_cart', slug=tenant.shop_slug) }}" class="btn btn-danger">🗑 Vider le panier</a>
-  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn">← Continuer mes achats</a>
+  <a href="{{ url_for('shop.clear_cart', slug=tenant.shop_slug) }}" class="btn btn-danger">🗑 Vider</a>
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn">← Continuer</a>
   <a href="{{ url_for('shop.checkout', slug=tenant.shop_slug) }}" class="btn btn-primary" style="margin-left:auto;">Passer commande →</a>
 </div>
 {% else %}

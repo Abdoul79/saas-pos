@@ -38,7 +38,31 @@
         <span style="font-weight:600;">{{ (item.price * item.qty)|int }}</span>
       </div>
       {% endfor %}
-      <div style="display:flex;justify-content:space-between;padding:.75rem 0 0;font-size:1.1rem;font-weight:800;">
+
+      <!-- Sous-total -->
+      <div style="display:flex;justify-content:space-between;padding:.5rem 0;font-size:.88rem;border-bottom:1px solid var(--border);">
+        <span>Sous-total</span>
+        <span style="font-weight:600;">{{ subtotal|int }} FCFA</span>
+      </div>
+
+      <!-- Livraison -->
+      <div style="display:flex;justify-content:space-between;padding:.5rem 0;font-size:.88rem;border-bottom:1px solid var(--border);align-items:center;">
+        <span>🚚 Livraison</span>
+        {% if livraison_gratuite %}
+        <span style="color:#22c55e;font-weight:600;">🎁 Gratuite</span>
+        {% else %}
+        <span style="font-weight:600;">{{ frais_livraison|int }} FCFA</span>
+        {% endif %}
+      </div>
+
+      {% if not livraison_gratuite and seuil > 0 %}
+      <div style="font-size:.75rem;color:var(--accent);margin:.4rem 0;background:#f5a62312;padding:.35rem .5rem;border-radius:5px;">
+        🎁 Ajoutez {{ (seuil - subtotal)|int }} FCFA pour la livraison gratuite
+      </div>
+      {% endif %}
+
+      <!-- Total -->
+      <div style="display:flex;justify-content:space-between;padding:.75rem 0 0;font-size:1.15rem;font-weight:800;">
         <span>Total</span>
         <span style="color:var(--accent);">{{ total|int }} FCFA</span>
       </div>
