@@ -786,9 +786,11 @@ class ProductReview(db.Model):
     customer = db.relationship('OnlineCustomer', back_populates='reviews')
 
 #visite de boutique
+
 class ShopVisit(db.Model):
     __tablename__ = 'shop_visits'
     id         = db.Column(db.Integer, primary_key=True)
     tenant_id  = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
     visited_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     ip_hash    = db.Column(db.String(64), nullable=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True, index=True)

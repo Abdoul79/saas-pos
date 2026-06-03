@@ -71,6 +71,31 @@ def dashboard():
         ).count()
         visitors_7days.append({'date': d.strftime('%d/%m'), 'count': count})
 
+    # Top 5 produits les plus visités + 5 moins visités (dernières 24h)
+    from sqlalchemy import func as sqlfunc
+    from datetime import timedelta as td
+    last_24h = datetime.utcnow() - td(hours=24)
+    product_views = db.session.query(
+        Product.id, Product.designation,
+        sqlfunc.count(ShopVisit.id).label('views')
+    ).join(ShopVisit, ShopVisit.product_id == Product.id)\
+     .filter(Product.tenant_id == _tid(), ShopVisit.product_id.isnot(None),
+             ShopVisit.visited_at >= last_24h)\
+     .group_by(Product.id, Product.designation)\
+     .order_by(sqlfunc.count(ShopVisit.id).desc()).all()
+
+    # Ajouter image_url (c'est une @property)
+    top_5_products = []
+    bottom_5_products_raw = []
+    for pid, name, views in product_views[:5]:
+        p = Product.query.get(pid)
+        top_5_products.append((pid, name, p.image_url if p else '', views))
+    if len(product_views) > 5:
+        for pid, name, views in reversed(product_views[-5:]):
+            p = Product.query.get(pid)
+            bottom_5_products_raw.append((pid, name, p.image_url if p else '', views))
+    bottom_5_products = bottom_5_products_raw
+
     # Vérifier stock pour commandes en attente
     low_stock_products = []
     for o in pending:
@@ -102,6 +127,8 @@ def dashboard():
                            visitors_today=visitors_today,
                            visitors_month=visitors_month,
                            visitors_7days=visitors_7days,
+                           top_5_products=top_5_products,
+                           bottom_5_products=bottom_5_products,
                            OnlineOrderStatus=OnlineOrderStatus,
                            tenant=current_user.tenant)
 
@@ -481,4 +508,5 @@ def settings():
         flash('Paramètres boutique en ligne sauvegardés.', 'success')
         return redirect(url_for('online.settings'))
     return render_template('manager/online/settings.html', tenant=t)
+
 

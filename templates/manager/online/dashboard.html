@@ -31,6 +31,11 @@
   .ql-icon { font-size:1.6rem;margin-bottom:.35rem; }
   .ql-name { font-weight:600;font-size:.85rem; }
   .ql-sub { font-size:.7rem;color:var(--muted);margin-top:.15rem; }
+
+  .pop-card { display:flex;align-items:center;gap:.6rem;padding:.45rem 0; }
+  .pop-card:not(:last-child) { border-bottom:1px solid var(--border); }
+  .pop-img { width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0; }
+  .pop-ph  { width:36px;height:36px;background:var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--muted);flex-shrink:0; }
 </style>
 {% endblock %}
 
@@ -87,45 +92,95 @@
   </div>
   <div class="os-card">
     <div class="os-val" style="color:#3b82f6;">{{ nb_customers }}</div>
-    <div class="os-lbl">👥 Clients inscrits</div>
+    <div class="os-lbl">👥 Clients</div>
   </div>
   <div class="os-card">
     <div class="os-val" style="color:#8b5cf6;">{{ visitors_today }}</div>
-    <div class="os-lbl">👁 Visiteurs aujourd'hui</div>
+    <div class="os-lbl">👁 Visiteurs jour</div>
   </div>
   <div class="os-card">
     <div class="os-val" style="color:#ec4899;">{{ visitors_month }}</div>
-    <div class="os-lbl">👁 Visiteurs ce mois</div>
+    <div class="os-lbl">👁 Visiteurs mois</div>
   </div>
 </div>
 
-<!-- Graphe visiteurs 7 jours -->
-<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;margin-bottom:1.25rem;">
-  <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.65rem;">👁 Visiteurs — 7 derniers jours</div>
-  <div style="display:flex;align-items:flex-end;gap:4px;height:80px;">
-    {% set max_v = visitors_7days|map(attribute='count')|max if visitors_7days else 1 %}
-    {% set max_v = max_v if max_v > 0 else 1 %}
-    {% for d in visitors_7days %}
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
-      <div style="font-family:monospace;font-size:.68rem;color:{% if loop.last %}var(--accent){% else %}var(--muted){% endif %};">{{ d.count }}</div>
-      <div style="width:100%;background:{% if loop.last %}var(--accent){% else %}#8b5cf644{% endif %};border-radius:4px 4px 0 0;height:{{ (d.count / max_v * 60)|int }}px;min-height:3px;transition:height .3s;"></div>
-      <div style="font-size:.6rem;color:var(--muted);">{{ d.date }}</div>
+<!-- Graphe visiteurs 7 jours + Produits populaires -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem;">
+
+  <!-- Graphe visiteurs -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;">
+    <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.65rem;">👁 Visiteurs — 7 derniers jours</div>
+    <div style="display:flex;align-items:flex-end;gap:4px;height:100px;">
+      {% set max_v = visitors_7days|map(attribute='count')|max if visitors_7days else 1 %}
+      {% set max_v = max_v if max_v > 0 else 1 %}
+      {% for d in visitors_7days %}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+        <div style="font-family:monospace;font-size:.7rem;color:{% if loop.last %}var(--accent){% else %}var(--muted){% endif %};font-weight:{% if loop.last %}700{% else %}400{% endif %};">{{ d.count }}</div>
+        <div style="width:100%;background:{% if loop.last %}var(--accent){% else %}#8b5cf644{% endif %};border-radius:4px 4px 0 0;height:{{ (d.count / max_v * 70)|int }}px;min-height:3px;"></div>
+        <div style="font-size:.62rem;color:var(--muted);">{{ d.date }}</div>
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
   </div>
 
-<!-- Alerte stock faible sur produits commandés -->
+  <!-- Produits populaires 24h -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+    <!-- Top 5 -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem .85rem;">
+      <div style="font-size:.7rem;color:#22c55e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;font-weight:700;">🔥 Populaires 24h</div>
+      {% if top_5_products %}
+      {% set max_views = top_5_products[0][3] if top_5_products else 1 %}
+      {% for pid, name, img, views in top_5_products %}
+      <div class="pop-card">
+        <div style="font-size:.75rem;min-width:16px;text-align:center;color:{% if loop.index <= 3 %}var(--accent){% else %}var(--muted){% endif %};font-weight:700;">
+          {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+        </div>
+        {% if img %}<img src="{{ img }}" class="pop-img">{% else %}<div class="pop-ph">📦</div>{% endif %}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.75rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ name }}</div>
+          <div style="height:2px;background:var(--border);border-radius:99px;margin-top:.2rem;">
+            <div style="height:2px;border-radius:99px;background:#22c55e;width:{{ (views / max_views * 100)|int }}%;"></div>
+          </div>
+        </div>
+        <div style="font-family:monospace;font-size:.75rem;font-weight:700;color:#22c55e;">{{ views }}</div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="text-align:center;padding:1rem;color:var(--muted);font-size:.78rem;">Aucune visite produit</div>
+      {% endif %}
+    </div>
+
+    <!-- Bottom 5 -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem .85rem;">
+      <div style="font-size:.7rem;color:#ef4444;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;font-weight:700;">💤 Moins visités 24h</div>
+      {% if bottom_5_products %}
+      {% for pid, name, img, views in bottom_5_products %}
+      <div class="pop-card">
+        <div style="font-size:.75rem;min-width:16px;text-align:center;color:var(--muted);">{{ loop.index }}</div>
+        {% if img %}<img src="{{ img }}" class="pop-img" style="opacity:.6;">{% else %}<div class="pop-ph">📦</div>{% endif %}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.75rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);">{{ name }}</div>
+        </div>
+        <div style="font-family:monospace;font-size:.75rem;font-weight:700;color:#ef4444;">{{ views }}</div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="text-align:center;padding:1rem;color:var(--muted);font-size:.78rem;">—</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Alerte stock faible -->
 {% if low_stock_products %}
 <div class="stock-alert">
-  <div class="stock-alert-title">⚠ Stock insuffisant pour commandes en attente</div>
+  <div class="stock-alert-title">⚠ Stock entrepôt insuffisant pour commandes en attente</div>
   {% for item in low_stock_products %}
   <div class="stock-item">
     <span>{{ item.name }}</span>
     <div style="display:flex;gap:.75rem;align-items:center;">
       <span style="font-size:.72rem;color:var(--muted);">Demandé: <strong style="color:#f87171;">{{ item.requested }}</strong></span>
-      <span class="badge {% if item.available == 0 %}badge-red{% else %}badge-orange{% endif %}" style="font-size:.7rem;">
-        🏭 Stock: {{ item.available }}
-      </span>
+      <span class="badge {% if item.available == 0 %}badge-red{% else %}badge-orange{% endif %}" style="font-size:.7rem;">🏭 {{ item.available }}</span>
     </div>
   </div>
   {% endfor %}
@@ -181,7 +236,7 @@
   <a href="{{ url_for('online.settings') }}" class="ql-card">
     <div class="ql-icon">⚙️</div>
     <div class="ql-name">Paramètres</div>
-    <div class="ql-sub">Slug, description</div>
+    <div class="ql-sub">Slug, livraison</div>
   </a>
 </div>
 

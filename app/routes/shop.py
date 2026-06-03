@@ -83,6 +83,20 @@ def product_detail(slug, pid):
     variants = list(p.variants) if p.has_variants else []
     cart = _get_cart(t.id)
     customer = _get_customer(t.id)
+
+    # Enregistrer visite produit
+    try:
+        ip = request.remote_addr or 'unknown'
+        ip_hash = hashlib.md5(f"{ip}-{date.today()}-p{pid}".encode()).hexdigest()[:16]
+        already = db.session.query(ShopVisit).filter(
+            ShopVisit.tenant_id == t.id, ShopVisit.ip_hash == ip_hash
+        ).first()
+        if not already:
+            db.session.add(ShopVisit(tenant_id=t.id, ip_hash=ip_hash, product_id=pid))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     return render_template('shop/product.html', tenant=t, product=p,
                            variants=variants, reviews=reviews,
                            avg_rating=avg_rating, cart=cart, customer=customer)
