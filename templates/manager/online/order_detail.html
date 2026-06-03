@@ -19,6 +19,7 @@
     {{ OnlineOrderStatus.icon(order.status) }} {{ order.reference }}
   </div>
   <div class="flex gap-1">
+    <a href="{{ url_for('online.invoice_pdf', oid=order.id) }}" class="btn btn-secondary btn-sm">📄 Facture PDF</a>
     <a href="{{ url_for('online.order_qr', oid=order.id) }}" class="btn btn-secondary btn-sm" target="_blank">📱 QR Code</a>
     <a href="{{ url_for('online.order_label', oid=order.id) }}" class="btn btn-secondary btn-sm" target="_blank">🏷 Étiquette Colis</a>
     <a href="{{ url_for('online.orders_list') }}" class="btn btn-secondary btn-sm">← Retour</a>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Facture {{ order.reference }}</title>
+  <style>
+    * { box-sizing:border-box;margin:0;padding:0; }
+    body { font-family:'Helvetica Neue',Arial,sans-serif;font-size:9.5pt;color:#1a1a2e;background:#fff; }
+    @page { size:A4;margin:15mm 15mm 20mm 15mm;
+      @bottom-center { content:"Facture " "{{ order.reference }}" " — Page " counter(page);font-size:7.5pt;color:#aaa; }
+    }
+
+    .header { display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a1a2e;padding-bottom:14px;margin-bottom:18px; }
+    .brand h1 { font-size:16pt;font-weight:800; }
+    .brand .sub { font-size:8pt;color:#666;margin-top:2px; }
+    .invoice-meta { text-align:right; }
+    .invoice-title { font-size:18pt;font-weight:800;color:#f5a623;text-transform:uppercase;letter-spacing:1.5px; }
+    .invoice-ref { font-family:'Courier New',monospace;font-size:11pt;font-weight:700;margin-top:4px;color:#1a1a2e; }
+    .invoice-date { font-size:8.5pt;color:#555;margin-top:3px; }
+
+    .parties { display:flex;gap:20px;margin-bottom:18px; }
+    .party { flex:1;border:1px solid #ddd;border-radius:6px;padding:12px 14px; }
+    .party-title { font-size:7pt;text-transform:uppercase;letter-spacing:.6px;color:#888;font-weight:700;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #eee; }
+    .party-name { font-size:11pt;font-weight:700;margin-bottom:3px; }
+    .party-line { font-size:8.5pt;color:#444;line-height:1.6; }
+
+    .status-badge { display:inline-block;padding:3px 10px;border-radius:4px;font-size:8pt;font-weight:700;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;margin-top:6px; }
+
+    table { width:100%;border-collapse:collapse;margin-bottom:16px; }
+    thead tr { background:#1a1a2e;color:#fff; }
+    thead th { padding:8px 10px;font-size:7.5pt;font-weight:600;text-transform:uppercase;letter-spacing:.4px;text-align:left; }
+    thead th.r { text-align:right; }
+    tbody tr { border-bottom:1px solid #f0f0f0; }
+    tbody tr:nth-child(even) { background:#fafafa; }
+    tbody td { padding:7px 10px;font-size:8.5pt;vertical-align:middle; }
+    tbody td.r { text-align:right; }
+    tbody td.mono { font-family:'Courier New',monospace; }
+
+    .totals { width:280px;margin-left:auto;margin-bottom:16px; }
+    .totals-row { display:flex;justify-content:space-between;padding:5px 0;font-size:9pt;border-bottom:1px solid #f0f0f0; }
+    .totals-row:last-child { border-bottom:none; }
+    .totals-row.grand { font-size:13pt;font-weight:800;color:#f5a623;border-top:2px solid #1a1a2e;padding-top:8px;margin-top:4px; }
+
+    .delivery-box { border:1px solid #ddd;border-radius:6px;padding:12px 14px;margin-bottom:16px; }
+    .delivery-title { font-size:7pt;text-transform:uppercase;letter-spacing:.6px;color:#888;font-weight:700;margin-bottom:6px; }
+
+    .qr-section { display:flex;align-items:center;gap:14px;border:1px solid #eee;border-radius:6px;padding:10px 14px;margin-bottom:14px; }
+    .qr-section img { width:70px;height:70px; }
+    .qr-text { font-size:8pt;color:#555; }
+
+    .footer { border-top:1px solid #ddd;padding-top:10px;display:flex;justify-content:space-between;font-size:7pt;color:#aaa; }
+    .thanks { text-align:center;margin-bottom:14px;font-size:10pt;color:#555;font-style:italic; }
+  </style>
+</head>
+<body>
+
+  <!-- En-tête -->
+  <div class="header">
+    <div class="brand">
+      <h1>{{ tenant.nom_boutique or tenant.activite }}</h1>
+      <div class="sub">{{ tenant.activite }}</div>
+      <div class="sub">{{ tenant.adresse }}{% if tenant.ville %}, {{ tenant.ville }}{% endif %}</div>
+      {% if tenant.telephone_entreprise %}<div class="sub">Tél : {{ tenant.telephone_entreprise }}</div>{% endif %}
+      {% if tenant.email %}<div class="sub">{{ tenant.email }}</div>{% endif %}
+    </div>
+    <div class="invoice-meta">
+      <div class="invoice-title">Facture</div>
+      <div class="invoice-ref">{{ order.reference }}</div>
+      <div class="invoice-date">Date : {{ order.created_at.strftime('%d/%m/%Y') }}</div>
+      <div class="invoice-date">Confirmée le : {{ today.strftime('%d/%m/%Y') }}</div>
+      <div class="status-badge">✓ Confirmée</div>
+    </div>
+  </div>
+
+  <!-- Vendeur / Client -->
+  <div class="parties">
+    <div class="party">
+      <div class="party-title">Vendeur</div>
+      <div class="party-name">{{ tenant.nom_boutique or tenant.activite }}</div>
+      <div class="party-line">{{ tenant.adresse }}</div>
+      <div class="party-line">{{ tenant.ville }}</div>
+      {% if tenant.telephone_entreprise %}<div class="party-line">Tél : {{ tenant.telephone_entreprise }}</div>{% endif %}
+    </div>
+    <div class="party">
+      <div class="party-title">Client</div>
+      <div class="party-name">{{ order.customer.full_name }}</div>
+      <div class="party-line">{{ order.customer.email }}</div>
+      {% if order.telephone_contact %}<div class="party-line">Tél : {{ order.telephone_contact }}</div>{% endif %}
+      {% if order.adresse_livraison %}<div class="party-line">{{ order.adresse_livraison }}</div>{% endif %}
+      {% if order.ville_livraison %}<div class="party-line">{{ order.ville_livraison }}</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- Articles -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30px;">#</th>
+        <th>Désignation</th>
+        <th style="width:70px;">SKU</th>
+        <th class="r" style="width:50px;">Qté</th>
+        <th class="r" style="width:90px;">Prix unit.</th>
+        <th class="r" style="width:100px;">Sous-total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in order.items %}
+      {% set prod = item.product %}
+      {% set var = item.variant %}
+      {% set sku = (var.sku if var and var.sku else (prod.sku if prod and prod.sku else '—')) %}
+      <tr>
+        <td class="mono" style="color:#aaa;">{{ loop.index }}</td>
+        <td>
+          <strong>{{ item.designation }}</strong>
+          {% if var %}<div style="font-size:7.5pt;color:#888;">↳ {{ var.attributs_display if var.attributs_display else var.nom }}</div>{% endif %}
+        </td>
+        <td class="mono" style="font-size:8pt;color:#888;">{{ sku }}</td>
+        <td class="r mono">{{ item.quantity }}</td>
+        <td class="r mono">{{ item.prix_vente|int }} FCFA</td>
+        <td class="r mono" style="font-weight:700;">{{ item.subtotal|int }} FCFA</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Totaux -->
+  <div class="totals">
+    <div class="totals-row">
+      <span>Sous-total HT</span>
+      <span style="font-family:'Courier New',monospace;">{{ order.total_ht|int }} FCFA</span>
+    </div>
+    {% if order.total_tva and order.total_tva > 0 %}
+    <div class="totals-row">
+      <span>TVA</span>
+      <span style="font-family:'Courier New',monospace;">{{ order.total_tva|int }} FCFA</span>
+    </div>
+    {% endif %}
+    <div class="totals-row grand">
+      <span>TOTAL TTC</span>
+      <span>{{ order.total_amount|int }} FCFA</span>
+    </div>
+  </div>
+
+  <!-- Livraison -->
+  <div class="delivery-box">
+    <div class="delivery-title">📦 Informations de livraison</div>
+    <div style="font-size:9pt;line-height:1.6;">
+      <strong>{{ order.customer.full_name }}</strong><br>
+      {{ order.adresse_livraison }}<br>
+      <strong>{{ order.ville_livraison }}</strong><br>
+      📞 {{ order.telephone_contact }}
+    </div>
+    {% if order.note_client %}
+    <div style="margin-top:6px;font-size:8pt;color:#555;border-top:1px solid #eee;padding-top:5px;">
+      💬 Note : {{ order.note_client }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- QR Code -->
+  {% if qr_b64 %}
+  <div class="qr-section">
+    <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+    <div class="qr-text">
+      <strong>Suivez votre commande</strong><br>
+      Scannez ce QR code pour voir le statut de votre commande en temps réel.<br>
+      <span style="font-family:'Courier New',monospace;font-size:8.5pt;">Réf : {{ order.reference }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="thanks">
+    Merci pour votre achat ! 🙏
+  </div>
+
+  <div class="footer">
+    <div>{{ tenant.nom_boutique or tenant.activite }} — {{ tenant.ville }}</div>
+    <div>Facture {{ order.reference }} — {{ order.created_at.strftime('%d/%m/%Y') }}</div>
+  </div>
+
+</body>
+</html>

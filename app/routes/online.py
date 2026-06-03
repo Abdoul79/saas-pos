@@ -150,8 +150,81 @@ def update_status(oid):
     if note:
         order.note_manager = note
     db.session.commit()
-    flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)}', 'success')
+
+    # Générer et envoyer la facture par email à la confirmation
+    if new_status == OnlineOrderStatus.CONFIRMED:
+        try:
+            _send_invoice(order)
+            flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)} · Facture envoyée à {order.customer.email}', 'success')
+        except Exception as e:
+            print(f'[invoice] Erreur: {e}')
+            flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)} (facture non envoyée: {e})', 'warning')
+    else:
+        flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)}', 'success')
+
     return redirect(url_for('online.order_detail', oid=oid))
+
+
+def _send_invoice(order):
+    """Génère la facture PDF et l'envoie au client par email."""
+    import qrcode, io, base64
+    from flask import current_app
+    from weasyprint import HTML
+    from app.utils.email import send_email_async
+    from datetime import date
+
+    tenant = Tenant.query.get(order.tenant_id)
+
+    # QR code
+    if tenant.shop_slug:
+        url = request.host_url.rstrip('/') + f'/shop/{tenant.shop_slug}/commande/{order.reference}'
+    else:
+        url = order.reference
+    qr = qrcode.make(url, box_size=5, border=2)
+    buf = io.BytesIO()
+    qr.save(buf, format='PNG')
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+
+    # Render HTML
+    html_str = render_template('manager/online/invoice_pdf.html',
+                               order=order, tenant=tenant,
+                               qr_b64=qr_b64, today=date.today())
+
+    # Générer PDF
+    pdf_bytes = HTML(string=html_str, base_url=current_app.root_path).write_pdf()
+
+    # Email de confirmation
+    email_html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+      <div style="text-align:center;margin-bottom:20px;">
+        <h1 style="color:#f5a623;font-size:24px;">✅ Commande confirmée !</h1>
+      </div>
+      <p>Bonjour <strong>{order.customer.prenom}</strong>,</p>
+      <p>Votre commande <strong style="font-family:monospace;color:#f5a623;">{order.reference}</strong>
+         a été confirmée et est en cours de préparation.</p>
+      <div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:15px;margin:15px 0;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Récapitulatif</div>
+        {''.join(f'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px;border-bottom:1px solid #eee;"><span>{item.quantity}× {item.designation}</span><span style="font-weight:600;">{int(item.subtotal)} FCFA</span></div>' for item in order.items)}
+        <div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:16px;font-weight:800;color:#f5a623;border-top:2px solid #ddd;margin-top:5px;">
+          <span>Total</span><span>{int(order.total_amount)} FCFA</span>
+        </div>
+      </div>
+      <p style="color:#555;">📦 Livraison : {order.adresse_livraison}, {order.ville_livraison}</p>
+      <p style="font-size:13px;color:#888;">La facture est jointe à cet email en PDF.</p>
+      <div style="text-align:center;margin-top:20px;font-size:12px;color:#aaa;">
+        {tenant.nom_boutique or tenant.activite} — {tenant.ville}
+      </div>
+    </div>
+    """
+
+    # Envoyer en background
+    send_email_async(
+        to_email=order.customer.email,
+        subject=f'✅ Commande {order.reference} confirmée — {tenant.nom_boutique or tenant.activite}',
+        html_content=email_html,
+        attachment=pdf_bytes,
+        attachment_name=f'Facture_{order.reference}.pdf'
+    )
 
 
 # ── CLIENTS ────────────────────────────────────────────────────────────────
@@ -195,6 +268,36 @@ def delete_review(rid):
 
 
 # ── PARAMÈTRES BOUTIQUE EN LIGNE ───────────────────────────────────────────
+
+@online_bp.route('/commande/<int:oid>/facture')
+@_mgr
+def invoice_pdf(oid):
+    """Télécharger la facture PDF d'une commande."""
+    import qrcode, io, base64
+    from flask import current_app, Response
+    from weasyprint import HTML
+    from datetime import date
+
+    order = OnlineOrder.query.filter_by(id=oid, tenant_id=_tid()).first_or_404()
+    tenant = current_user.tenant
+
+    # QR
+    if tenant.shop_slug:
+        url = request.host_url.rstrip('/') + f'/shop/{tenant.shop_slug}/commande/{order.reference}'
+    else:
+        url = order.reference
+    qr = qrcode.make(url, box_size=5, border=2)
+    buf = io.BytesIO()
+    qr.save(buf, format='PNG')
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+
+    html_str = render_template('manager/online/invoice_pdf.html',
+                               order=order, tenant=tenant,
+                               qr_b64=qr_b64, today=date.today())
+    pdf = HTML(string=html_str, base_url=current_app.root_path).write_pdf()
+    return Response(pdf, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'attachment; filename="Facture_{order.reference}.pdf"'})
+
 
 @online_bp.route('/commande/<int:oid>/qr')
 @_mgr
