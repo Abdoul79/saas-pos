@@ -79,6 +79,7 @@
     </a>
     <div class="nav-links">
       <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}">Boutique</a>
+      <a href="{{ url_for('shop.tracking', slug=tenant.shop_slug) }}">📍 Suivi commande</a>
       <a href="{{ url_for('shop.cart_view', slug=tenant.shop_slug) }}">
         🛒 Panier
         {% if cart %}<span class="cart-badge">{{ cart|sum(attribute='qty') }}</span>{% endif %}

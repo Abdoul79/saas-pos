@@ -299,6 +299,21 @@ def add_review(slug, pid):
 
 # ── API PANIER (pour AJAX) ────────────────────────────────────────────────
 
+@shop_bp.route('/<slug>/suivi', methods=['GET', 'POST'])
+def tracking(slug):
+    t = _get_tenant(slug)
+    error = None
+    ref = request.args.get('ref', '')
+    if request.method == 'POST':
+        ref = request.form.get('reference', '').strip().upper()
+        order = OnlineOrder.query.filter_by(tenant_id=t.id, reference=ref).first()
+        if order:
+            return redirect(url_for('shop.order_detail', slug=slug, ref=ref))
+        error = f'Aucune commande trouvée avec la référence "{ref}".'
+    return render_template('shop/tracking.html', tenant=t, error=error, ref=ref,
+                           cart=_get_cart(t.id), customer=_get_customer(t.id))
+
+
 @shop_bp.route('/<slug>/api/cart/count')
 def cart_count(slug):
     t = _get_tenant(slug)

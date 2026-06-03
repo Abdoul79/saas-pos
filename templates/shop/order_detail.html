@@ -1,33 +1,131 @@
 {% extends "shop/base.html" %}
 {% block title %}Commande {{ order.reference }} — {{ tenant.nom_boutique }}{% endblock %}
-{% block content %}
-<div style="max-width:700px;margin:0 auto;">
-  <div style="text-align:center;margin-bottom:2rem;">
-    <div style="font-size:3rem;">{{ OnlineOrderStatus.icon(order.status) }}</div>
-    <h1 style="font-size:1.3rem;font-weight:800;margin:.5rem 0;">Commande {{ order.reference }}</h1>
-    <span class="badge" style="background:{{ OnlineOrderStatus.color(order.status) }}22;color:{{ OnlineOrderStatus.color(order.status) }};border:1px solid {{ OnlineOrderStatus.color(order.status) }}44;font-size:.85rem;padding:.35rem .85rem;">
-      {{ OnlineOrderStatus.icon(order.status) }} {{ OnlineOrderStatus.label(order.status) }}
-    </span>
-  </div>
+{% block head %}
+<style>
+  .order-hero { text-align:center;margin-bottom:2rem; }
+  .order-ref { font-family:monospace;font-size:1.1rem;color:var(--muted);letter-spacing:1px; }
 
-  <div class="card" style="margin-bottom:1.5rem;">
+  /* Timeline visuelle */
+  .timeline { display:flex;justify-content:center;align-items:flex-start;gap:0;margin:2rem 0;position:relative; }
+  .tl-step { display:flex;flex-direction:column;align-items:center;flex:1;max-width:140px;position:relative; }
+  .tl-dot {
+    width:44px;height:44px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.2rem;border:3px solid var(--border);
+    background:#fff;position:relative;z-index:2;
+    transition:all .3s;
+  }
+  .tl-dot.done { border-color:#22c55e;background:#f0fdf4; }
+  .tl-dot.active { border-color:#f5a623;background:#fffbeb;box-shadow:0 0 0 6px rgba(245,166,35,.15); }
+  .tl-dot.cancelled { border-color:#ef4444;background:#fef2f2; }
+  .tl-label { margin-top:.5rem;font-size:.78rem;font-weight:600;color:var(--muted);text-align:center; }
+  .tl-label.done { color:#22c55e; }
+  .tl-label.active { color:#f5a623;font-weight:700; }
+  .tl-label.cancelled { color:#ef4444; }
+  .tl-time { font-size:.68rem;color:var(--muted);margin-top:.15rem; }
+
+  /* Ligne entre les étapes */
+  .tl-line { flex:1;height:3px;background:var(--border);margin-top:22px;min-width:20px; }
+  .tl-line.done { background:#22c55e; }
+
+  .order-info-grid { display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem; }
+  @media(max-width:768px) { .order-info-grid { grid-template-columns:1fr; } .timeline { flex-wrap:wrap;gap:1rem; } .tl-line { display:none; } }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="order-hero">
+  {% if order.status == 'cancelled' %}
+  <div style="font-size:3.5rem;">❌</div>
+  <h1 style="font-size:1.6rem;font-weight:800;color:#ef4444;margin:.5rem 0;">Commande Annulée</h1>
+  {% elif order.status == 'delivered' %}
+  <div style="font-size:3.5rem;">🎉</div>
+  <h1 style="font-size:1.6rem;font-weight:800;color:#22c55e;margin:.5rem 0;">Commande Livrée !</h1>
+  {% else %}
+  <div style="font-size:3.5rem;">{{ OnlineOrderStatus.icon(order.status) }}</div>
+  <h1 style="font-size:1.6rem;font-weight:800;margin:.5rem 0;">{{ OnlineOrderStatus.label(order.status) }}</h1>
+  {% endif %}
+  <div class="order-ref">{{ order.reference }}</div>
+</div>
+
+<!-- Timeline visuelle -->
+{% if order.status != 'cancelled' %}
+{% set steps = [('pending','⏳','En attente'),('confirmed','✅','Confirmée'),('preparing','📦','Préparation'),('shipped','🚚','Expédiée'),('delivered','🏠','Livrée')] %}
+{% set step_keys = steps|map(attribute=0)|list %}
+{% set current_idx = step_keys.index(order.status) if order.status in step_keys else -1 %}
+
+<div class="timeline">
+  {% for key, icon, label in steps %}
+  {% set idx = loop.index0 %}
+  {% if idx > 0 %}
+  <div class="tl-line {% if idx <= current_idx %}done{% endif %}"></div>
+  {% endif %}
+  <div class="tl-step">
+    <div class="tl-dot {% if idx < current_idx %}done{% elif idx == current_idx %}active{% endif %}">
+      {% if idx < current_idx %}✓{% else %}{{ icon }}{% endif %}
+    </div>
+    <div class="tl-label {% if idx < current_idx %}done{% elif idx == current_idx %}active{% endif %}">
+      {{ label }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center;margin:1.5rem 0;">
+  <span style="display:inline-block;padding:.5rem 1.5rem;background:#fef2f2;border:1px solid #fecaca;border-radius:99px;color:#991b1b;font-weight:600;">
+    ❌ Cette commande a été annulée
+  </span>
+</div>
+{% endif %}
+
+<!-- Infos -->
+<div class="order-info-grid">
+  <!-- Articles -->
+  <div class="card" style="padding:0;">
+    <div style="padding:.85rem 1rem;border-bottom:1px solid var(--border);font-weight:700;font-size:.88rem;">
+      📋 Articles commandés
+    </div>
     {% for item in order.items %}
-    <div style="display:flex;justify-content:space-between;padding:.75rem 1rem;border-bottom:1px solid var(--border);font-size:.88rem;">
+    <div style="display:flex;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:.88rem;">
       <span>{{ item.quantity }}× {{ item.designation }}</span>
-      <span style="font-weight:600;">{{ item.subtotal|int }} FCFA</span>
+      <span style="font-weight:600;font-family:monospace;">{{ item.subtotal|int }} FCFA</span>
     </div>
     {% endfor %}
-    <div style="display:flex;justify-content:space-between;padding:1rem;font-size:1.15rem;font-weight:800;">
+    <div style="display:flex;justify-content:space-between;padding:.85rem 1rem;font-size:1.1rem;font-weight:800;">
       <span>Total</span>
       <span style="color:var(--accent);">{{ order.total_amount|int }} FCFA</span>
     </div>
   </div>
 
-  <div class="card" style="padding:1.25rem;font-size:.88rem;">
-    <div style="margin-bottom:.5rem;"><strong>Livraison :</strong> {{ order.adresse_livraison }}, {{ order.ville_livraison }}</div>
-    <div style="margin-bottom:.5rem;"><strong>Téléphone :</strong> {{ order.telephone_contact }}</div>
-    {% if order.note_client %}<div style="margin-bottom:.5rem;"><strong>Note :</strong> {{ order.note_client }}</div>{% endif %}
-    <div style="color:var(--muted);">Passée le {{ order.created_at.strftime('%d/%m/%Y à %H:%M') }}</div>
+  <!-- Livraison -->
+  <div>
+    <div class="card" style="padding:1rem;margin-bottom:1rem;">
+      <div style="font-weight:700;font-size:.88rem;margin-bottom:.65rem;">📦 Livraison</div>
+      <div style="font-size:.9rem;line-height:1.7;">
+        <strong>{{ order.customer.full_name }}</strong><br>
+        {{ order.adresse_livraison }}<br>
+        <strong>{{ order.ville_livraison }}</strong><br>
+        📞 {{ order.telephone_contact }}
+      </div>
+    </div>
+
+    <div class="card" style="padding:1rem;">
+      <div style="font-weight:700;font-size:.88rem;margin-bottom:.5rem;">📅 Dates</div>
+      <div style="font-size:.85rem;color:var(--muted);line-height:1.8;">
+        Commandée le {{ order.created_at.strftime('%d/%m/%Y à %H:%M') }}
+        {% if order.updated_at and order.updated_at != order.created_at %}
+        <br>Dernière mise à jour : {{ order.updated_at.strftime('%d/%m/%Y à %H:%M') }}
+        {% endif %}
+      </div>
+    </div>
+
+    {% if order.note_client %}
+    <div class="card" style="padding:1rem;margin-top:1rem;border-left:3px solid var(--accent);">
+      <div style="font-size:.82rem;color:var(--muted);margin-bottom:.3rem;">💬 Votre note</div>
+      <div style="font-size:.9rem;">{{ order.note_client }}</div>
+    </div>
+    {% endif %}
   </div>
 </div>
+
 {% endblock %}

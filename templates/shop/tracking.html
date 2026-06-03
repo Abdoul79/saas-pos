@@ -1,0 +1,28 @@
+{% extends "shop/base.html" %}
+{% block title %}Suivi de commande — {{ tenant.nom_boutique }}{% endblock %}
+{% block head %}
+<style>
+  .track-box { max-width:550px;margin:2rem auto;text-align:center; }
+  .track-hero { font-size:3rem;margin-bottom:1rem; }
+  .track-form { display:flex;gap:.5rem;margin-top:1.5rem; }
+  .track-form input { flex:1;font-size:1rem;padding:.75rem 1rem;font-family:monospace;text-transform:uppercase;letter-spacing:1px; }
+  .track-form button { padding:.75rem 1.5rem;font-size:1rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="track-box">
+  <div class="track-hero">📦</div>
+  <h1 style="font-size:1.5rem;font-weight:800;margin-bottom:.5rem;">Suivre ma commande</h1>
+  <p style="color:var(--muted);">Entrez votre numéro de commande pour voir son état en temps réel.</p>
+  <form method="POST" class="track-form">
+    <input type="text" name="reference" class="form-control" placeholder="WEB-2-260602..." required
+           value="{{ ref or '' }}" autofocus>
+    <button type="submit" class="btn btn-primary">Rechercher</button>
+  </form>
+  {% if error %}
+  <div style="margin-top:1rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.75rem;color:#991b1b;font-size:.88rem;">
+    {{ error }}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

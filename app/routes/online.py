@@ -159,6 +159,15 @@ def update_status(oid):
         except Exception as e:
             print(f'[invoice] Erreur: {e}')
             flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)} (facture non envoyée: {e})', 'warning')
+
+    # Email notification pour les autres étapes
+    elif new_status in (OnlineOrderStatus.PREPARING, OnlineOrderStatus.SHIPPED, OnlineOrderStatus.DELIVERED):
+        try:
+            _send_status_email(order, new_status)
+            flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)} · Email envoyé à {order.customer.email}', 'success')
+        except Exception as e:
+            print(f'[status_email] Erreur: {e}')
+            flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)} (email non envoyé: {e})', 'warning')
     else:
         flash(f'Commande {order.reference} → {OnlineOrderStatus.label(new_status)}', 'success')
 
@@ -268,6 +277,92 @@ def delete_review(rid):
 
 
 # ── PARAMÈTRES BOUTIQUE EN LIGNE ───────────────────────────────────────────
+
+def _send_status_email(order, status):
+    """Envoie un email de notification au client avec lien de suivi."""
+    from app.utils.email import send_email_async
+
+    tenant = Tenant.query.get(order.tenant_id)
+    shop_name = tenant.nom_boutique or tenant.activite
+
+    # Construire le lien de suivi
+    if tenant.shop_slug:
+        tracking_url = request.host_url.rstrip('/') + f'/shop/{tenant.shop_slug}/commande/{order.reference}'
+    else:
+        tracking_url = '#'
+
+    # Messages par statut
+    messages = {
+        OnlineOrderStatus.PREPARING: {
+            'icon': '📦',
+            'title': 'Votre commande est en préparation !',
+            'text': 'Notre équipe prépare votre colis avec soin. Vous recevrez une notification dès qu\'il sera expédié.',
+            'color': '#a78bfa',
+        },
+        OnlineOrderStatus.SHIPPED: {
+            'icon': '🚚',
+            'title': 'Votre commande a été expédiée !',
+            'text': 'Votre colis est en route ! Vous pouvez suivre son état en temps réel.',
+            'color': '#06b6d4',
+        },
+        OnlineOrderStatus.DELIVERED: {
+            'icon': '🎉',
+            'title': 'Votre commande a été livrée !',
+            'text': 'Nous espérons que vous êtes satisfait. N\'hésitez pas à laisser un avis !',
+            'color': '#22c55e',
+        },
+    }
+
+    msg = messages.get(status, {'icon': '📋', 'title': 'Mise à jour commande', 'text': '', 'color': '#6b7280'})
+
+    email_html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:48px;margin-bottom:10px;">{msg['icon']}</div>
+        <h1 style="color:{msg['color']};font-size:22px;margin:0;">{msg['title']}</h1>
+      </div>
+
+      <p>Bonjour <strong>{order.customer.prenom}</strong>,</p>
+      <p>{msg['text']}</p>
+
+      <div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:10px;padding:18px;margin:18px 0;text-align:center;">
+        <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Numéro de commande</div>
+        <div style="font-family:monospace;font-size:20px;font-weight:800;color:#111;letter-spacing:2px;">{order.reference}</div>
+      </div>
+
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{tracking_url}"
+           style="display:inline-block;padding:14px 32px;background:{msg['color']};color:#fff;font-weight:700;font-size:15px;border-radius:8px;text-decoration:none;">
+          📍 Suivre ma commande
+        </a>
+      </div>
+
+      <div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin:15px 0;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Récapitulatif</div>
+        {''.join(f'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px;border-bottom:1px solid #eee;"><span>{item.quantity}x {item.designation[:30]}</span><span style="font-weight:600;">{int(item.subtotal)} FCFA</span></div>' for item in order.items)}
+        <div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:16px;font-weight:800;color:{msg['color']};border-top:2px solid #ddd;margin-top:5px;">
+          <span>Total</span><span>{int(order.total_amount)} FCFA</span>
+        </div>
+      </div>
+
+      <div style="font-size:13px;color:#6b7280;margin-top:15px;">
+        📦 Livraison : {order.adresse_livraison}, <strong>{order.ville_livraison}</strong><br>
+        📞 Contact : {order.telephone_contact}
+      </div>
+
+      <div style="text-align:center;margin-top:25px;padding-top:15px;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;">
+        {shop_name} — {tenant.ville or ''}
+        {f'<br>📞 {tenant.telephone_entreprise}' if tenant.telephone_entreprise else ''}
+      </div>
+    </div>
+    """
+
+    send_email_async(
+        to_email=order.customer.email,
+        subject=f'{msg["icon"]} {msg["title"]} — {order.reference}',
+        html_content=email_html
+    )
+
 
 @online_bp.route('/commande/<int:oid>/facture')
 @_mgr
