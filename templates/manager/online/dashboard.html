@@ -7,7 +7,7 @@
   .online-hero .oh-title { font-size:1.15rem;font-weight:800;color:#e2e8f0;display:flex;align-items:center;gap:.65rem; }
   .online-hero .oh-url { font-size:.78rem;color:#06b6d4;font-family:monospace;margin-top:.35rem; }
 
-  .online-stats { display:grid;grid-template-columns:repeat(5,1fr);gap:.65rem;margin-bottom:1.25rem; }
+  .online-stats { display:grid;grid-template-columns:repeat(7,1fr);gap:.65rem;margin-bottom:1.25rem; }
   .os-card { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem .9rem;text-align:center; }
   .os-val { font-family:monospace;font-size:1.4rem;font-weight:800; }
   .os-lbl { font-size:.68rem;color:var(--muted);margin-top:.15rem;text-transform:uppercase;letter-spacing:.04em; }
@@ -89,7 +89,30 @@
     <div class="os-val" style="color:#3b82f6;">{{ nb_customers }}</div>
     <div class="os-lbl">👥 Clients inscrits</div>
   </div>
+  <div class="os-card">
+    <div class="os-val" style="color:#8b5cf6;">{{ visitors_today }}</div>
+    <div class="os-lbl">👁 Visiteurs aujourd'hui</div>
+  </div>
+  <div class="os-card">
+    <div class="os-val" style="color:#ec4899;">{{ visitors_month }}</div>
+    <div class="os-lbl">👁 Visiteurs ce mois</div>
+  </div>
 </div>
+
+<!-- Graphe visiteurs 7 jours -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;margin-bottom:1.25rem;">
+  <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.65rem;">👁 Visiteurs — 7 derniers jours</div>
+  <div style="display:flex;align-items:flex-end;gap:4px;height:80px;">
+    {% set max_v = visitors_7days|map(attribute='count')|max if visitors_7days else 1 %}
+    {% set max_v = max_v if max_v > 0 else 1 %}
+    {% for d in visitors_7days %}
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+      <div style="font-family:monospace;font-size:.68rem;color:{% if loop.last %}var(--accent){% else %}var(--muted){% endif %};">{{ d.count }}</div>
+      <div style="width:100%;background:{% if loop.last %}var(--accent){% else %}#8b5cf644{% endif %};border-radius:4px 4px 0 0;height:{{ (d.count / max_v * 60)|int }}px;min-height:3px;transition:height .3s;"></div>
+      <div style="font-size:.6rem;color:var(--muted);">{{ d.date }}</div>
+    </div>
+    {% endfor %}
+  </div>
 
 <!-- Alerte stock faible sur produits commandés -->
 {% if low_stock_products %}

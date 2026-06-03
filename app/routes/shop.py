@@ -4,9 +4,9 @@ from flask import (Blueprint, render_template, redirect, url_for, flash,
 from app import db
 from app.models import (Tenant, Product, ProductVariant, Category,
                         OnlineCustomer, OnlineOrder, OnlineOrderItem,
-                        OnlineOrderStatus, ProductReview, TenantStatus)
+                        OnlineOrderStatus, ProductReview, TenantStatus, ShopVisit)
 from datetime import datetime, date
-import secrets
+import secrets, hashlib
 
 shop_bp = Blueprint('shop', __name__, template_folder='../../templates/shop')
 
@@ -49,6 +49,23 @@ def home(slug):
 
     cart = _get_cart(t.id)
     customer = _get_customer(t.id)
+
+    # Enregistrer la visite
+    try:
+        ip = request.remote_addr or 'unknown'
+        ip_hash = hashlib.md5(f"{ip}-{date.today()}".encode()).hexdigest()[:16]
+        # 1 visite par IP par jour max
+        from sqlalchemy import func
+        already = db.session.query(ShopVisit).filter(
+            ShopVisit.tenant_id == t.id,
+            ShopVisit.ip_hash == ip_hash
+        ).first()
+        if not already:
+            db.session.add(ShopVisit(tenant_id=t.id, ip_hash=ip_hash))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     return render_template('shop/home.html', tenant=t, products=products,
                            categories=categories, current_cat=cat_id,
                            cart=cart, customer=customer)
@@ -333,3 +350,4 @@ def cart_count(slug):
     t = _get_tenant(slug)
     cart = _get_cart(t.id)
     return jsonify({'count': sum(i['qty'] for i in cart)})
+

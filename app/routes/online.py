@@ -47,6 +47,30 @@ def dashboard():
     customers = OnlineCustomer.query.filter_by(tenant_id=_tid()).count()
     reviews   = ProductReview.query.filter_by(tenant_id=_tid(), is_approved=False).count()
 
+    # Statistiques visiteurs
+    from app.models import ShopVisit
+    from sqlalchemy import func
+    visitors_today = ShopVisit.query.filter(
+        ShopVisit.tenant_id == _tid(),
+        func.date(ShopVisit.visited_at) == today
+    ).count()
+    visitors_month = ShopVisit.query.filter(
+        ShopVisit.tenant_id == _tid(),
+        func.extract('month', ShopVisit.visited_at) == today.month,
+        func.extract('year', ShopVisit.visited_at) == today.year
+    ).count()
+
+    # Visiteurs par jour (7 derniers jours pour le graphe)
+    from datetime import timedelta
+    visitors_7days = []
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+        count = ShopVisit.query.filter(
+            ShopVisit.tenant_id == _tid(),
+            func.date(ShopVisit.visited_at) == d
+        ).count()
+        visitors_7days.append({'date': d.strftime('%d/%m'), 'count': count})
+
     # Vérifier stock pour commandes en attente
     low_stock_products = []
     for o in pending:
@@ -75,6 +99,9 @@ def dashboard():
                            today_orders=today_orders,
                            nb_customers=customers, nb_pending_reviews=reviews,
                            low_stock_products=low_stock_products,
+                           visitors_today=visitors_today,
+                           visitors_month=visitors_month,
+                           visitors_7days=visitors_7days,
                            OnlineOrderStatus=OnlineOrderStatus,
                            tenant=current_user.tenant)
 
@@ -454,3 +481,4 @@ def settings():
         flash('Paramètres boutique en ligne sauvegardés.', 'success')
         return redirect(url_for('online.settings'))
     return render_template('manager/online/settings.html', tenant=t)
+
