@@ -85,6 +85,7 @@
         {% if cart %}<span class="cart-badge">{{ cart|sum(attribute='qty') }}</span>{% endif %}
       </a>
       {% if customer %}
+        <a href="{{ url_for('shop.favorites', slug=tenant.shop_slug) }}">❤️ Favoris</a>
         <a href="{{ url_for('shop.my_orders', slug=tenant.shop_slug) }}">📦 Commandes</a>
         <a href="{{ url_for('shop.logout', slug=tenant.shop_slug) }}" style="color:var(--danger);">Déconnexion</a>
       {% else %}

@@ -1,0 +1,34 @@
+{% extends "shop/base.html" %}
+{% block title %}Mes Favoris — {{ tenant.nom_boutique }}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.5rem;">❤️ Mes Favoris</h1>
+
+{% if products %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.25rem;">
+  {% for p in products %}
+  <div class="card" style="border-radius:12px;overflow:hidden;position:relative;">
+    <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=p.id) }}">
+      {% if p.image_url %}
+      <img src="{{ p.image_url }}" style="width:100%;aspect-ratio:1;object-fit:cover;">
+      {% else %}
+      <div style="width:100%;aspect-ratio:1;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:3rem;color:var(--border);">📦</div>
+      {% endif %}
+    </a>
+    <form method="POST" action="{{ url_for('shop.toggle_favorite', slug=tenant.shop_slug, pid=p.id) }}" style="position:absolute;top:10px;right:10px;">
+      <button type="submit" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);border:none;font-size:1.1rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);">❤️</button>
+    </form>
+    <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=p.id) }}" style="display:block;padding:.85rem 1rem;">
+      <div style="font-weight:600;font-size:.9rem;">{{ p.designation }}</div>
+      <div style="font-weight:800;font-size:1.1rem;color:var(--accent);margin-top:.25rem;">{{ (p.prix_vente_ttc or 0)|int }} FCFA</div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center;padding:4rem;color:var(--muted);">
+  <div style="font-size:3rem;margin-bottom:1rem;">🤍</div>
+  <div>Vous n'avez pas encore de favoris.</div>
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn btn-primary" style="margin-top:1rem;">Découvrir nos produits</a>
+</div>
+{% endif %}
+{% endblock %}

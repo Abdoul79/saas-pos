@@ -785,12 +785,23 @@ class ProductReview(db.Model):
     product  = db.relationship('Product', backref=db.backref('reviews', lazy='dynamic'))
     customer = db.relationship('OnlineCustomer', back_populates='reviews')
 
-#visite de boutique
 
 class ShopVisit(db.Model):
     __tablename__ = 'shop_visits'
-    id         = db.Column(db.Integer, primary_key=True)
-    tenant_id  = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    id        = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
     visited_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     ip_hash    = db.Column(db.String(64), nullable=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True, index=True)  # si visite produit
+
+
+class ProductFavorite(db.Model):
+    __tablename__ = 'product_favorites'
+    id          = db.Column(db.Integer, primary_key=True)
+    tenant_id   = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    product_id  = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('online_customers.id'), nullable=False, index=True)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    product  = db.relationship('Product', backref=db.backref('favorites', lazy='dynamic'))
+    customer = db.relationship('OnlineCustomer', backref=db.backref('favorites', lazy='dynamic'))

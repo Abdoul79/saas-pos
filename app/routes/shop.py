@@ -4,7 +4,8 @@ from flask import (Blueprint, render_template, redirect, url_for, flash,
 from app import db
 from app.models import (Tenant, Product, ProductVariant, Category,
                         OnlineCustomer, OnlineOrder, OnlineOrderItem,
-                        OnlineOrderStatus, ProductReview, TenantStatus, ShopVisit)
+                        OnlineOrderStatus, ProductReview, TenantStatus,
+                        ShopVisit, ProductFavorite)
 from datetime import datetime, date
 import secrets, hashlib
 
@@ -66,9 +67,15 @@ def home(slug):
     except Exception:
         db.session.rollback()
 
+    # Favoris du client connecté
+    my_favs = set()
+    if customer:
+        my_favs = {f.product_id for f in ProductFavorite.query.filter_by(
+            tenant_id=t.id, customer_id=customer.id).all()}
+
     return render_template('shop/home.html', tenant=t, products=products,
                            categories=categories, current_cat=cat_id,
-                           cart=cart, customer=customer)
+                           cart=cart, customer=customer, my_favs=my_favs)
 
 
 @shop_bp.route('/<slug>/produit/<int:pid>')
@@ -97,9 +104,17 @@ def product_detail(slug, pid):
     except Exception:
         db.session.rollback()
 
+    # Favoris
+    fav_count = ProductFavorite.query.filter_by(tenant_id=t.id, product_id=pid).count()
+    is_fav = False
+    if customer:
+        is_fav = ProductFavorite.query.filter_by(
+            tenant_id=t.id, product_id=pid, customer_id=customer.id).first() is not None
+
     return render_template('shop/product.html', tenant=t, product=p,
                            variants=variants, reviews=reviews,
-                           avg_rating=avg_rating, cart=cart, customer=customer)
+                           avg_rating=avg_rating, cart=cart, customer=customer,
+                           fav_count=fav_count, is_fav=is_fav)
 
 
 # ── PANIER ─────────────────────────────────────────────────────────────────
@@ -359,9 +374,40 @@ def tracking(slug):
                            cart=_get_cart(t.id), customer=_get_customer(t.id))
 
 
+@shop_bp.route('/<slug>/favoris/toggle/<int:pid>', methods=['POST'])
+def toggle_favorite(slug, pid):
+    t = _get_tenant(slug)
+    customer = _get_customer(t.id)
+    if not customer:
+        flash('Connectez-vous pour ajouter aux favoris.', 'warning')
+        return redirect(url_for('shop.login', slug=slug))
+    existing = ProductFavorite.query.filter_by(
+        tenant_id=t.id, product_id=pid, customer_id=customer.id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+    else:
+        db.session.add(ProductFavorite(tenant_id=t.id, product_id=pid, customer_id=customer.id))
+        db.session.commit()
+    return redirect(request.referrer or url_for('shop.home', slug=slug))
+
+
+@shop_bp.route('/<slug>/favoris')
+def favorites(slug):
+    t = _get_tenant(slug)
+    customer = _get_customer(t.id)
+    if not customer:
+        return redirect(url_for('shop.login', slug=slug))
+    favs = ProductFavorite.query.filter_by(tenant_id=t.id, customer_id=customer.id)\
+           .order_by(ProductFavorite.created_at.desc()).all()
+    products = [f.product for f in favs if f.product]
+    cart = _get_cart(t.id)
+    return render_template('shop/favorites.html', tenant=t, products=products,
+                           cart=cart, customer=customer)
+
+
 @shop_bp.route('/<slug>/api/cart/count')
 def cart_count(slug):
     t = _get_tenant(slug)
     cart = _get_cart(t.id)
     return jsonify({'count': sum(i['qty'] for i in cart)})
-

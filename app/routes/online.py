@@ -508,5 +508,3 @@ def settings():
         flash('Paramètres boutique en ligne sauvegardés.', 'success')
         return redirect(url_for('online.settings'))
     return render_template('manager/online/settings.html', tenant=t)
-
-

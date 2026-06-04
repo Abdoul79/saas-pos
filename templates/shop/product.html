@@ -1,26 +1,121 @@
 {% extends "shop/base.html" %}
 {% block title %}{{ product.designation }} — {{ tenant.nom_boutique }}{% endblock %}
+{% block head %}
+<style>
+  /* Loupe e-commerce */
+  .img-container { position:relative; }
+  .img-main-wrap { position:relative;border-radius:14px;overflow:hidden;background:var(--surface);cursor:crosshair; }
+  .img-main { width:100%;aspect-ratio:1;object-fit:cover;display:block; }
+  .img-placeholder { width:100%;aspect-ratio:1;background:var(--surface);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:5rem;color:var(--border); }
+
+  /* Lentille sur l'image */
+  .lens {
+    display:none;position:absolute;
+    width:120px;height:120px;
+    border:3px solid var(--accent);border-radius:50%;
+    pointer-events:none;z-index:10;
+    box-shadow:0 0 0 1px rgba(0,0,0,.1), 0 4px 20px rgba(0,0,0,.2);
+    background:rgba(245,166,35,.08);
+  }
+
+  /* Panneau zoom — dans la colonne droite, même taille que l'image */
+  .zoom-panel {
+    display:none;position:absolute;top:0;left:0;right:0;
+    aspect-ratio:1;
+    border:2px solid var(--accent);border-radius:14px;
+    overflow:hidden;background:var(--surface);
+    box-shadow:0 8px 40px rgba(0,0,0,.15);
+    z-index:20;
+  }
+  .zoom-panel img {
+    position:absolute;top:0;left:0;
+    transform-origin:top left;
+  }
+
+  /* La colonne droite doit être relative pour positionner le zoom */
+  .product-right { position:relative; }
+
+  .fav-section { display:flex;align-items:center;gap:.75rem;margin-bottom:1rem; }
+  .fav-big-btn {
+    display:inline-flex;align-items:center;gap:.4rem;
+    padding:.5rem 1rem;border-radius:99px;font-size:.88rem;font-weight:600;
+    border:1px solid var(--border);background:#fff;cursor:pointer;transition:all .15s;
+  }
+  .fav-big-btn:hover { border-color:#ef4444;background:#fef2f2; }
+  .fav-big-btn.active { background:#fef2f2;border-color:#ef4444;color:#ef4444; }
+  .fav-count { font-size:.82rem;color:var(--muted); }
+
+  .stock-detail { display:flex;gap:.75rem;margin-bottom:1.25rem; }
+  .sd-box { flex:1;padding:.65rem .85rem;border-radius:8px;text-align:center;border:1px solid var(--border); }
+  .sd-val { font-size:1.2rem;font-weight:800;font-family:monospace; }
+  .sd-lbl { font-size:.7rem;color:var(--muted);margin-top:.15rem; }
+
+  @media(max-width:900px) {
+    .zoom-panel { display:none !important; }
+    .lens { display:none !important; }
+    .img-main-wrap { cursor:zoom-in; }
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2rem;">
-  <div>
+
+  <!-- Image avec loupe -->
+  <div class="img-container">
     {% if product.image_url %}
-    <img src="{{ product.image_url }}" style="width:100%;border-radius:14px;aspect-ratio:1;object-fit:cover;">
+    <div class="img-main-wrap" id="imgWrap">
+      <img src="{{ product.image_url }}" class="img-main" id="mainImg" alt="{{ product.designation }}">
+      <div class="lens" id="lens"></div>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:.4rem;">🔍 Survolez l'image pour zoomer</div>
     {% else %}
-    <div style="width:100%;aspect-ratio:1;background:var(--surface);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:5rem;color:var(--border);">📦</div>
+    <div class="img-placeholder">📦</div>
     {% endif %}
   </div>
-  <div>
+
+  <div class="product-right">
+    <!-- Panneau zoom (apparait au survol de l'image) -->
+    <div class="zoom-panel" id="zoomPanel">
+      <img src="{{ product.image_url or '' }}" id="zoomImg">
+    </div>
     {% if product.category %}
     <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem;">{{ product.category.icone }} {{ product.category.nom }}</div>
     {% endif %}
     <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:.5rem;">{{ product.designation }}</h1>
 
-    <div class="stars" style="margin-bottom:.75rem;">
-      {% for i in range(1,6) %}{% if i <= avg_rating|round %}★{% else %}<span class="stars-empty">★</span>{% endif %}{% endfor %}
+    <div style="margin-bottom:.5rem;">
+      <span class="stars">{% for i in range(1,6) %}{% if i <= avg_rating|round %}★{% else %}<span class="stars-empty">★</span>{% endif %}{% endfor %}</span>
       <span style="color:var(--muted);font-size:.82rem;margin-left:.25rem;">({{ reviews|length }} avis)</span>
     </div>
 
+    <div class="fav-section">
+      <form method="POST" action="{{ url_for('shop.toggle_favorite', slug=tenant.shop_slug, pid=product.id) }}" style="margin:0;">
+        <button type="submit" class="fav-big-btn {% if is_fav %}active{% endif %}">
+          {% if is_fav %}❤️ Favori{% else %}🤍 Ajouter aux favoris{% endif %}
+        </button>
+      </form>
+      <span class="fav-count">❤️ {{ fav_count }} personne(s) aiment ce produit</span>
+    </div>
+
     <div style="font-size:2rem;font-weight:800;color:var(--accent);margin-bottom:1rem;">{{ (product.prix_vente_ttc or 0)|int }} FCFA</div>
+
+    {% set stock_total = product.total_stock_magasin + product.total_stock_entrepot %}
+    <div class="stock-detail">
+      <div class="sd-box" style="{% if stock_total > 10 %}background:#f0fdf4;border-color:#bbf7d0;{% elif stock_total > 0 %}background:#fffbeb;border-color:#fde68a;{% else %}background:#fef2f2;border-color:#fecaca;{% endif %}">
+        <div class="sd-val" style="color:{% if stock_total > 10 %}#16a34a{% elif stock_total > 0 %}#f59e0b{% else %}#dc2626{% endif %};">
+          {% if stock_total > 10 %}✓ En stock{% elif stock_total > 0 %}⚠ {{ stock_total }} restant(s){% else %}✕ Rupture{% endif %}
+        </div>
+        <div class="sd-lbl">Disponibilité</div>
+      </div>
+      <div class="sd-box">
+        <div class="sd-val">{{ fav_count }}</div>
+        <div class="sd-lbl">❤️ Favoris</div>
+      </div>
+      <div class="sd-box">
+        <div class="sd-val">{{ reviews|length }}</div>
+        <div class="sd-lbl">⭐ Avis</div>
+      </div>
+    </div>
 
     {% if product.description %}
     <p style="color:var(--muted);font-size:.9rem;line-height:1.7;margin-bottom:1.25rem;">{{ product.description }}</p>
@@ -42,7 +137,11 @@
         <label class="form-label">Quantité</label>
         <input type="number" name="quantity" value="1" min="1" class="form-control" style="width:100px;">
       </div>
+      {% if stock_total > 0 %}
       <button type="submit" class="btn btn-primary" style="width:100%;padding:.75rem;font-size:1rem;">🛒 Ajouter au panier</button>
+      {% else %}
+      <button type="button" class="btn" style="width:100%;padding:.75rem;opacity:.5;cursor:not-allowed;" disabled>Rupture de stock</button>
+      {% endif %}
     </form>
   </div>
 </div>
@@ -50,7 +149,6 @@
 <!-- Avis -->
 <div style="margin-top:2rem;">
   <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;">Avis clients ({{ reviews|length }})</h2>
-
   {% if customer %}
   <form method="POST" action="{{ url_for('shop.add_review', slug=tenant.shop_slug, pid=product.id) }}" class="card" style="padding:1.25rem;margin-bottom:1.5rem;">
     <div class="form-group">
@@ -67,7 +165,6 @@
     <button type="submit" class="btn btn-primary">Envoyer mon avis</button>
   </form>
   {% endif %}
-
   {% for r in reviews %}
   <div class="card" style="padding:1rem;margin-bottom:.75rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
@@ -81,4 +178,74 @@
   <p style="color:var(--muted);">Aucun avis pour ce produit.</p>
   {% endfor %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const wrap  = document.getElementById('imgWrap');
+  if (!wrap) return;
+  const img   = document.getElementById('mainImg');
+  const lens  = document.getElementById('lens');
+  const panel = document.getElementById('zoomPanel');
+  const zImg  = document.getElementById('zoomImg');
+
+  const ZOOM = 3;  // facteur de zoom
+  const LENS_R = 60; // rayon lentille
+
+  // Charger la taille réelle de l'image
+  let natW, natH;
+  img.addEventListener('load', () => { natW = img.naturalWidth; natH = img.naturalHeight; });
+  natW = img.naturalWidth; natH = img.naturalHeight;
+
+  wrap.addEventListener('mouseenter', () => {
+    lens.style.display  = 'block';
+    panel.style.display = 'block';
+    // Taille du panneau = même taille que l'image
+    const rect = wrap.getBoundingClientRect();
+    panel.style.width  = rect.width + 'px';
+    panel.style.height = rect.height + 'px';
+    zImg.style.width  = (rect.width * ZOOM) + 'px';
+    zImg.style.height = (rect.height * ZOOM) + 'px';
+  });
+
+  wrap.addEventListener('mouseleave', () => {
+    lens.style.display  = 'none';
+    panel.style.display = 'none';
+  });
+
+  wrap.addEventListener('mousemove', (e) => {
+    const rect = wrap.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+
+    // Clamp
+    x = Math.max(LENS_R, Math.min(rect.width - LENS_R, x));
+    y = Math.max(LENS_R, Math.min(rect.height - LENS_R, y));
+
+    // Positionner la lentille
+    lens.style.left = (x - LENS_R) + 'px';
+    lens.style.top  = (y - LENS_R) + 'px';
+
+    // Positionner l'image zoomée dans le panneau
+    const panelW = panel.offsetWidth;
+    const panelH = panel.offsetHeight;
+    const zoomX = (x / rect.width) * (rect.width * ZOOM) - panelW / 2;
+    const zoomY = (y / rect.height) * (rect.height * ZOOM) - panelH / 2;
+    zImg.style.left = -zoomX + 'px';
+    zImg.style.top  = -zoomY + 'px';
+  });
+
+  // Mobile : clic pour agrandir en plein écran
+  wrap.addEventListener('click', () => {
+    if (window.innerWidth <= 900) {
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+      modal.innerHTML = '<img src="' + img.src + '" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px;">';
+      modal.onclick = () => modal.remove();
+      document.body.appendChild(modal);
+    }
+  });
+})();
+</script>
 {% endblock %}

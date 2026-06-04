@@ -892,3 +892,6 @@ def cashiers_presence():
             'pos_state': pos_state,
         })
     return {'cashiers': result}
+
+
+
