@@ -42,9 +42,17 @@ def home(slug):
     categories = Category.query.filter_by(tenant_id=t.id).order_by(Category.nom).all()
     cat_id = request.args.get('cat', 0, type=int)
 
+    # ── Recherche ──
+    search_query = request.args.get('q', '').strip()
+
     q = Product.query.filter_by(tenant_id=t.id)
     if cat_id:
         q = q.filter_by(category_id=cat_id)
+
+    # ── Filtre recherche sur désignation ──
+    if search_query:
+        q = q.filter(Product.designation.ilike(f'%{search_query}%'))
+
     products = [p for p in q.order_by(Product.designation).all()
                 if p.total_stock_magasin > 0 or p.total_stock_entrepot > 0]
 
@@ -55,7 +63,6 @@ def home(slug):
     try:
         ip = request.remote_addr or 'unknown'
         ip_hash = hashlib.md5(f"{ip}-{date.today()}".encode()).hexdigest()[:16]
-        # 1 visite par IP par jour max
         from sqlalchemy import func
         already = db.session.query(ShopVisit).filter(
             ShopVisit.tenant_id == t.id,
@@ -75,6 +82,7 @@ def home(slug):
 
     return render_template('shop/home.html', tenant=t, products=products,
                            categories=categories, current_cat=cat_id,
+                           search_query=search_query,
                            cart=cart, customer=customer, my_favs=my_favs)
 
 
@@ -129,7 +137,6 @@ def add_to_cart(slug):
     p = Product.query.get_or_404(pid)
     cart = _get_cart(t.id)
 
-    # Build cart item
     if vid:
         v = ProductVariant.query.get_or_404(vid)
         item_key = f'v{vid}'
@@ -144,7 +151,6 @@ def add_to_cart(slug):
         stock = p.total_stock_magasin + p.total_stock_entrepot
         img = p.image_url or ''
 
-    # Check existing in cart
     found = False
     for item in cart:
         if item['key'] == item_key:
@@ -301,7 +307,6 @@ def checkout(slug):
                 subtotal=item['price'] * item['qty'],
             )
             db.session.add(oi)
-            # Stock décrémenté uniquement à la confirmation par le manager
 
         db.session.commit()
         _save_cart(t.id, [])
@@ -357,7 +362,7 @@ def add_review(slug, pid):
     return redirect(url_for('shop.product_detail', slug=slug, pid=pid))
 
 
-# ── API PANIER (pour AJAX) ────────────────────────────────────────────────
+# ── SUIVI ──────────────────────────────────────────────────────────────────
 
 @shop_bp.route('/<slug>/suivi', methods=['GET', 'POST'])
 def tracking(slug):
@@ -373,6 +378,8 @@ def tracking(slug):
     return render_template('shop/tracking.html', tenant=t, error=error, ref=ref,
                            cart=_get_cart(t.id), customer=_get_customer(t.id))
 
+
+# ── FAVORIS ────────────────────────────────────────────────────────────────
 
 @shop_bp.route('/<slug>/favoris/toggle/<int:pid>', methods=['POST'])
 def toggle_favorite(slug, pid):
@@ -411,3 +418,4 @@ def cart_count(slug):
     t = _get_tenant(slug)
     cart = _get_cart(t.id)
     return jsonify({'count': sum(i['qty'] for i in cart)})
+

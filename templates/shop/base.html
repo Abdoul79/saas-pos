@@ -26,6 +26,85 @@
     .nav-links a:hover { color:var(--text); }
     .nav-links .cart-badge { background:var(--accent);color:#fff;font-size:.7rem;font-weight:700;padding:.15rem .45rem;border-radius:99px;margin-left:.25rem; }
 
+    /* ── Mon compte dropdown ── */
+    .account-dropdown {
+      position:relative;
+    }
+    .account-toggle {
+      display:flex;align-items:center;gap:.35rem;
+      padding:.4rem .75rem;
+      border-radius:8px;
+      font-size:.86rem;font-weight:600;
+      color:var(--accent);
+      cursor:pointer;
+      border:1px solid var(--border);
+      background:#fff;
+      transition:all .15s;
+      user-select:none;
+    }
+    .account-toggle:hover { background:var(--surface);border-color:var(--accent); }
+    .account-toggle .account-avatar {
+      width:26px;height:26px;
+      border-radius:50%;
+      background:var(--accent);
+      color:#fff;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.72rem;font-weight:700;
+      flex-shrink:0;
+    }
+    .account-toggle .arrow {
+      font-size:.6rem;
+      transition:transform .2s;
+      color:var(--muted);
+    }
+    .account-dropdown.open .account-toggle .arrow { transform:rotate(180deg); }
+
+    .account-menu {
+      display:none;
+      position:absolute;
+      top:calc(100% + 6px);
+      right:0;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:10px;
+      box-shadow:0 8px 32px rgba(0,0,0,.12);
+      min-width:220px;
+      padding:.4rem 0;
+      z-index:200;
+      animation:menuPop .15s ease;
+    }
+    .account-dropdown.open .account-menu { display:block; }
+    @keyframes menuPop { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
+    .account-menu-header {
+      padding:.65rem 1rem;
+      border-bottom:1px solid var(--border);
+      margin-bottom:.3rem;
+    }
+    .account-menu-header .name { font-weight:700;font-size:.88rem; }
+    .account-menu-header .email { font-size:.75rem;color:var(--muted);margin-top:.1rem; }
+
+    .account-menu a {
+      display:flex;align-items:center;gap:.6rem;
+      padding:.55rem 1rem;
+      font-size:.84rem;
+      color:var(--text);
+      transition:background .1s;
+    }
+    .account-menu a:hover { background:var(--surface); }
+    .account-menu a .menu-icon { width:20px;text-align:center;font-size:.95rem; }
+
+    .account-menu .menu-divider {
+      height:1px;
+      background:var(--border);
+      margin:.3rem 0;
+    }
+
+    .account-menu a.menu-logout {
+      color:var(--danger);
+    }
+    .account-menu a.menu-logout:hover { background:#fef2f2; }
+
     /* ── Buttons ── */
     .btn { display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.6rem 1.25rem;border-radius:8px;font-size:.88rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);transition:all .15s; }
     .btn:hover { background:var(--surface); }
@@ -63,9 +142,70 @@
     /* ── Badge ── */
     .badge { display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .6rem;border-radius:99px;font-size:.72rem;font-weight:600; }
 
+    /* ── Mobile hamburger ── */
+    .mobile-toggle {
+      display:none;
+      background:none;border:none;
+      font-size:1.4rem;cursor:pointer;
+      color:var(--text);padding:.25rem;
+    }
+
+    /* ── Mobile drawer menu ── */
+    .mobile-menu {
+      display:none;
+      position:fixed;inset:0;z-index:300;
+    }
+    .mobile-menu.open { display:flex; }
+    .mobile-backdrop {
+      position:absolute;inset:0;
+      background:rgba(0,0,0,.5);
+      animation:fadeInBg .2s ease;
+    }
+    @keyframes fadeInBg { from{opacity:0} to{opacity:1} }
+    .mobile-drawer {
+      position:absolute;right:0;top:0;bottom:0;
+      width:280px;max-width:85vw;
+      background:#fff;
+      box-shadow:-4px 0 24px rgba(0,0,0,.15);
+      display:flex;flex-direction:column;
+      animation:slideDrawer .25s ease;
+      overflow-y:auto;
+    }
+    @keyframes slideDrawer { from{transform:translateX(100%)} to{transform:translateX(0)} }
+    .mobile-drawer-header {
+      display:flex;justify-content:space-between;align-items:center;
+      padding:1rem 1.25rem;border-bottom:1px solid var(--border);
+    }
+    .mobile-drawer-header .title { font-weight:700;font-size:1rem; }
+    .mobile-close {
+      background:none;border:none;font-size:1.3rem;
+      cursor:pointer;color:var(--muted);padding:.25rem;
+    }
+    .mobile-drawer-body { flex:1;padding:.5rem 0; }
+    .mobile-drawer a, .mobile-drawer .mob-section-title {
+      display:flex;align-items:center;gap:.75rem;
+      padding:.75rem 1.25rem;
+      font-size:.9rem;color:var(--text);
+      transition:background .1s;
+    }
+    .mobile-drawer a:hover { background:var(--surface); }
+    .mobile-drawer .mob-icon { width:22px;text-align:center;font-size:1.05rem; }
+    .mobile-drawer .mob-divider { height:1px;background:var(--border);margin:.4rem 1.25rem; }
+    .mobile-drawer .mob-section-title {
+      font-size:.72rem;font-weight:700;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.06em;
+      padding-top:1rem;
+    }
+    .mobile-drawer a.mob-logout { color:var(--danger); }
+    .mobile-drawer a.mob-logout:hover { background:#fef2f2; }
+    .mobile-drawer a.mob-login { color:var(--accent);font-weight:600; }
+
     @media(max-width:768px) {
       main { padding:1rem; }
       .shop-nav { padding:.6rem 1rem; }
+      .nav-links { display:none; }
+      .mobile-toggle { display:block; }
+      .account-menu { right:-1rem;min-width:200px; }
     }
     {% block head %}{% endblock %}
   </style>
@@ -79,20 +219,93 @@
     </a>
     <div class="nav-links">
       <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}">Boutique</a>
-      <a href="{{ url_for('shop.tracking', slug=tenant.shop_slug) }}">📍 Suivi commande</a>
+
       <a href="{{ url_for('shop.cart_view', slug=tenant.shop_slug) }}">
         🛒 Panier
         {% if cart %}<span class="cart-badge">{{ cart|sum(attribute='qty') }}</span>{% endif %}
       </a>
+
       {% if customer %}
-        <a href="{{ url_for('shop.favorites', slug=tenant.shop_slug) }}">❤️ Favoris</a>
-        <a href="{{ url_for('shop.my_orders', slug=tenant.shop_slug) }}">📦 Commandes</a>
-        <a href="{{ url_for('shop.logout', slug=tenant.shop_slug) }}" style="color:var(--danger);">Déconnexion</a>
+      <!-- ══ Mon Compte dropdown (desktop) ══ -->
+      <div class="account-dropdown" id="accountDropdown">
+        <div class="account-toggle" onclick="toggleAccount()">
+          <div class="account-avatar">{{ customer.full_name[:1]|upper }}</div>
+          Mon compte
+          <span class="arrow">▾</span>
+        </div>
+        <div class="account-menu">
+          <div class="account-menu-header">
+            <div class="name">{{ customer.full_name }}</div>
+            {% if customer.email %}<div class="email">{{ customer.email }}</div>{% endif %}
+          </div>
+          <a href="{{ url_for('shop.my_orders', slug=tenant.shop_slug) }}">
+            <span class="menu-icon">📦</span> Mes commandes
+          </a>
+          <a href="{{ url_for('shop.tracking', slug=tenant.shop_slug) }}">
+            <span class="menu-icon">📍</span> Suivi commande
+          </a>
+          <a href="{{ url_for('shop.favorites', slug=tenant.shop_slug) }}">
+            <span class="menu-icon">❤️</span> Mes favoris
+          </a>
+          <div class="menu-divider"></div>
+          <a href="{{ url_for('shop.logout', slug=tenant.shop_slug) }}" class="menu-logout">
+            <span class="menu-icon">🚪</span> Déconnexion
+          </a>
+        </div>
+      </div>
       {% else %}
         <a href="{{ url_for('shop.login', slug=tenant.shop_slug) }}" style="color:var(--accent);font-weight:600;">Connexion</a>
       {% endif %}
     </div>
+
+    <!-- ══ Hamburger mobile ══ -->
+    <button class="mobile-toggle" onclick="openMobileMenu()" aria-label="Menu">☰</button>
   </nav>
+
+  <!-- ══ Mobile drawer menu ══ -->
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-backdrop" onclick="closeMobileMenu()"></div>
+    <div class="mobile-drawer">
+      <div class="mobile-drawer-header">
+        <span class="title">{{ tenant.nom_boutique or 'Menu' }}</span>
+        <button class="mobile-close" onclick="closeMobileMenu()">✕</button>
+      </div>
+      <div class="mobile-drawer-body">
+        <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}">
+          <span class="mob-icon">🏪</span> Boutique
+        </a>
+        <a href="{{ url_for('shop.cart_view', slug=tenant.shop_slug) }}">
+          <span class="mob-icon">🛒</span> Panier
+          {% if cart %}<span style="background:var(--accent);color:#fff;font-size:.68rem;font-weight:700;padding:.1rem .4rem;border-radius:99px;margin-left:.35rem;">{{ cart|sum(attribute='qty') }}</span>{% endif %}
+        </a>
+
+        {% if customer %}
+        <div class="mob-divider"></div>
+        <div class="mob-section-title">
+          <span class="mob-icon">👤</span> Mon compte
+        </div>
+        <a href="{{ url_for('shop.my_orders', slug=tenant.shop_slug) }}">
+          <span class="mob-icon">📦</span> Mes commandes
+        </a>
+        <a href="{{ url_for('shop.tracking', slug=tenant.shop_slug) }}">
+          <span class="mob-icon">📍</span> Suivi commande
+        </a>
+        <a href="{{ url_for('shop.favorites', slug=tenant.shop_slug) }}">
+          <span class="mob-icon">❤️</span> Mes favoris
+        </a>
+        <div class="mob-divider"></div>
+        <a href="{{ url_for('shop.logout', slug=tenant.shop_slug) }}" class="mob-logout">
+          <span class="mob-icon">🚪</span> Déconnexion
+        </a>
+        {% else %}
+        <div class="mob-divider"></div>
+        <a href="{{ url_for('shop.login', slug=tenant.shop_slug) }}" class="mob-login">
+          <span class="mob-icon">🔑</span> Connexion
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 
   <main>
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -109,6 +322,30 @@
     <div style="margin-top:.5rem;">Propulsé par SaaS POS</div>
   </footer>
 
+  <script>
+    // ── Mon Compte dropdown toggle ──
+    function toggleAccount() {
+      document.getElementById('accountDropdown').classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+      const dd = document.getElementById('accountDropdown');
+      if (dd && !dd.contains(e.target)) {
+        dd.classList.remove('open');
+      }
+    });
+
+    // ── Mobile menu ──
+    function openMobileMenu() {
+      document.getElementById('mobileMenu').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeMobileMenu() {
+      document.getElementById('mobileMenu').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  </script>
+
   {% block scripts %}{% endblock %}
 </body>
 </html>
+

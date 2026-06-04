@@ -2,17 +2,158 @@
 {% block title %}{{ tenant.nom_boutique or tenant.activite }} — Boutique en ligne{% endblock %}
 {% block head %}
 <style>
-  .shop-hero { background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border-radius:14px;padding:2.5rem;margin-bottom:2rem;text-align:center; }
-  .shop-hero h1 { font-size:2rem;font-weight:800;margin-bottom:.5rem; }
-  .shop-hero p { color:#94a3b8;font-size:1rem; }
+  /* ── Override nav for responsive ── */
+  .shop-nav {
+    padding:.65rem 1.25rem;
+    gap:.75rem;
+  }
+  .nav-links { gap:1rem; }
 
-  .cat-pills { display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem; }
-  .cat-pill { padding:.45rem 1rem;border-radius:99px;font-size:.82rem;font-weight:500;border:1px solid var(--border);color:var(--muted);transition:all .15s; }
+  /* ── Mobile hamburger ── */
+  .mobile-toggle {
+    display:none;
+    background:none;border:none;
+    font-size:1.4rem;cursor:pointer;
+    color:var(--text);padding:.25rem;
+  }
+
+  /* ── Mobile menu overlay ── */
+  .mobile-menu {
+    display:none;
+    position:fixed;inset:0;z-index:300;
+  }
+  .mobile-menu.open { display:flex; }
+  .mobile-backdrop {
+    position:absolute;inset:0;
+    background:rgba(0,0,0,.5);
+    animation:fadeIn .2s ease;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+  .mobile-drawer {
+    position:absolute;right:0;top:0;bottom:0;
+    width:280px;max-width:85vw;
+    background:#fff;
+    box-shadow:-4px 0 24px rgba(0,0,0,.15);
+    display:flex;flex-direction:column;
+    animation:slideIn .25s ease;
+    overflow-y:auto;
+  }
+  @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+
+  .mobile-drawer-header {
+    display:flex;justify-content:space-between;align-items:center;
+    padding:1rem 1.25rem;border-bottom:1px solid var(--border);
+  }
+  .mobile-drawer-header .title { font-weight:700;font-size:1rem; }
+  .mobile-close {
+    background:none;border:none;font-size:1.3rem;
+    cursor:pointer;color:var(--muted);padding:.25rem;
+  }
+
+  .mobile-drawer-body { flex:1;padding:.5rem 0; }
+  .mobile-drawer a, .mobile-drawer .mob-section-title {
+    display:flex;align-items:center;gap:.75rem;
+    padding:.75rem 1.25rem;
+    font-size:.9rem;color:var(--text);
+    transition:background .1s;
+  }
+  .mobile-drawer a:hover { background:var(--surface); }
+  .mobile-drawer .mob-icon { width:22px;text-align:center;font-size:1.05rem; }
+  .mobile-drawer .mob-divider { height:1px;background:var(--border);margin:.4rem 1.25rem; }
+  .mobile-drawer .mob-section-title {
+    font-size:.72rem;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em;
+    padding-top:1rem;
+  }
+  .mobile-drawer a.mob-logout { color:var(--danger); }
+  .mobile-drawer a.mob-logout:hover { background:#fef2f2; }
+  .mobile-drawer a.mob-login { color:var(--accent);font-weight:600; }
+
+  /* ── Search bar ── */
+  .search-section {
+    margin-bottom:1.5rem;
+  }
+  .search-bar {
+    display:flex;gap:.5rem;
+    max-width:600px;
+    margin:0 auto;
+  }
+  .search-input {
+    flex:1;
+    padding:.7rem 1rem .7rem 2.5rem;
+    border:1px solid var(--border);
+    border-radius:10px;
+    font-size:.9rem;
+    color:var(--text);
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%236b7280' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") 12px center no-repeat;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  .search-input:focus {
+    outline:none;
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(245,166,35,.12);
+  }
+  .search-input::placeholder { color:#9ca3af; }
+  .search-btn {
+    padding:.65rem 1.25rem;
+    background:var(--accent);color:#fff;
+    border:none;border-radius:10px;
+    font-weight:600;font-size:.88rem;
+    cursor:pointer;transition:background .15s;
+    white-space:nowrap;
+  }
+  .search-btn:hover { background:var(--accent2); }
+
+  /* ── Results info ── */
+  .search-results-info {
+    text-align:center;margin-top:.75rem;
+    font-size:.82rem;color:var(--muted);
+  }
+  .search-results-info strong { color:var(--text); }
+  .search-clear { color:var(--accent);cursor:pointer;margin-left:.5rem;font-weight:600; }
+  .search-clear:hover { text-decoration:underline; }
+
+  /* ── Hero ── */
+  .shop-hero {
+    background:linear-gradient(135deg,#1a1a2e,#16213e);
+    color:#fff;border-radius:14px;
+    padding:2.5rem 2rem;margin-bottom:1.75rem;
+    text-align:center;
+    position:relative;overflow:hidden;
+  }
+  .shop-hero::before {
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(circle at 20% 80%, rgba(245,166,35,.15) 0%, transparent 60%),
+               radial-gradient(circle at 80% 20%, rgba(59,130,246,.1) 0%, transparent 50%);
+  }
+  .shop-hero h1 { font-size:2rem;font-weight:800;margin-bottom:.5rem;position:relative; }
+  .shop-hero p { color:#94a3b8;font-size:1rem;position:relative; }
+
+  /* ── Category pills ── */
+  .cat-pills {
+    display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;
+    justify-content:center;
+  }
+  .cat-pill {
+    padding:.45rem 1rem;border-radius:99px;font-size:.82rem;font-weight:500;
+    border:1px solid var(--border);color:var(--muted);transition:all .15s;
+  }
   .cat-pill:hover { border-color:var(--accent);color:var(--accent); }
   .cat-pill.active { background:var(--accent);color:#fff;border-color:var(--accent); }
 
-  .products-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.25rem; }
-  .prod-card { border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#fff;transition:transform .15s,box-shadow .15s;position:relative; }
+  /* ── Products grid ── */
+  .products-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:1.25rem;
+  }
+  .prod-card {
+    border-radius:12px;overflow:hidden;
+    border:1px solid var(--border);background:#fff;
+    transition:transform .15s,box-shadow .15s;
+    position:relative;
+  }
   .prod-card:hover { transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,.08); }
   .prod-img-wrap { position:relative;overflow:hidden; }
   .prod-img { width:100%;aspect-ratio:1;object-fit:cover;background:var(--surface); }
@@ -40,24 +181,92 @@
   .prod-stock.ok { color:#16a34a; }
   .prod-stock.low { color:#f59e0b; }
   .prod-stock.out { color:#dc2626; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align:center;padding:4rem 2rem;color:var(--muted);
+  }
+  .empty-icon { font-size:3.5rem;margin-bottom:1rem;opacity:.5; }
+
+  /* ══════════════════════════════════════
+     RESPONSIVE
+     ══════════════════════════════════════ */
+  @media(max-width:768px) {
+    /* Nav */
+    .nav-links { display:none; }
+    .mobile-toggle { display:block; }
+    .shop-nav { padding:.55rem 1rem; }
+
+    /* Hero */
+    .shop-hero { padding:1.75rem 1.25rem;border-radius:10px;margin-bottom:1.25rem; }
+    .shop-hero h1 { font-size:1.4rem; }
+    .shop-hero p { font-size:.88rem; }
+
+    /* Search */
+    .search-bar { flex-direction:column; }
+    .search-btn { width:100%; }
+
+    /* Categories */
+    .cat-pills { flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;justify-content:flex-start;padding-bottom:.25rem; }
+    .cat-pills::-webkit-scrollbar { display:none; }
+    .cat-pill { flex-shrink:0; }
+
+    /* Products */
+    .products-grid { grid-template-columns:repeat(2,1fr);gap:.75rem; }
+    .prod-body { padding:.65rem .75rem; }
+    .prod-name { font-size:.82rem; }
+    .prod-price { font-size:.95rem; }
+
+    main { padding:.75rem; }
+  }
+
+  @media(max-width:400px) {
+    .products-grid { grid-template-columns:repeat(2,1fr);gap:.55rem; }
+    .prod-card { border-radius:8px; }
+    .fav-btn { width:30px;height:30px;font-size:.9rem;top:6px;right:6px; }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
+
+<!-- ══ HERO ══ -->
 <div class="shop-hero">
   <h1>{{ tenant.nom_boutique or tenant.activite }}</h1>
   <p>{{ tenant.shop_description or 'Bienvenue dans notre boutique en ligne' }}</p>
 </div>
 
+<!-- ══ SEARCH BAR ══ -->
+<div class="search-section">
+  <form method="GET" action="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="search-bar">
+    {% if current_cat %}
+    <input type="hidden" name="cat" value="{{ current_cat }}">
+    {% endif %}
+    <input type="text" name="q" class="search-input"
+           placeholder="Rechercher un produit…"
+           value="{{ search_query or '' }}"
+           autocomplete="off">
+    <button type="submit" class="search-btn">Rechercher</button>
+  </form>
+  {% if search_query %}
+  <div class="search-results-info">
+    <strong>{{ products|length }}</strong> résultat(s) pour « <strong>{{ search_query }}</strong> »
+    <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=current_cat or '') }}" class="search-clear">✕ Effacer</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══ CATEGORY PILLS ══ -->
 <div class="cat-pills">
-  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}"
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, q=search_query or '') }}"
      class="cat-pill {% if not current_cat %}active{% endif %}">Tout</a>
   {% for c in categories %}
-  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=c.id) }}"
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=c.id, q=search_query or '') }}"
      class="cat-pill {% if current_cat == c.id %}active{% endif %}">{{ c.icone }} {{ c.nom }}</a>
   {% endfor %}
 </div>
 
+<!-- ══ PRODUCTS GRID ══ -->
 {% if products %}
 <div class="products-grid">
   {% for p in products %}
@@ -65,7 +274,7 @@
     <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=p.id) }}">
       <div class="prod-img-wrap">
         {% if p.image_url %}
-        <img src="{{ p.image_url }}" class="prod-img" alt="{{ p.designation }}">
+        <img src="{{ p.image_url }}" class="prod-img" alt="{{ p.designation }}" loading="lazy">
         {% else %}
         <div class="prod-img-ph">📦</div>
         {% endif %}
@@ -94,9 +303,30 @@
   {% endfor %}
 </div>
 {% else %}
-<div style="text-align:center;padding:4rem;color:var(--muted);">
-  <div style="font-size:3rem;margin-bottom:1rem;">🏪</div>
+<div class="empty-state">
+  <div class="empty-icon">🏪</div>
+  {% if search_query %}
+  <div>Aucun produit trouvé pour « <strong>{{ search_query }}</strong> »</div>
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" style="color:var(--accent);font-weight:600;margin-top:.75rem;display:inline-block;">← Retour à la boutique</a>
+  {% else %}
   <div>Aucun produit disponible pour le moment.</div>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+// ── Mobile menu ──
+function openMobileMenu() {
+  document.getElementById('mobileMenu').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobileMenu() {
+  document.getElementById('mobileMenu').classList.remove('open');
+  document.body.style.overflow = '';
+}
+</script>
+{% endblock %}
+
+
