@@ -2,20 +2,19 @@
 {% block title %}{{ product.designation }} — {{ tenant.nom_boutique }}{% endblock %}
 {% block head %}
 <style>
-  /* ── Layout produit — style e-commerce ── */
+  /* ── Layout produit ── */
   .product-layout {
     display:grid;
-    grid-template-columns:420px 1fr;
-    gap:2.5rem;
+    grid-template-columns:1fr 1fr;
+    gap:2rem;
     margin-bottom:2.5rem;
-    align-items:start;
   }
 
-  /* ── Image ── */
-  .img-container { position:sticky;top:80px; }
-  .img-main-wrap { position:relative;border-radius:12px;overflow:hidden;background:var(--surface);cursor:crosshair; }
-  .img-main { width:100%;display:block; }
-  .img-placeholder { width:100%;aspect-ratio:3/4;background:var(--surface);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:5rem;color:var(--border); }
+  /* ── Image + loupe ── */
+  .img-container { position:relative; }
+  .img-main-wrap { position:relative;border-radius:14px;overflow:hidden;background:var(--surface);cursor:crosshair; }
+  .img-main { width:100%;aspect-ratio:1;object-fit:cover;display:block; }
+  .img-placeholder { width:100%;aspect-ratio:1;background:var(--surface);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:5rem;color:var(--border); }
   .img-hint { font-size:.72rem;color:var(--muted);text-align:center;margin-top:.4rem; }
 
   .lens {
@@ -28,9 +27,9 @@
   }
 
   .zoom-panel {
-    display:none;position:absolute;top:0;left:0;
-    width:420px;height:420px;
-    border:2px solid var(--accent);border-radius:12px;
+    display:none;position:absolute;top:0;left:0;right:0;
+    aspect-ratio:1;
+    border:2px solid var(--accent);border-radius:14px;
     overflow:hidden;background:var(--surface);
     box-shadow:0 8px 40px rgba(0,0,0,.15);
     z-index:20;
@@ -61,10 +60,10 @@
   .fav-count { font-size:.82rem;color:var(--muted); }
 
   /* ── Stock / stats ── */
-  .stock-detail { display:flex;gap:.6rem;margin-bottom:1.25rem; }
-  .sd-box { flex:1;padding:.55rem .7rem;border-radius:8px;text-align:center;border:1px solid var(--border); }
-  .sd-val { font-size:1.1rem;font-weight:800;font-family:monospace; }
-  .sd-lbl { font-size:.68rem;color:var(--muted);margin-top:.1rem; }
+  .stock-detail { display:flex;gap:.75rem;margin-bottom:1.25rem; }
+  .sd-box { flex:1;padding:.65rem .85rem;border-radius:8px;text-align:center;border:1px solid var(--border); }
+  .sd-val { font-size:1.2rem;font-weight:800;font-family:monospace; }
+  .sd-lbl { font-size:.7rem;color:var(--muted);margin-top:.15rem; }
 
   /* ── Add to cart form ── */
   .add-form { margin-top:1.25rem; }
@@ -139,8 +138,6 @@
       grid-template-columns:1fr;
       gap:1.25rem;
     }
-    .img-container { position:static; }
-    .img-main { max-height:400px;object-fit:cover; }
     .zoom-panel { display:none !important; }
     .lens { display:none !important; }
     .img-main-wrap { cursor:zoom-in; }
@@ -149,7 +146,6 @@
 
   @media(max-width:640px) {
     .product-layout { gap:1rem; }
-    .img-main { max-height:300px; }
 
     .stock-detail {
       flex-direction:row;
@@ -241,7 +237,7 @@
     </div>
 
     <!-- Prix -->
-    <div style="font-size:1.8rem;font-weight:800;color:var(--accent);margin-bottom:1rem;">{{ (product.prix_vente_ttc or 0)|int }} FCFA</div>
+    <div style="font-size:2rem;font-weight:800;color:var(--accent);margin-bottom:1rem;">{{ (product.prix_vente_ttc or 0)|int }} FCFA</div>
 
     <!-- Stock + stats -->
     {% set stock_total = product.total_stock_magasin + product.total_stock_entrepot %}
@@ -378,6 +374,10 @@
   const ZOOM = 3;
   const LENS_R = 60;
 
+  let natW, natH;
+  img.addEventListener('load', () => { natW = img.naturalWidth; natH = img.naturalHeight; });
+  natW = img.naturalWidth; natH = img.naturalHeight;
+
   wrap.addEventListener('mouseenter', () => {
     if (window.innerWidth <= 900) return;
     lens.style.display  = 'block';
@@ -426,3 +426,4 @@
 })();
 </script>
 {% endblock %}
+
