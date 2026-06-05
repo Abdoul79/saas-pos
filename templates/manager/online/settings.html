@@ -52,6 +52,56 @@
       </a>
     </div>
     {% endif %}
+
+    <!-- Horaires d'ouverture -->
+  <div class="settings-section">
+    <div class="section-title">🕐 Horaires d'ouverture</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Heure d'ouverture</label>
+        <input type="time" name="heure_ouverture" class="form-control"
+               value="{{ tenant.shop_heure_ouverture or '08:00' }}"
+               style="font-family:monospace;font-size:1rem;font-weight:700;">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Heure de fermeture</label>
+        <input type="time" name="heure_fermeture" class="form-control"
+               value="{{ tenant.shop_heure_fermeture or '22:00' }}"
+               style="font-family:monospace;font-size:1rem;font-weight:700;">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Jours de fermeture</label>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+        {% set jours = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'] %}
+        {% set fermes = (tenant.shop_jours_fermes or '').split(',') %}
+        {% for j in jours %}
+        <label style="display:flex;align-items:center;gap:.3rem;padding:.4rem .7rem;border-radius:8px;border:1px solid var(--border);font-size:.82rem;cursor:pointer;transition:all .15s;{% if loop.index0|string in fermes %}background:var(--danger);color:#fff;border-color:var(--danger);{% endif %}">
+          <input type="checkbox" name="jours_fermes" value="{{ loop.index0 }}"
+                 {% if loop.index0|string in fermes %}checked{% endif %}
+                 style="display:none;"
+                 onchange="this.parentElement.style.background=this.checked?'var(--danger)':'';this.parentElement.style.color=this.checked?'#fff':'';this.parentElement.style.borderColor=this.checked?'var(--danger)':'var(--border)';">
+          {{ j }}
+        </label>
+        {% endfor %}
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">Cochez les jours où la boutique est fermée.</div>
+    </div>
+
+    <!-- État actuel -->
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.65rem 1rem;font-size:.85rem;">
+      {% if tenant.shop_is_open %}
+      <span style="color:#22c55e;">🟢 La boutique est actuellement <strong>ouverte</strong></span>
+      {% else %}
+      <span style="color:#ef4444;">🔴 La boutique est actuellement <strong>fermée</strong></span>
+      {% endif %}
+      <span style="color:var(--muted);margin-left:.5rem;">({{ tenant.shop_heure_ouverture or '08:00' }} — {{ tenant.shop_heure_fermeture or '22:00' }})</span>
+    </div>
+  </div>
+
+
   </div>
 
   <!-- Options de livraison -->

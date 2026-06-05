@@ -289,6 +289,13 @@ def checkout(slug):
     frais_final = 0 if livraison_gratuite else frais
     total = subtotal + frais_final
 
+    # Vérifier si la boutique est ouverte
+    if not t.shop_is_open:
+        h_open  = t.shop_heure_ouverture or '08:00'
+        h_close = t.shop_heure_fermeture or '22:00'
+        flash(f'La boutique est fermée. Horaires : {h_open} — {h_close}. Revenez plus tard.', 'warning')
+        return redirect(url_for('shop.cart_view', slug=slug))
+
     if request.method == 'POST':
         ref = f"WEB-{t.id}-{datetime.utcnow().strftime('%y%m%d%H%M')}-{secrets.token_hex(2).upper()}"
         order = OnlineOrder(

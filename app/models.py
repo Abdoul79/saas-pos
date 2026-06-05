@@ -91,6 +91,9 @@ class Tenant(db.Model):
     shop_banner_filename     = db.Column(db.String(255), nullable=True)
     frais_livraison          = db.Column(db.Numeric(10, 2), nullable=True, default=0)
     seuil_livraison_gratuite = db.Column(db.Numeric(10, 2), nullable=True, default=0)
+    shop_heure_ouverture     = db.Column(db.String(5), nullable=True, default='08:00')
+    shop_heure_fermeture     = db.Column(db.String(5), nullable=True, default='22:00')
+    shop_jours_fermes        = db.Column(db.String(50), nullable=True, default='')  # ex: "0,6" = dim,sam
 
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -124,6 +127,22 @@ class Tenant(db.Model):
         return 'green' if d > 15 else ('orange' if d >= 7 else 'red')
 
     def __repr__(self): return f'<Tenant {self.email}>'
+
+    @property
+    def shop_is_open(self):
+        """Vérifie si la boutique est ouverte maintenant."""
+        from datetime import datetime
+        now = datetime.utcnow()
+        # Jours fermés (0=lundi, 6=dimanche)
+        if self.shop_jours_fermes:
+            closed_days = [int(d.strip()) for d in self.shop_jours_fermes.split(',') if d.strip().isdigit()]
+            if now.weekday() in closed_days:
+                return False
+        # Heures
+        h_open  = self.shop_heure_ouverture or '00:00'
+        h_close = self.shop_heure_fermeture or '23:59'
+        current = now.strftime('%H:%M')
+        return h_open <= current <= h_close
 
 
 # ─────────────────────────────────────────

@@ -307,6 +307,12 @@
     </div>
   </div>
 
+  {% if not tenant.shop_is_open %}
+  <div style="background:#dc262618;text-align:center;padding:.5rem;font-size:.85rem;color:#fca5a5;">
+    🔴 Boutique fermée — Horaires : {{ tenant.shop_heure_ouverture or '08:00' }} — {{ tenant.shop_heure_fermeture or '22:00' }}
+  </div>
+  {% endif %}
+
   <main>
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
