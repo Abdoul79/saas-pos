@@ -2,322 +2,205 @@
 {% block title %}{{ tenant.nom_boutique or tenant.activite }} — Boutique en ligne{% endblock %}
 {% block head %}
 <style>
-  /* ── Override nav for responsive ── */
-  .shop-nav {
-    padding:.65rem 1.25rem;
-    gap:.75rem;
-  }
-  .nav-links { gap:1rem; }
-
-  /* ── Mobile hamburger ── */
-  .mobile-toggle {
-    display:none;
-    background:none;border:none;
-    font-size:1.4rem;cursor:pointer;
-    color:var(--text);padding:.25rem;
-  }
-
-  /* ── Mobile menu overlay ── */
-  .mobile-menu {
-    display:none;
-    position:fixed;inset:0;z-index:300;
-  }
-  .mobile-menu.open { display:flex; }
-  .mobile-backdrop {
-    position:absolute;inset:0;
-    background:rgba(0,0,0,.5);
-    animation:fadeIn .2s ease;
-  }
-  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-
-  .mobile-drawer {
-    position:absolute;right:0;top:0;bottom:0;
-    width:280px;max-width:85vw;
-    background:#fff;
-    box-shadow:-4px 0 24px rgba(0,0,0,.15);
-    display:flex;flex-direction:column;
-    animation:slideIn .25s ease;
-    overflow-y:auto;
-  }
-  @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
-
-  .mobile-drawer-header {
-    display:flex;justify-content:space-between;align-items:center;
-    padding:1rem 1.25rem;border-bottom:1px solid var(--border);
-  }
-  .mobile-drawer-header .title { font-weight:700;font-size:1rem; }
-  .mobile-close {
-    background:none;border:none;font-size:1.3rem;
-    cursor:pointer;color:var(--muted);padding:.25rem;
-  }
-
-  .mobile-drawer-body { flex:1;padding:.5rem 0; }
-  .mobile-drawer a, .mobile-drawer .mob-section-title {
-    display:flex;align-items:center;gap:.75rem;
-    padding:.75rem 1.25rem;
-    font-size:.9rem;color:var(--text);
-    transition:background .1s;
-  }
-  .mobile-drawer a:hover { background:var(--surface); }
-  .mobile-drawer .mob-icon { width:22px;text-align:center;font-size:1.05rem; }
-  .mobile-drawer .mob-divider { height:1px;background:var(--border);margin:.4rem 1.25rem; }
-  .mobile-drawer .mob-section-title {
-    font-size:.72rem;font-weight:700;color:var(--muted);
-    text-transform:uppercase;letter-spacing:.06em;
-    padding-top:1rem;
-  }
-  .mobile-drawer a.mob-logout { color:var(--danger); }
-  .mobile-drawer a.mob-logout:hover { background:#fef2f2; }
-  .mobile-drawer a.mob-login { color:var(--accent);font-weight:600; }
-
-  /* ── Search bar ── */
-  .search-section {
-    margin-bottom:1.5rem;
-  }
-  .search-bar {
-    display:flex;gap:.5rem;
-    max-width:600px;
-    margin:0 auto;
-  }
-  .search-input {
-    flex:1;
-    padding:.7rem 1rem .7rem 2.5rem;
-    border:1px solid var(--border);
-    border-radius:10px;
-    font-size:.9rem;
-    color:var(--text);
-    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%236b7280' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") 12px center no-repeat;
-    transition:border-color .15s,box-shadow .15s;
-  }
-  .search-input:focus {
-    outline:none;
-    border-color:var(--accent);
-    box-shadow:0 0 0 3px rgba(245,166,35,.12);
-  }
-  .search-input::placeholder { color:#9ca3af; }
-  .search-btn {
-    padding:.65rem 1.25rem;
-    background:var(--accent);color:#fff;
-    border:none;border-radius:10px;
-    font-weight:600;font-size:.88rem;
-    cursor:pointer;transition:background .15s;
-    white-space:nowrap;
-  }
-  .search-btn:hover { background:var(--accent2); }
-
-  /* ── Results info ── */
-  .search-results-info {
-    text-align:center;margin-top:.75rem;
-    font-size:.82rem;color:var(--muted);
-  }
-  .search-results-info strong { color:var(--text); }
-  .search-clear { color:var(--accent);cursor:pointer;margin-left:.5rem;font-weight:600; }
-  .search-clear:hover { text-decoration:underline; }
-
   /* ── Hero ── */
   .shop-hero {
-    background:linear-gradient(135deg,#1a1a2e,#16213e);
-    color:#fff;border-radius:14px;
-    padding:2.5rem 2rem;margin-bottom:1.75rem;
-    text-align:center;
-    position:relative;overflow:hidden;
+    background:#111827;color:#fff;border-radius:16px;
+    padding:2.25rem 2rem;margin-bottom:1.5rem;
+    text-align:center;position:relative;overflow:hidden;
   }
   .shop-hero::before {
     content:'';position:absolute;inset:0;
-    background:radial-gradient(circle at 20% 80%, rgba(245,166,35,.15) 0%, transparent 60%),
-               radial-gradient(circle at 80% 20%, rgba(59,130,246,.1) 0%, transparent 50%);
+    background:
+      radial-gradient(circle at 15% 85%, rgba(245,166,35,.12) 0%, transparent 50%),
+      radial-gradient(circle at 85% 15%, rgba(59,130,246,.08) 0%, transparent 45%);
   }
-  .shop-hero h1 { font-size:2rem;font-weight:800;margin-bottom:.5rem;position:relative; }
-  .shop-hero p { color:#94a3b8;font-size:1rem;position:relative; }
+  .shop-hero h1 { font-size:1.65rem;font-weight:800;position:relative;margin-bottom:.3rem; }
+  .shop-hero p  { color:#94a3b8;font-size:.92rem;position:relative; }
 
-  /* ── Category pills ── */
-  .cat-pills {
-    display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;
-    justify-content:center;
+  /* ── Search ── */
+  .search-wrap { max-width:520px;margin:0 auto 1.5rem;position:relative; }
+  .search-wrap input {
+    width:100%;padding:.65rem 1rem .65rem 2.4rem;
+    border:1px solid var(--border);border-radius:10px;
+    font-size:.9rem;color:var(--text);background:#fff;
+    transition:border-color .15s,box-shadow .15s;
   }
-  .cat-pill {
-    padding:.45rem 1rem;border-radius:99px;font-size:.82rem;font-weight:500;
-    border:1px solid var(--border);color:var(--muted);transition:all .15s;
+  .search-wrap input:focus { outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(245,166,35,.1); }
+  .search-wrap::before {
+    content:'🔍';position:absolute;left:.75rem;top:50%;transform:translateY(-50%);
+    font-size:.85rem;pointer-events:none;
   }
-  .cat-pill:hover { border-color:var(--accent);color:var(--accent); }
-  .cat-pill.active { background:var(--accent);color:#fff;border-color:var(--accent); }
+  .search-info { text-align:center;margin-top:.5rem;font-size:.8rem;color:var(--muted); }
 
-  /* ── Products grid ── */
-  .products-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-    gap:1.25rem;
+  /* ── Categories ── */
+  .cat-row { display:flex;gap:.45rem;overflow-x:auto;margin-bottom:1.5rem;padding-bottom:.15rem;scrollbar-width:none;justify-content:center; }
+  .cat-row::-webkit-scrollbar { display:none; }
+  .cat-chip {
+    flex-shrink:0;padding:.4rem .9rem;border-radius:99px;
+    font-size:.8rem;font-weight:500;white-space:nowrap;
+    border:1px solid var(--border);color:var(--muted);
+    transition:all .12s;
   }
-  .prod-card {
-    border-radius:12px;overflow:hidden;
+  .cat-chip:hover { border-color:var(--accent);color:var(--accent); }
+  .cat-chip.on { background:var(--accent);color:#fff;border-color:var(--accent); }
+
+  /* ── Grid ── */
+  .grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem; }
+
+  /* ── Card ── */
+  .card-prod {
+    border-radius:10px;overflow:hidden;
     border:1px solid var(--border);background:#fff;
-    transition:transform .15s,box-shadow .15s;
+    transition:transform .12s,box-shadow .12s;
     position:relative;
   }
-  .prod-card:hover { transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,.08); }
-  .prod-img-wrap { position:relative;overflow:hidden; }
-  .prod-img { width:100%;aspect-ratio:1;object-fit:cover;background:var(--surface); }
-  .prod-img-ph { width:100%;aspect-ratio:1;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:3rem;color:var(--border); }
+  .card-prod:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.06); }
+  .card-img { width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--surface); }
+  .card-ph  { width:100%;aspect-ratio:1;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#d1d5db; }
+  .card-body { padding:.7rem .85rem .85rem; }
+  .card-name { font-size:.84rem;font-weight:600;line-height:1.35;margin-bottom:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+  .card-price { font-size:1rem;font-weight:800;color:var(--accent); }
+  .card-cat  { font-size:.7rem;color:var(--muted);margin-top:.2rem; }
+  .card-stock { font-size:.7rem;margin-top:.2rem; }
+  .card-stock.ok  { color:#16a34a; }
+  .card-stock.low { color:#f59e0b; }
+  .card-stock.out { color:#dc2626; }
 
-  /* Heart */
-  .fav-btn {
-    position:absolute;top:10px;right:10px;
-    width:36px;height:36px;border-radius:50%;
-    background:rgba(255,255,255,.9);border:none;
+  /* ── Heart ── */
+  .heart {
+    position:absolute;top:8px;right:8px;
+    width:32px;height:32px;border-radius:50%;
+    background:rgba(255,255,255,.88);border:none;
     display:flex;align-items:center;justify-content:center;
-    font-size:1.1rem;cursor:pointer;
-    box-shadow:0 2px 8px rgba(0,0,0,.12);
-    transition:transform .15s,background .15s;
-    z-index:5;
+    font-size:1rem;cursor:pointer;z-index:5;
+    box-shadow:0 1px 6px rgba(0,0,0,.1);
+    transition:transform .12s;
   }
-  .fav-btn:hover { transform:scale(1.15);background:#fff; }
-  .fav-btn.active { background:#fef2f2; }
+  .heart:hover { transform:scale(1.12); }
+  .heart.on { background:#fef2f2; }
 
-  .prod-body { padding:.85rem 1rem; }
-  .prod-name { font-size:.9rem;font-weight:600;margin-bottom:.25rem; }
-  .prod-price { font-size:1.1rem;font-weight:800;color:var(--accent); }
-  .prod-cat { font-size:.72rem;color:var(--muted);margin-top:.25rem; }
-  .prod-stock { font-size:.72rem;margin-top:.25rem; }
-  .prod-stock.ok { color:#16a34a; }
-  .prod-stock.low { color:#f59e0b; }
-  .prod-stock.out { color:#dc2626; }
+  /* ── Empty ── */
+  .empty { text-align:center;padding:3.5rem 1.5rem;color:var(--muted); }
+  .empty-icon { font-size:3rem;margin-bottom:.75rem;opacity:.4; }
 
-  /* ── Empty state ── */
-  .empty-state {
-    text-align:center;padding:4rem 2rem;color:var(--muted);
-  }
-  .empty-icon { font-size:3.5rem;margin-bottom:1rem;opacity:.5; }
+  /* ── Mobile menu ── */
+  .mobile-toggle { display:none;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text);padding:.2rem; }
+  .mobile-menu { display:none;position:fixed;inset:0;z-index:300; }
+  .mobile-menu.open { display:flex; }
+  .mob-backdrop { position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fadeIn .2s; }
+  @keyframes fadeIn { from{opacity:0}to{opacity:1} }
+  .mob-drawer { position:absolute;right:0;top:0;bottom:0;width:260px;max-width:80vw;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.12);display:flex;flex-direction:column;animation:slideIn .2s; }
+  @keyframes slideIn { from{transform:translateX(100%)}to{transform:translateX(0)} }
+  .mob-head { display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;border-bottom:1px solid var(--border); }
+  .mob-close { background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted); }
+  .mob-drawer a { display:flex;align-items:center;gap:.7rem;padding:.7rem 1.1rem;font-size:.88rem;color:var(--text);transition:background .1s; }
+  .mob-drawer a:hover { background:var(--surface); }
+  .mob-sep { height:1px;background:var(--border);margin:.3rem 1.1rem; }
+  .mob-drawer a.logout { color:var(--danger); }
+  .mob-drawer a.login  { color:var(--accent);font-weight:600; }
 
-  /* ══════════════════════════════════════
-     RESPONSIVE
-     ══════════════════════════════════════ */
+  /* ── Responsive ── */
   @media(max-width:768px) {
-    /* Nav */
     .nav-links { display:none; }
     .mobile-toggle { display:block; }
-    .shop-nav { padding:.55rem 1rem; }
-
-    /* Hero */
-    .shop-hero { padding:1.75rem 1.25rem;border-radius:10px;margin-bottom:1.25rem; }
-    .shop-hero h1 { font-size:1.4rem; }
-    .shop-hero p { font-size:.88rem; }
-
-    /* Search */
-    .search-bar { flex-direction:column; }
-    .search-btn { width:100%; }
-
-    /* Categories */
-    .cat-pills { flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;justify-content:flex-start;padding-bottom:.25rem; }
-    .cat-pills::-webkit-scrollbar { display:none; }
-    .cat-pill { flex-shrink:0; }
-
-    /* Products */
-    .products-grid { grid-template-columns:repeat(2,1fr);gap:.75rem; }
-    .prod-body { padding:.65rem .75rem; }
-    .prod-name { font-size:.82rem; }
-    .prod-price { font-size:.95rem; }
-
-    main { padding:.75rem; }
+    .shop-hero { padding:1.5rem 1rem;border-radius:10px; }
+    .shop-hero h1 { font-size:1.25rem; }
+    .shop-hero p { font-size:.85rem; }
+    .grid { grid-template-columns:repeat(2,1fr);gap:.65rem; }
+    .card-body { padding:.55rem .65rem .7rem; }
+    .card-name { font-size:.78rem; }
+    .card-price { font-size:.88rem; }
+    .cat-row { justify-content:flex-start; }
+    main { padding:.65rem; }
   }
-
   @media(max-width:400px) {
-    .products-grid { grid-template-columns:repeat(2,1fr);gap:.55rem; }
-    .prod-card { border-radius:8px; }
-    .fav-btn { width:30px;height:30px;font-size:.9rem;top:6px;right:6px; }
+    .grid { gap:.5rem; }
+    .card-prod { border-radius:8px; }
+    .heart { width:28px;height:28px;font-size:.85rem;top:5px;right:5px; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- ══ HERO ══ -->
 <div class="shop-hero">
   <h1>{{ tenant.nom_boutique or tenant.activite }}</h1>
   <p>{{ tenant.shop_description or 'Bienvenue dans notre boutique en ligne' }}</p>
 </div>
 
-<!-- ══ SEARCH BAR ══ -->
-<div class="search-section">
-  <form method="GET" action="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="search-bar">
-    {% if current_cat %}
-    <input type="hidden" name="cat" value="{{ current_cat }}">
-    {% endif %}
-    <input type="text" name="q" class="search-input"
-           placeholder="Rechercher un produit…"
-           value="{{ search_query or '' }}"
-           autocomplete="off">
-    <button type="submit" class="search-btn">Rechercher</button>
+<!-- Search -->
+<div class="search-wrap">
+  <form method="GET" action="{{ url_for('shop.home', slug=tenant.shop_slug) }}">
+    {% if current_cat %}<input type="hidden" name="cat" value="{{ current_cat }}">{% endif %}
+    <input type="text" name="q" placeholder="Rechercher un produit…" value="{{ search_query or '' }}" autocomplete="off">
   </form>
   {% if search_query %}
-  <div class="search-results-info">
-    <strong>{{ products|length }}</strong> résultat(s) pour « <strong>{{ search_query }}</strong> »
-    <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=current_cat or '') }}" class="search-clear">✕ Effacer</a>
+  <div class="search-info">
+    <strong>{{ products|length }}</strong> résultat(s) pour « {{ search_query }} »
+    <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" style="color:var(--accent);margin-left:.4rem;">✕</a>
   </div>
   {% endif %}
 </div>
 
-<!-- ══ CATEGORY PILLS ══ -->
-<div class="cat-pills">
-  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, q=search_query or '') }}"
-     class="cat-pill {% if not current_cat %}active{% endif %}">Tout</a>
+<!-- Categories -->
+<div class="cat-row">
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, q=search_query or '') }}" class="cat-chip {% if not current_cat %}on{% endif %}">Tout</a>
   {% for c in categories %}
-  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=c.id, q=search_query or '') }}"
-     class="cat-pill {% if current_cat == c.id %}active{% endif %}">{{ c.icone }} {{ c.nom }}</a>
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=c.id, q=search_query or '') }}" class="cat-chip {% if current_cat == c.id %}on{% endif %}">{{ c.icone }} {{ c.nom }}</a>
   {% endfor %}
 </div>
 
-<!-- ══ PRODUCTS GRID ══ -->
+<!-- Products -->
 {% if products %}
-<div class="products-grid">
+<div class="grid">
   {% for p in products %}
-  <div class="prod-card">
+  <div class="card-prod">
     <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=p.id) }}">
-      <div class="prod-img-wrap">
-        {% if p.image_url %}
-        <img src="{{ p.image_url }}" class="prod-img" alt="{{ p.designation }}" loading="lazy">
-        {% else %}
-        <div class="prod-img-ph">📦</div>
-        {% endif %}
-      </div>
+      {% if p.image_url %}
+      <img src="{{ p.image_url }}" class="card-img" alt="{{ p.designation }}" loading="lazy">
+      {% else %}
+      <div class="card-ph">📦</div>
+      {% endif %}
     </a>
-    <!-- Bouton favoris -->
-    <form method="POST" action="{{ url_for('shop.toggle_favorite', slug=tenant.shop_slug, pid=p.id) }}" style="position:absolute;top:10px;right:10px;margin:0;">
-      <button type="submit" class="fav-btn {% if p.id in my_favs %}active{% endif %}" title="{% if p.id in my_favs %}Retirer des favoris{% else %}Ajouter aux favoris{% endif %}">
-        {% if p.id in my_favs %}❤️{% else %}🤍{% endif %}
-      </button>
+    <form method="POST" action="{{ url_for('shop.toggle_favorite', slug=tenant.shop_slug, pid=p.id) }}" style="margin:0;">
+      <button type="submit" class="heart {% if p.id in my_favs %}on{% endif %}">{% if p.id in my_favs %}❤️{% else %}🤍{% endif %}</button>
     </form>
     <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=p.id) }}">
-      <div class="prod-body">
-        <div class="prod-name">{{ p.designation }}</div>
-        <div class="prod-price">{{ (p.prix_vente_ttc or 0)|int }} FCFA</div>
+      <div class="card-body">
+        <div class="card-name">{{ p.designation }}</div>
+        <div class="card-price">{{ (p.prix_vente_ttc or 0)|int }} FCFA</div>
         {% if p.category %}
-        <div class="prod-cat">{{ p.category.icone }} {{ p.category.nom }}</div>
+        <div class="card-cat">{{ p.category.icone }} {{ p.category.nom }}</div>
         {% endif %}
-        {% set stock = p.total_stock_magasin + p.total_stock_entrepot %}
-        <div class="prod-stock {% if stock > 10 %}ok{% elif stock > 0 %}low{% else %}out{% endif %}">
-          {% if stock > 10 %}✓ En stock{% elif stock > 0 %}⚠ Stock limité{% else %}✕ Rupture{% endif %}
+        {% if (tenant.shop_mode or 'boutique') == 'restaurant' %}
+        <div class="card-stock ok">✓ Disponible</div>
+        {% else %}
+        {% set stock = p.total_stock_entrepot %}
+        <div class="card-stock {% if stock > 3 %}ok{% elif stock > 0 %}low{% else %}out{% endif %}">
+          {% if stock > 3 %}✓ En stock{% elif stock > 0 %}⚠ Limité{% else %}✕ Rupture{% endif %}
         </div>
+        {% endif %}
       </div>
     </a>
   </div>
   {% endfor %}
 </div>
 {% else %}
-<div class="empty-state">
+<div class="empty">
   <div class="empty-icon">🏪</div>
   {% if search_query %}
-  <div>Aucun produit trouvé pour « <strong>{{ search_query }}</strong> »</div>
-  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" style="color:var(--accent);font-weight:600;margin-top:.75rem;display:inline-block;">← Retour à la boutique</a>
+  <div>Aucun résultat pour « <strong>{{ search_query }}</strong> »</div>
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" style="color:var(--accent);font-weight:600;margin-top:.5rem;display:inline-block;">← Retour</a>
   {% else %}
-  <div>Aucun produit disponible pour le moment.</div>
+  <div>Aucun produit disponible.</div>
   {% endif %}
 </div>
 {% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-// ── Mobile menu ──
 function openMobileMenu() {
   document.getElementById('mobileMenu').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -328,5 +211,3 @@ function closeMobileMenu() {
 }
 </script>
 {% endblock %}
-
-

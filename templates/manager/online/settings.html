@@ -28,6 +28,27 @@
     </div>
   </div>
 
+  <!-- Mode boutique -->
+  <div class="settings-section">
+    <div class="section-title">🏪 Mode de fonctionnement</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <label style="display:flex;align-items:flex-start;gap:.65rem;padding:1rem;border-radius:10px;border:2px solid {% if (tenant.shop_mode or 'boutique') == 'boutique' %}var(--accent){% else %}var(--border){% endif %};cursor:pointer;transition:border-color .15s;">
+        <input type="radio" name="shop_mode" value="boutique" {% if (tenant.shop_mode or 'boutique') == 'boutique' %}checked{% endif %} style="margin-top:2px;">
+        <div>
+          <div style="font-weight:700;font-size:.9rem;">🏪 Boutique</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem;">Stock requis pour commander. Le stock entrepôt est décrémenté à la confirmation.</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:.65rem;padding:1rem;border-radius:10px;border:2px solid {% if tenant.shop_mode == 'restaurant' %}var(--accent){% else %}var(--border){% endif %};cursor:pointer;transition:border-color .15s;">
+        <input type="radio" name="shop_mode" value="restaurant" {% if tenant.shop_mode == 'restaurant' %}checked{% endif %} style="margin-top:2px;">
+        <div>
+          <div style="font-weight:700;font-size:.9rem;">🍽 Restaurant</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem;">Pas de gestion de stock. Les clients commandent librement, vous préparez à la demande.</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
   <!-- Identité boutique -->
   <div class="settings-section">
     <div class="section-title">🏪 Identité de la boutique</div>

@@ -166,38 +166,40 @@ def update_status(oid):
         return redirect(url_for('online.order_detail', oid=oid))
 
     # Vérifier le stock ENTREPÔT avant de confirmer
+    # Vérifier le stock ENTREPÔT avant de confirmer (sauf mode restaurant)
     if new_status == OnlineOrderStatus.CONFIRMED and order.status == OnlineOrderStatus.PENDING:
-        from app.models import ProductVariant
-        stock_errors = []
-        for item in order.items:
-            if item.variant_id:
-                v = ProductVariant.query.get(item.variant_id)
-                avail = v.stock_entrepot if v else 0
-                label = item.designation
-            elif item.product_id:
-                p = Product.query.get(item.product_id)
-                avail = p.stock_entrepot if p else 0
-                label = item.designation
-            else:
-                avail = 0
-                label = item.designation
-            if avail < item.quantity:
-                stock_errors.append(f"{label} : demandé {item.quantity}, entrepôt {avail}")
+        tenant = current_user.tenant
+        is_restaurant = (tenant.shop_mode == 'restaurant')
 
-        if stock_errors:
-            flash(f'Stock entrepôt insuffisant — impossible de confirmer : {" · ".join(stock_errors)}', 'danger')
-            return redirect(url_for('online.order_detail', oid=oid))
+        if not is_restaurant:
+            from app.models import ProductVariant
+            stock_errors = []
+            for item in order.items:
+                if item.variant_id:
+                    v = ProductVariant.query.get(item.variant_id)
+                    avail = v.stock_entrepot if v else 0
+                elif item.product_id:
+                    p = Product.query.get(item.product_id)
+                    avail = p.stock_entrepot if p else 0
+                else:
+                    avail = 0
+                if avail < item.quantity:
+                    stock_errors.append(f"{item.designation} : demandé {item.quantity}, entrepôt {avail}")
 
-        # Décrémenter le stock entrepôt à la confirmation
-        for item in order.items:
-            if item.variant_id:
-                v = ProductVariant.query.get(item.variant_id)
-                if v:
-                    v.stock_entrepot = max(0, v.stock_entrepot - item.quantity)
-            elif item.product_id:
-                p = Product.query.get(item.product_id)
-                if p:
-                    p.stock_entrepot = max(0, p.stock_entrepot - item.quantity)
+            if stock_errors:
+                flash(f'Stock entrepôt insuffisant — {" · ".join(stock_errors)}', 'danger')
+                return redirect(url_for('online.order_detail', oid=oid))
+
+            # Décrémenter le stock entrepôt
+            for item in order.items:
+                if item.variant_id:
+                    v = ProductVariant.query.get(item.variant_id)
+                    if v:
+                        v.stock_entrepot = max(0, v.stock_entrepot - item.quantity)
+                elif item.product_id:
+                    p = Product.query.get(item.product_id)
+                    if p:
+                        p.stock_entrepot = max(0, p.stock_entrepot - item.quantity)
 
     order.status = new_status
     note = request.form.get('note', '').strip()
@@ -507,6 +509,7 @@ def settings():
         t.shop_heure_ouverture = request.form.get('heure_ouverture', '08:00')
         t.shop_heure_fermeture = request.form.get('heure_fermeture', '22:00')
         t.shop_jours_fermes = ','.join(request.form.getlist('jours_fermes'))
+        t.shop_mode = request.form.get('shop_mode', 'boutique')
         db.session.commit()
         flash('Paramètres boutique en ligne sauvegardés.', 'success')
         return redirect(url_for('online.settings'))

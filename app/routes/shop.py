@@ -53,8 +53,11 @@ def home(slug):
     if search_query:
         q = q.filter(Product.designation.ilike(f'%{search_query}%'))
 
-    products = [p for p in q.order_by(Product.designation).all()
-                if p.total_stock_magasin > 0 or p.total_stock_entrepot > 0]
+    if (t.shop_mode or 'boutique') == 'restaurant':
+        products = q.order_by(Product.designation).all()
+    else:
+        products = [p for p in q.order_by(Product.designation).all()
+                    if p.total_stock_magasin > 0 or p.total_stock_entrepot > 0]
 
     cart = _get_cart(t.id)
     customer = _get_customer(t.id)
@@ -294,6 +297,11 @@ def checkout(slug):
         h_open  = t.shop_heure_ouverture or '08:00'
         h_close = t.shop_heure_fermeture or '22:00'
         flash(f'La boutique est fermée. Horaires : {h_open} — {h_close}. Revenez plus tard.', 'warning')
+        return redirect(url_for('shop.cart_view', slug=slug))
+    
+    # Vérifier si la boutique est ouverte
+    if not t.shop_is_open:
+        flash(f'Boutique fermée. Horaires : {t.shop_heure_ouverture} — {t.shop_heure_fermeture}', 'warning')
         return redirect(url_for('shop.cart_view', slug=slug))
 
     if request.method == 'POST':

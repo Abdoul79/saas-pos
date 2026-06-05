@@ -86,6 +86,7 @@ class Tenant(db.Model):
 
     # Boutique en ligne
     boutique_en_ligne_active = db.Column(db.Boolean, default=False, nullable=False)
+    shop_mode = db.Column(db.String(20), nullable=True, default='boutique')  # 'boutique' ou 'restaurant'
     shop_slug                = db.Column(db.String(100), nullable=True, unique=True, index=True)
     shop_description         = db.Column(db.Text, nullable=True)
     shop_banner_filename     = db.Column(db.String(255), nullable=True)
