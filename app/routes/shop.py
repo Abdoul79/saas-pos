@@ -119,10 +119,21 @@ def product_detail(slug, pid):
         is_fav = ProductFavorite.query.filter_by(
             tenant_id=t.id, product_id=pid, customer_id=customer.id).first() is not None
 
+    # ── Produits de la même catégorie (exclure le produit actuel) ──
+    related_products = []
+    if p.category_id:
+        related_products = [rp for rp in Product.query.filter(
+            Product.tenant_id == t.id,
+            Product.category_id == p.category_id,
+            Product.id != p.id
+        ).order_by(Product.designation).limit(8).all()
+        if rp.total_stock_magasin + rp.total_stock_entrepot > 0]
+
     return render_template('shop/product.html', tenant=t, product=p,
                            variants=variants, reviews=reviews,
                            avg_rating=avg_rating, cart=cart, customer=customer,
-                           fav_count=fav_count, is_fav=is_fav)
+                           fav_count=fav_count, is_fav=is_fav,
+                           related_products=related_products)
 
 
 # ── PANIER ─────────────────────────────────────────────────────────────────
@@ -418,4 +429,3 @@ def cart_count(slug):
     t = _get_tenant(slug)
     cart = _get_cart(t.id)
     return jsonify({'count': sum(i['qty'] for i in cart)})
-

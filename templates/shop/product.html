@@ -1,14 +1,23 @@
+
 {% extends "shop/base.html" %}
 {% block title %}{{ product.designation }} — {{ tenant.nom_boutique }}{% endblock %}
 {% block head %}
 <style>
-  /* Loupe e-commerce */
+  /* ── Layout produit ── */
+  .product-layout {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:2rem;
+    margin-bottom:2.5rem;
+  }
+
+  /* ── Image + loupe ── */
   .img-container { position:relative; }
   .img-main-wrap { position:relative;border-radius:14px;overflow:hidden;background:var(--surface);cursor:crosshair; }
   .img-main { width:100%;aspect-ratio:1;object-fit:cover;display:block; }
   .img-placeholder { width:100%;aspect-ratio:1;background:var(--surface);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:5rem;color:var(--border); }
+  .img-hint { font-size:.72rem;color:var(--muted);text-align:center;margin-top:.4rem; }
 
-  /* Lentille sur l'image */
   .lens {
     display:none;position:absolute;
     width:120px;height:120px;
@@ -18,7 +27,6 @@
     background:rgba(245,166,35,.08);
   }
 
-  /* Panneau zoom — dans la colonne droite, même taille que l'image */
   .zoom-panel {
     display:none;position:absolute;top:0;left:0;right:0;
     aspect-ratio:1;
@@ -27,14 +35,21 @@
     box-shadow:0 8px 40px rgba(0,0,0,.15);
     z-index:20;
   }
-  .zoom-panel img {
-    position:absolute;top:0;left:0;
-    transform-origin:top left;
-  }
+  .zoom-panel img { position:absolute;top:0;left:0;transform-origin:top left; }
 
-  /* La colonne droite doit être relative pour positionner le zoom */
   .product-right { position:relative; }
 
+  /* ── Breadcrumb ── */
+  .breadcrumb {
+    display:flex;align-items:center;gap:.4rem;
+    font-size:.8rem;color:var(--muted);margin-bottom:1rem;
+    flex-wrap:wrap;
+  }
+  .breadcrumb a { color:var(--muted);transition:color .15s; }
+  .breadcrumb a:hover { color:var(--accent); }
+  .breadcrumb .sep { color:var(--border); }
+
+  /* ── Favoris ── */
   .fav-section { display:flex;align-items:center;gap:.75rem;margin-bottom:1rem; }
   .fav-big-btn {
     display:inline-flex;align-items:center;gap:.4rem;
@@ -45,49 +60,174 @@
   .fav-big-btn.active { background:#fef2f2;border-color:#ef4444;color:#ef4444; }
   .fav-count { font-size:.82rem;color:var(--muted); }
 
+  /* ── Stock / stats ── */
   .stock-detail { display:flex;gap:.75rem;margin-bottom:1.25rem; }
   .sd-box { flex:1;padding:.65rem .85rem;border-radius:8px;text-align:center;border:1px solid var(--border); }
   .sd-val { font-size:1.2rem;font-weight:800;font-family:monospace; }
   .sd-lbl { font-size:.7rem;color:var(--muted);margin-top:.15rem; }
 
+  /* ── Add to cart form ── */
+  .add-form { margin-top:1.25rem; }
+  .qty-row {
+    display:flex;align-items:center;gap:.5rem;
+    margin-bottom:1rem;
+  }
+  .qty-row label { font-size:.85rem;font-weight:600;min-width:60px; }
+  .qty-input {
+    width:80px;padding:.5rem .65rem;
+    border:1px solid var(--border);border-radius:8px;
+    font-size:.95rem;text-align:center;
+  }
+  .btn-add-cart {
+    width:100%;padding:.8rem;
+    background:var(--accent);color:#fff;
+    border:none;border-radius:10px;
+    font-size:1rem;font-weight:700;
+    cursor:pointer;transition:background .15s;
+  }
+  .btn-add-cart:hover { background:var(--accent2); }
+  .btn-add-cart:disabled { opacity:.45;cursor:not-allowed; }
+
+  /* ── Reviews ── */
+  .reviews-section { margin-top:2.5rem;margin-bottom:2.5rem; }
+  .reviews-title { font-size:1.15rem;font-weight:700;margin-bottom:1rem; }
+  .review-form {
+    padding:1.25rem;margin-bottom:1.5rem;
+    background:#fff;border:1px solid var(--border);border-radius:12px;
+  }
+  .review-card {
+    padding:1rem;margin-bottom:.65rem;
+    background:#fff;border:1px solid var(--border);border-radius:10px;
+  }
+  .review-top { display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem; }
+  .review-author { font-weight:600;font-size:.88rem; }
+  .review-comment { color:var(--muted);font-size:.85rem;line-height:1.6; }
+  .review-date { font-size:.72rem;color:var(--muted);margin-top:.3rem; }
+
+  /* ── Related products ── */
+  .related-section { margin-top:2rem;margin-bottom:2rem; }
+  .related-title {
+    font-size:1.15rem;font-weight:700;margin-bottom:1rem;
+    display:flex;align-items:center;gap:.5rem;
+  }
+  .related-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+    gap:1rem;
+  }
+  .related-card {
+    border:1px solid var(--border);border-radius:10px;
+    overflow:hidden;background:#fff;
+    transition:transform .15s,box-shadow .15s;
+  }
+  .related-card:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.08); }
+  .related-img { width:100%;aspect-ratio:1;object-fit:cover;background:var(--surface); }
+  .related-ph { width:100%;aspect-ratio:1;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--border); }
+  .related-body { padding:.65rem .75rem; }
+  .related-name { font-size:.82rem;font-weight:600;margin-bottom:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+  .related-price { font-size:.95rem;font-weight:800;color:var(--accent); }
+  .related-stock { font-size:.68rem;margin-top:.2rem; }
+  .related-stock.ok { color:#16a34a; }
+  .related-stock.low { color:#f59e0b; }
+  .related-stock.out { color:#dc2626; }
+
+  /* ══════════════════════════════
+     RESPONSIVE
+     ══════════════════════════════ */
   @media(max-width:900px) {
+    .product-layout {
+      grid-template-columns:1fr;
+      gap:1.25rem;
+    }
     .zoom-panel { display:none !important; }
     .lens { display:none !important; }
     .img-main-wrap { cursor:zoom-in; }
+    .img-hint { display:none; }
+  }
+
+  @media(max-width:640px) {
+    .product-layout { gap:1rem; }
+
+    .stock-detail {
+      flex-direction:row;
+      flex-wrap:wrap;
+      gap:.5rem;
+    }
+    .sd-box { min-width:calc(50% - .25rem); }
+
+    .fav-section {
+      flex-direction:column;
+      align-items:flex-start;
+      gap:.4rem;
+    }
+
+    .reviews-section { margin-top:1.5rem; }
+
+    .related-grid {
+      grid-template-columns:repeat(2,1fr);
+      gap:.65rem;
+    }
+    .related-body { padding:.5rem .6rem; }
+    .related-name { font-size:.78rem; }
+    .related-price { font-size:.85rem; }
+  }
+
+  @media(max-width:380px) {
+    .stock-detail { flex-direction:column; }
+    .sd-box { min-width:100%; }
   }
 </style>
 {% endblock %}
-{% block content %}
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2rem;">
 
-  <!-- Image avec loupe -->
+{% block content %}
+
+<!-- ── Breadcrumb ── -->
+<div class="breadcrumb">
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}">Boutique</a>
+  <span class="sep">›</span>
+  {% if product.category %}
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=product.category_id) }}">{{ product.category.icone }} {{ product.category.nom }}</a>
+  <span class="sep">›</span>
+  {% endif %}
+  <span style="color:var(--text);">{{ product.designation }}</span>
+</div>
+
+<!-- ── Product layout ── -->
+<div class="product-layout">
+
+  <!-- LEFT : Image + loupe -->
   <div class="img-container">
     {% if product.image_url %}
     <div class="img-main-wrap" id="imgWrap">
       <img src="{{ product.image_url }}" class="img-main" id="mainImg" alt="{{ product.designation }}">
       <div class="lens" id="lens"></div>
     </div>
-    <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:.4rem;">🔍 Survolez l'image pour zoomer</div>
+    <div class="img-hint">🔍 Survolez l'image pour zoomer</div>
     {% else %}
     <div class="img-placeholder">📦</div>
     {% endif %}
   </div>
 
+  <!-- RIGHT : Infos produit -->
   <div class="product-right">
-    <!-- Panneau zoom (apparait au survol de l'image) -->
+    <!-- Zoom panel (desktop hover) -->
     <div class="zoom-panel" id="zoomPanel">
       <img src="{{ product.image_url or '' }}" id="zoomImg">
     </div>
+
     {% if product.category %}
     <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem;">{{ product.category.icone }} {{ product.category.nom }}</div>
     {% endif %}
-    <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:.5rem;">{{ product.designation }}</h1>
 
+    <h1 style="font-size:1.5rem;font-weight:800;margin-bottom:.5rem;line-height:1.3;">{{ product.designation }}</h1>
+
+    <!-- Stars -->
     <div style="margin-bottom:.5rem;">
       <span class="stars">{% for i in range(1,6) %}{% if i <= avg_rating|round %}★{% else %}<span class="stars-empty">★</span>{% endif %}{% endfor %}</span>
       <span style="color:var(--muted);font-size:.82rem;margin-left:.25rem;">({{ reviews|length }} avis)</span>
     </div>
 
+    <!-- Favoris -->
     <div class="fav-section">
       <form method="POST" action="{{ url_for('shop.toggle_favorite', slug=tenant.shop_slug, pid=product.id) }}" style="margin:0;">
         <button type="submit" class="fav-big-btn {% if is_fav %}active{% endif %}">
@@ -97,8 +237,10 @@
       <span class="fav-count">❤️ {{ fav_count }} personne(s) aiment ce produit</span>
     </div>
 
+    <!-- Prix -->
     <div style="font-size:2rem;font-weight:800;color:var(--accent);margin-bottom:1rem;">{{ (product.prix_vente_ttc or 0)|int }} FCFA</div>
 
+    <!-- Stock + stats -->
     {% set stock_total = product.total_stock_magasin + product.total_stock_entrepot %}
     <div class="stock-detail">
       <div class="sd-box" style="{% if stock_total > 10 %}background:#f0fdf4;border-color:#bbf7d0;{% elif stock_total > 0 %}background:#fffbeb;border-color:#fde68a;{% else %}background:#fef2f2;border-color:#fecaca;{% endif %}">
@@ -117,12 +259,15 @@
       </div>
     </div>
 
+    <!-- Description -->
     {% if product.description %}
     <p style="color:var(--muted);font-size:.9rem;line-height:1.7;margin-bottom:1.25rem;">{{ product.description }}</p>
     {% endif %}
 
-    <form method="POST" action="{{ url_for('shop.add_to_cart', slug=tenant.shop_slug) }}">
+    <!-- Add to cart -->
+    <form method="POST" action="{{ url_for('shop.add_to_cart', slug=tenant.shop_slug) }}" class="add-form">
       <input type="hidden" name="product_id" value="{{ product.id }}">
+
       {% if variants %}
       <div class="form-group">
         <label class="form-label">Variante</label>
@@ -133,51 +278,88 @@
         </select>
       </div>
       {% endif %}
-      <div class="form-group">
-        <label class="form-label">Quantité</label>
-        <input type="number" name="quantity" value="1" min="1" class="form-control" style="width:100px;">
+
+      <div class="qty-row">
+        <label>Quantité</label>
+        <input type="number" name="quantity" value="1" min="1" max="{{ stock_total }}" class="qty-input">
       </div>
+
       {% if stock_total > 0 %}
-      <button type="submit" class="btn btn-primary" style="width:100%;padding:.75rem;font-size:1rem;">🛒 Ajouter au panier</button>
+      <button type="submit" class="btn-add-cart">🛒 Ajouter au panier</button>
       {% else %}
-      <button type="button" class="btn" style="width:100%;padding:.75rem;opacity:.5;cursor:not-allowed;" disabled>Rupture de stock</button>
+      <button type="button" class="btn-add-cart" disabled>Rupture de stock</button>
       {% endif %}
     </form>
   </div>
 </div>
 
-<!-- Avis -->
-<div style="margin-top:2rem;">
-  <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;">Avis clients ({{ reviews|length }})</h2>
+<!-- ══ AVIS CLIENTS ══ -->
+<div class="reviews-section">
+  <div class="reviews-title">⭐ Avis clients ({{ reviews|length }})</div>
+
   {% if customer %}
-  <form method="POST" action="{{ url_for('shop.add_review', slug=tenant.shop_slug, pid=product.id) }}" class="card" style="padding:1.25rem;margin-bottom:1.5rem;">
+  <form method="POST" action="{{ url_for('shop.add_review', slug=tenant.shop_slug, pid=product.id) }}" class="review-form">
     <div class="form-group">
       <label class="form-label">Votre note</label>
-      <select name="rating" class="form-control" style="width:120px;">
-        <option value="5">★★★★★</option><option value="4">★★★★</option>
-        <option value="3">★★★</option><option value="2">★★</option><option value="1">★</option>
+      <select name="rating" class="form-control" style="width:140px;">
+        <option value="5">★★★★★</option>
+        <option value="4">★★★★☆</option>
+        <option value="3">★★★☆☆</option>
+        <option value="2">★★☆☆☆</option>
+        <option value="1">★☆☆☆☆</option>
       </select>
     </div>
     <div class="form-group">
       <label class="form-label">Commentaire</label>
-      <textarea name="comment" class="form-control" rows="3" placeholder="Votre avis..."></textarea>
+      <textarea name="comment" class="form-control" rows="3" placeholder="Partagez votre expérience…"></textarea>
     </div>
     <button type="submit" class="btn btn-primary">Envoyer mon avis</button>
   </form>
   {% endif %}
+
   {% for r in reviews %}
-  <div class="card" style="padding:1rem;margin-bottom:.75rem;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
-      <strong style="font-size:.88rem;">{{ r.customer.full_name }}</strong>
-      <span class="stars" style="font-size:.85rem;">{% for i in range(r.rating) %}★{% endfor %}</span>
+  <div class="review-card">
+    <div class="review-top">
+      <span class="review-author">{{ r.customer.full_name }}</span>
+      <span class="stars" style="font-size:.85rem;">{% for i in range(r.rating) %}★{% endfor %}<span class="stars-empty">{% for i in range(5 - r.rating) %}★{% endfor %}</span></span>
     </div>
-    {% if r.comment %}<p style="color:var(--muted);font-size:.85rem;">{{ r.comment }}</p>{% endif %}
-    <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">{{ r.created_at.strftime('%d/%m/%Y') }}</div>
+    {% if r.comment %}<p class="review-comment">{{ r.comment }}</p>{% endif %}
+    <div class="review-date">{{ r.created_at.strftime('%d/%m/%Y') }}</div>
   </div>
   {% else %}
-  <p style="color:var(--muted);">Aucun avis pour ce produit.</p>
+  <p style="color:var(--muted);font-size:.88rem;">Aucun avis pour ce produit.</p>
   {% endfor %}
 </div>
+
+<!-- ══ PRODUITS DE LA MÊME CATÉGORIE ══ -->
+{% if related_products %}
+<div class="related-section">
+  <div class="related-title">
+    {% if product.category %}{{ product.category.icone }}{% endif %}
+    Vous pourriez aussi aimer
+  </div>
+  <div class="related-grid">
+    {% for rp in related_products %}
+    <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=rp.id) }}" class="related-card">
+      {% if rp.image_url %}
+      <img src="{{ rp.image_url }}" class="related-img" alt="{{ rp.designation }}" loading="lazy">
+      {% else %}
+      <div class="related-ph">📦</div>
+      {% endif %}
+      <div class="related-body">
+        <div class="related-name">{{ rp.designation }}</div>
+        <div class="related-price">{{ (rp.prix_vente_ttc or 0)|int }} FCFA</div>
+        {% set rs = rp.total_stock_magasin + rp.total_stock_entrepot %}
+        <div class="related-stock {% if rs > 10 %}ok{% elif rs > 0 %}low{% else %}out{% endif %}">
+          {% if rs > 10 %}✓ En stock{% elif rs > 0 %}⚠ Stock limité{% else %}✕ Rupture{% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -190,18 +372,17 @@
   const panel = document.getElementById('zoomPanel');
   const zImg  = document.getElementById('zoomImg');
 
-  const ZOOM = 3;  // facteur de zoom
-  const LENS_R = 60; // rayon lentille
+  const ZOOM = 3;
+  const LENS_R = 60;
 
-  // Charger la taille réelle de l'image
   let natW, natH;
   img.addEventListener('load', () => { natW = img.naturalWidth; natH = img.naturalHeight; });
   natW = img.naturalWidth; natH = img.naturalHeight;
 
   wrap.addEventListener('mouseenter', () => {
+    if (window.innerWidth <= 900) return;
     lens.style.display  = 'block';
     panel.style.display = 'block';
-    // Taille du panneau = même taille que l'image
     const rect = wrap.getBoundingClientRect();
     panel.style.width  = rect.width + 'px';
     panel.style.height = rect.height + 'px';
@@ -215,19 +396,16 @@
   });
 
   wrap.addEventListener('mousemove', (e) => {
+    if (window.innerWidth <= 900) return;
     const rect = wrap.getBoundingClientRect();
     let x = e.clientX - rect.left;
     let y = e.clientY - rect.top;
-
-    // Clamp
     x = Math.max(LENS_R, Math.min(rect.width - LENS_R, x));
     y = Math.max(LENS_R, Math.min(rect.height - LENS_R, y));
 
-    // Positionner la lentille
     lens.style.left = (x - LENS_R) + 'px';
     lens.style.top  = (y - LENS_R) + 'px';
 
-    // Positionner l'image zoomée dans le panneau
     const panelW = panel.offsetWidth;
     const panelH = panel.offsetHeight;
     const zoomX = (x / rect.width) * (rect.width * ZOOM) - panelW / 2;
@@ -240,8 +418,8 @@
   wrap.addEventListener('click', () => {
     if (window.innerWidth <= 900) {
       const modal = document.createElement('div');
-      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
-      modal.innerHTML = '<img src="' + img.src + '" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px;">';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:1rem;';
+      modal.innerHTML = '<img src="' + img.src + '" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;">';
       modal.onclick = () => modal.remove();
       document.body.appendChild(modal);
     }
@@ -249,3 +427,6 @@
 })();
 </script>
 {% endblock %}
+
+
+
