@@ -5,7 +5,7 @@ from app import db
 from app.models import (Tenant, Product, ProductVariant, Category,
                         OnlineCustomer, OnlineOrder, OnlineOrderItem,
                         OnlineOrderStatus, ProductReview, TenantStatus,
-                        ShopVisit, ProductFavorite)
+                        ShopVisit, ProductFavorite, CustomerAddress)
 from datetime import datetime, date
 import secrets, hashlib
 
@@ -203,6 +203,20 @@ def cart_view(slug):
                            livraison_gratuite=livraison_gratuite,
                            seuil=seuil, total=total, customer=customer)
 
+@shop_bp.route('/<slug>/panier/update/<key>/<action>')
+def update_cart_qty(slug, key, action):
+    t = _get_tenant(slug)
+    cart = _get_cart(t.id)
+    for item in cart:
+        if item['key'] == key:
+            if action == 'plus':
+                item['qty'] += 1
+            elif action == 'minus' and item['qty'] > 1:
+                item['qty'] -= 1
+            break
+    _save_cart(t.id, cart)
+    return redirect(url_for('shop.cart_view', slug=slug))
+
 
 @shop_bp.route('/<slug>/panier/supprimer/<key>')
 def remove_from_cart(slug, key):
@@ -271,7 +285,6 @@ def logout(slug):
 
 
 # ── COMMANDE ───────────────────────────────────────────────────────────────
-
 @shop_bp.route('/<slug>/commander', methods=['GET', 'POST'])
 def checkout(slug):
     t = _get_tenant(slug)
@@ -298,13 +311,13 @@ def checkout(slug):
         h_close = t.shop_heure_fermeture or '22:00'
         flash(f'La boutique est fermée. Horaires : {h_open} — {h_close}. Revenez plus tard.', 'warning')
         return redirect(url_for('shop.cart_view', slug=slug))
-    
-    # Vérifier si la boutique est ouverte
-    if not t.shop_is_open:
-        flash(f'Boutique fermée. Horaires : {t.shop_heure_ouverture} — {t.shop_heure_fermeture}', 'warning')
-        return redirect(url_for('shop.cart_view', slug=slug))
 
     if request.method == 'POST':
+        # Récupérer le téléphone (ajouter +225 si pas présent)
+        tel = request.form.get('telephone', customer.telephone or '').strip()
+        if tel and not tel.startswith('+'):
+            tel = '+225' + tel.replace(' ', '')
+
         ref = f"WEB-{t.id}-{datetime.utcnow().strftime('%y%m%d%H%M')}-{secrets.token_hex(2).upper()}"
         order = OnlineOrder(
             tenant_id=t.id,
@@ -316,8 +329,9 @@ def checkout(slug):
             frais_livraison=frais_final,
             adresse_livraison=request.form.get('adresse', customer.adresse or ''),
             ville_livraison=request.form.get('ville', customer.ville or ''),
-            telephone_contact=request.form.get('telephone', customer.telephone or ''),
+            telephone_contact=tel,
             note_client=request.form.get('note', ''),
+            payment_method=request.form.get('payment_method', 'livraison'),
         )
         db.session.add(order)
         db.session.flush()
@@ -334,23 +348,37 @@ def checkout(slug):
             )
             db.session.add(oi)
 
+        # Sauvegarder l'adresse si nouvelle
+        addr_text = request.form.get('adresse', '').strip()
+        addr_ville = request.form.get('ville', '').strip()
+        if addr_text and addr_ville:
+            existing_addr = CustomerAddress.query.filter_by(
+                customer_id=customer.id,
+                adresse=addr_text,
+                ville=addr_ville
+            ).first()
+            if not existing_addr:
+                db.session.add(CustomerAddress(
+                    customer_id=customer.id,
+                    adresse=addr_text,
+                    ville=addr_ville,
+                    telephone=tel,
+                ))
+
         db.session.commit()
         _save_cart(t.id, [])
         flash('Commande passée avec succès !', 'success')
         return redirect(url_for('shop.order_detail', slug=slug, ref=ref))
 
+    # Charger les adresses sauvegardées
+    saved_addresses = CustomerAddress.query.filter_by(
+        customer_id=customer.id
+    ).order_by(CustomerAddress.created_at.desc()).limit(5).all()
+
     return render_template('shop/checkout.html', tenant=t, customer=customer,
                            cart=cart, subtotal=subtotal, frais_livraison=frais_final,
-                           livraison_gratuite=livraison_gratuite, seuil=seuil, total=total)
-
-
-@shop_bp.route('/<slug>/commande/<ref>')
-def order_detail(slug, ref):
-    t = _get_tenant(slug)
-    customer = _get_customer(t.id)
-    order = OnlineOrder.query.filter_by(tenant_id=t.id, reference=ref).first_or_404()
-    return render_template('shop/order_detail.html', tenant=t, order=order,
-                           customer=customer, OnlineOrderStatus=OnlineOrderStatus)
+                           livraison_gratuite=livraison_gratuite, seuil=seuil, total=total,
+                           saved_addresses=saved_addresses)
 
 
 @shop_bp.route('/<slug>/mes-commandes')
@@ -363,6 +391,202 @@ def my_orders(slug):
              .order_by(OnlineOrder.created_at.desc()).all()
     return render_template('shop/my_orders.html', tenant=t, orders=orders,
                            customer=customer, OnlineOrderStatus=OnlineOrderStatus)
+
+@shop_bp.route('/<slug>/commande/<ref>')
+def order_detail(slug, ref):
+    t = _get_tenant(slug)
+    customer = _get_customer(t.id)
+    order = OnlineOrder.query.filter_by(tenant_id=t.id, reference=ref).first_or_404()
+    return render_template('shop/order_detail.html', tenant=t, order=order,
+                           customer=customer, cart=_get_cart(t.id),
+                           OnlineOrderStatus=OnlineOrderStatus)
+
+
+
+
+
+# ── PAIEMENT STRIPE ────────────────────────────────────────────────────────
+
+@shop_bp.route('/<slug>/paiement/stripe', methods=['POST'])
+def stripe_checkout(slug):
+    """Crée une session Stripe Checkout et redirige."""
+    import stripe, os
+    t = _get_tenant(slug)
+    #stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
+    stripe.api_key = t.stripe_secret_key or os.environ.get('STRIPE_SECRET_KEY', '')
+    if not stripe.api_key:
+        flash('Paiement par carte non configuré par le vendeur.', 'danger')
+        return redirect(url_for('shop.checkout', slug=slug))
+
+    if not stripe.api_key:
+        flash('Paiement par carte indisponible.', 'danger')
+        return redirect(url_for('shop.checkout', slug=slug))
+
+   
+    customer = _get_customer(t.id)
+    if not customer:
+        return redirect(url_for('shop.login', slug=slug))
+
+    cart = _get_cart(t.id)
+    if not cart:
+        return redirect(url_for('shop.home', slug=slug))
+
+    subtotal = sum(item['price'] * item['qty'] for item in cart)
+    frais = float(t.frais_livraison or 0)
+    seuil = float(t.seuil_livraison_gratuite or 0)
+    livraison_gratuite = (frais == 0) or (seuil > 0 and subtotal >= seuil)
+    frais_final = 0 if livraison_gratuite else frais
+    total = subtotal + frais_final
+
+    # Créer la commande en attente de paiement
+    tel = request.form.get('telephone', customer.telephone or '').strip()
+    if tel and not tel.startswith('+'):
+        tel = '+225' + tel.replace(' ', '')
+
+    ref = f"WEB-{t.id}-{datetime.utcnow().strftime('%y%m%d%H%M')}-{secrets.token_hex(2).upper()}"
+    order = OnlineOrder(
+        tenant_id=t.id,
+        customer_id=customer.id,
+        reference=ref,
+        total_amount=total,
+        total_ht=subtotal,
+        total_tva=0,
+        frais_livraison=frais_final,
+        adresse_livraison=request.form.get('adresse', customer.adresse or ''),
+        ville_livraison=request.form.get('ville', customer.ville or ''),
+        telephone_contact=tel,
+        note_client=request.form.get('note', ''),
+        payment_method='carte',
+        payment_status='en_attente',
+    )
+    db.session.add(order)
+    db.session.flush()
+
+    for item in cart:
+        db.session.add(OnlineOrderItem(
+            order_id=order.id,
+            product_id=item['product_id'],
+            variant_id=item.get('variant_id'),
+            designation=item['name'],
+            prix_vente=item['price'],
+            quantity=item['qty'],
+            subtotal=item['price'] * item['qty'],
+        ))
+
+    # Sauvegarder adresse
+    addr_text = request.form.get('adresse', '').strip()
+    addr_ville = request.form.get('ville', '').strip()
+    if addr_text and addr_ville:
+        existing_addr = CustomerAddress.query.filter_by(
+            customer_id=customer.id, adresse=addr_text, ville=addr_ville
+        ).first()
+        if not existing_addr:
+            db.session.add(CustomerAddress(
+                customer_id=customer.id, adresse=addr_text,
+                ville=addr_ville, telephone=tel,
+            ))
+
+    db.session.commit()
+
+    # Construire les line_items Stripe
+    line_items = []
+    for item in cart:
+        line_items.append({
+            'price_data': {
+                'currency': 'xof',
+                'product_data': {'name': item['name'][:80]},
+                'unit_amount': int(item['price']),  # XOF n'a pas de centimes
+            },
+            'quantity': item['qty'],
+        })
+
+    # Ajouter frais de livraison si applicable
+    if frais_final > 0:
+        line_items.append({
+            'price_data': {
+                'currency': 'xof',
+                'product_data': {'name': '🚚 Frais de livraison'},
+                'unit_amount': int(frais_final),
+            },
+            'quantity': 1,
+        })
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=line_items,
+            mode='payment',
+            customer_email=customer.email,
+            metadata={'order_id': str(order.id), 'reference': ref},
+            success_url=request.host_url.rstrip('/') + url_for('shop.stripe_success', slug=slug, ref=ref),
+            cancel_url=request.host_url.rstrip('/') + url_for('shop.stripe_cancel', slug=slug, ref=ref),
+        )
+        _save_cart(t.id, [])
+        return redirect(checkout_session.url, code=303)
+    except Exception as e:
+        print(f'[stripe] Erreur: {e}')
+        flash(f'Erreur de paiement : {e}', 'danger')
+        # Supprimer la commande échouée
+        db.session.delete(order)
+        db.session.commit()
+        return redirect(url_for('shop.checkout', slug=slug))
+
+
+@shop_bp.route('/<slug>/paiement/succes/<ref>')
+def stripe_success(slug, ref):
+    """Page de succès après paiement Stripe."""
+    t = _get_tenant(slug)
+    order = OnlineOrder.query.filter_by(tenant_id=t.id, reference=ref).first_or_404()
+    order.payment_status = 'paye'
+    db.session.commit()
+    flash('Paiement réussi ! Votre commande est confirmée.', 'success')
+    return redirect(url_for('shop.order_detail', slug=slug, ref=ref))
+
+
+@shop_bp.route('/<slug>/paiement/annule/<ref>')
+def stripe_cancel(slug, ref):
+    """Page d'annulation de paiement Stripe."""
+    t = _get_tenant(slug)
+    order = OnlineOrder.query.filter_by(tenant_id=t.id, reference=ref).first()
+    if order and order.payment_status == 'en_attente':
+        order.status = 'cancelled'
+        order.payment_status = 'annule'
+        db.session.commit()
+    flash('Paiement annulé. Votre commande n\'a pas été validée.', 'warning')
+    return redirect(url_for('shop.cart_view', slug=slug))
+
+
+@shop_bp.route('/<slug>/webhook/stripe', methods=['POST'])
+def stripe_webhook(slug):
+    """Webhook Stripe pour confirmer le paiement (optionnel mais recommandé)."""
+    import stripe, os
+    stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
+    webhook_secret = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+    payload = request.get_data()
+    sig = request.headers.get('Stripe-Signature', '')
+
+    try:
+        if webhook_secret:
+            event = stripe.Webhook.construct_event(payload, sig, webhook_secret)
+        else:
+            event = stripe.Event.construct_from(
+                request.get_json(), stripe.api_key
+            )
+    except Exception as e:
+        print(f'[stripe webhook] Erreur: {e}')
+        return jsonify({'error': str(e)}), 400
+
+    if event['type'] == 'checkout.session.completed':
+        session_data = event['data']['object']
+        order_id = session_data.get('metadata', {}).get('order_id')
+        if order_id:
+            order = OnlineOrder.query.get(int(order_id))
+            if order:
+                order.payment_status = 'paye'
+                db.session.commit()
+                print(f'[stripe] Paiement confirmé pour {order.reference}')
+
+    return jsonify({'status': 'ok'}), 200
 
 
 # ── AVIS ───────────────────────────────────────────────────────────────────
@@ -444,3 +668,5 @@ def cart_count(slug):
     t = _get_tenant(slug)
     cart = _get_cart(t.id)
     return jsonify({'count': sum(i['qty'] for i in cart)})
+
+

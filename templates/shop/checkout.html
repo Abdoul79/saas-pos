@@ -1,72 +1,242 @@
 {% extends "shop/base.html" %}
 {% block title %}Commande — {{ tenant.nom_boutique }}{% endblock %}
-{% block content %}
-<h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.5rem;">📦 Finaliser la commande</h1>
+{% block head %}
+<style>
+  .checkout-grid { display:grid;grid-template-columns:1fr 340px;gap:1.5rem; }
+  .section-title { font-size:.92rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;gap:.4rem; }
 
-<div style="display:grid;grid-template-columns:1fr 380px;gap:2rem;">
-  <form method="POST">
-    <h2 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Informations de livraison</h2>
-    <div class="form-group">
-      <label class="form-label">Adresse de livraison</label>
-      <textarea name="adresse" class="form-control" rows="3" required>{{ customer.adresse or '' }}</textarea>
+  .saved-addr { display:flex;align-items:flex-start;gap:.55rem;padding:.55rem .75rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.35rem;cursor:pointer;transition:all .12s;font-size:.8rem; }
+  .saved-addr:hover { border-color:var(--accent);background:#fef7ee; }
+  .saved-addr.selected { border-color:var(--accent);background:#fef7ee;box-shadow:0 0 0 2px rgba(245,166,35,.12); }
+  .saved-addr input[type="radio"] { margin-top:2px;accent-color:var(--accent); }
+  .sa-city { font-weight:600;font-size:.82rem; }
+  .sa-detail { color:var(--muted);font-size:.75rem;margin-top:.05rem; }
+
+  .phone-wrap { display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .15s; }
+  .phone-wrap:focus-within { border-color:var(--accent); }
+  .phone-prefix { background:#f8fafc;padding:.45rem .6rem;font-size:.82rem;font-weight:600;color:#374151;border-right:1px solid var(--border);white-space:nowrap;display:flex;align-items:center;gap:.25rem; }
+  .phone-input { flex:1;border:none;outline:none;padding:.45rem .6rem;font-size:.85rem; }
+  .ville-select { width:100%;padding:.45rem .6rem;border:1px solid var(--border);border-radius:8px;font-size:.85rem;background:#fff; }
+  .ville-select:focus { outline:none;border-color:var(--accent); }
+
+  /* Méthodes de paiement */
+  .pay-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;margin-bottom:1rem; }
+  .pay-opt {
+    display:flex;flex-direction:column;align-items:center;gap:.3rem;
+    padding:.65rem .5rem;border:2px solid var(--border);border-radius:10px;
+    cursor:pointer;transition:all .15s;text-align:center;
+  }
+  .pay-opt:hover { border-color:var(--accent);background:#fef7ee; }
+  .pay-opt.selected { border-color:var(--accent);background:#fef7ee;box-shadow:0 0 0 3px rgba(245,166,35,.1); }
+  .pay-opt input[type="radio"] { display:none; }
+  .pay-ico { font-size:1.5rem; }
+  .pay-name { font-weight:600;font-size:.75rem;line-height:1.2; }
+  .pay-desc { font-size:.62rem;color:var(--muted); }
+
+  /* Stripe badge */
+  .stripe-badge { display:inline-flex;align-items:center;gap:.25rem;font-size:.6rem;color:#635bff;background:#635bff10;padding:.1rem .35rem;border-radius:3px;margin-top:.15rem;font-weight:700; }
+
+  .recap { padding:.85rem; }
+  .rc-item { display:flex;justify-content:space-between;padding:.25rem 0;font-size:.8rem;border-bottom:1px solid var(--border); }
+  .rc-row  { display:flex;justify-content:space-between;padding:.3rem 0;font-size:.82rem; }
+  .rc-total { display:flex;justify-content:space-between;padding:.55rem 0 .1rem;font-size:1.05rem;font-weight:800;border-top:2px solid var(--border);margin-top:.25rem; }
+  .rc-promo { font-size:.7rem;color:var(--accent);margin:.25rem 0;background:#f5a62310;padding:.25rem .45rem;border-radius:5px; }
+  .rc-pay { margin-top:.5rem;padding:.45rem .65rem;background:#f8fafc;border-radius:6px;font-size:.78rem;display:flex;align-items:center;gap:.35rem; }
+
+  .btn-confirm { width:100%;padding:.7rem;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:.92rem;font-weight:700;cursor:pointer;transition:background .12s; }
+  .btn-confirm:hover { background:var(--accent2); }
+  .btn-confirm.stripe-btn { background:#635bff; }
+  .btn-confirm.stripe-btn:hover { background:#4b45c6; }
+
+  @media(max-width:768px) { .checkout-grid { grid-template-columns:1fr; } .pay-grid { grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:400px) { .pay-grid { grid-template-columns:1fr 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="font-size:1.2rem;font-weight:800;margin-bottom:1.15rem;">📦 Finaliser la commande</h1>
+
+<div class="checkout-grid">
+  <form method="POST" id="checkoutForm" action="{{ url_for('shop.checkout', slug=tenant.shop_slug) }}">
+
+    <!-- Adresses sauvegardées -->
+    {% if saved_addresses %}
+    <div style="margin-bottom:1rem;">
+      <div class="section-title">📍 Adresses enregistrées</div>
+      {% for addr in saved_addresses %}
+      <label class="saved-addr">
+        <input type="radio" name="saved_addr" value="{{ addr.id }}"
+               data-adresse="{{ addr.adresse }}" data-ville="{{ addr.ville }}" data-telephone="{{ addr.telephone }}"
+               onchange="applySaved(this)">
+        <div>
+          <div class="sa-city">📍 {{ addr.ville }}</div>
+          <div class="sa-detail">{{ addr.adresse[:50] }}{% if addr.adresse|length > 50 %}…{% endif %} · 📞 {{ addr.telephone }}</div>
+        </div>
+      </label>
+      {% endfor %}
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.2rem;cursor:pointer;" onclick="clearSaved()">✏️ Nouvelle adresse</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    {% endif %}
+
+    <!-- Adresse -->
+    <div class="section-title">🚚 Livraison</div>
+    <div class="form-group">
+      <label class="form-label" style="font-size:.8rem;">Adresse complète</label>
+      <textarea name="adresse" id="fAddr" class="form-control" rows="2" required placeholder="Quartier, rue, bâtiment…" style="font-size:.85rem;">{{ customer.adresse or '' }}</textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
       <div class="form-group">
-        <label class="form-label">Ville</label>
-        <input name="ville" class="form-control" value="{{ customer.ville or '' }}" required>
+        <label class="form-label" style="font-size:.8rem;">Ville</label>
+        <select name="ville" id="fVille" class="ville-select" required>
+          <option value="">— Choisir —</option>
+          {% set villes = ['Abidjan','Abobo','Adjamé','Anyama','Bingerville','Cocody','Koumassi','Marcory','Plateau','Port-Bouët','Treichville','Yopougon','Abengourou','Adzopé','Agboville','Agnibilékrou','Akoupé','Alépé','Ayamé','Béoumi','Biankouma','Bocanda','Bondoukou','Bongouanou','Bouaflé','Bouaké','Bouna','Boundiali','Buyo','Dabakala','Dabou','Daloa','Danané','Daoukro','Dimbokro','Divo','Duékoué','Ferkessédougou','Fresco','Gagnoa','Grand-Bassam','Grand-Lahou','Guiglo','Issia','Jacqueville','Katiola','Korhogo','Kouibly','Lakota','Man','Mankono','Nassian','Odienné','Oumé','Sakassou','San-Pédro','Sassandra','Séguéla','Sinfra','Soubré','Tabou','Tengréla','Tiassalé','Tiébissou','Touba','Toumodi','Vavoua','Yamoussoukro','Zuénoula'] %}
+          {% for v in villes %}<option value="{{ v }}" {% if (customer.ville or '') == v %}selected{% endif %}>{{ v }}</option>{% endfor %}
+        </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Téléphone</label>
-        <input name="telephone" class="form-control" value="{{ customer.telephone or '' }}" required>
+        <label class="form-label" style="font-size:.8rem;">Téléphone</label>
+        <div class="phone-wrap">
+          <div class="phone-prefix">🇨🇮 +225</div>
+          <input type="tel" name="telephone" id="fTel" class="phone-input"
+                 value="{{ (customer.telephone or '')|replace('+225','') }}"
+                 placeholder="07 08 09 10 11" required maxlength="14">
+        </div>
       </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Note (optionnel)</label>
-      <textarea name="note" class="form-control" rows="2" placeholder="Instructions spéciales..."></textarea>
+
+    <!-- Paiement -->
+    <div class="section-title" style="margin-top:.5rem;">💳 Mode de paiement</div>
+    <div class="pay-grid">
+      <label class="pay-opt selected" onclick="selectPay(this)">
+        <input type="radio" name="payment_method" value="livraison" checked>
+        <div class="pay-ico">💵</div>
+        <div class="pay-name">À la livraison</div>
+        <div class="pay-desc">Espèces</div>
+      </label>
+      <label class="pay-opt" onclick="selectPay(this)">
+        <input type="radio" name="payment_method" value="orange_money">
+        <div class="pay-ico">🟠</div>
+        <div class="pay-name">Orange Money</div>
+        <div class="pay-desc">Mobile Orange</div>
+      </label>
+      <label class="pay-opt" onclick="selectPay(this)">
+        <input type="radio" name="payment_method" value="mtn_money">
+        <div class="pay-ico">🟡</div>
+        <div class="pay-name">MTN MoMo</div>
+        <div class="pay-desc">Mobile MTN</div>
+      </label>
+      <label class="pay-opt" onclick="selectPay(this)">
+        <input type="radio" name="payment_method" value="moov_money">
+        <div class="pay-ico">🔵</div>
+        <div class="pay-name">Moov Money</div>
+        <div class="pay-desc">Mobile Moov</div>
+      </label>
+      <label class="pay-opt" onclick="selectPay(this)">
+        <input type="radio" name="payment_method" value="wave">
+        <div class="pay-ico">🌊</div>
+        <div class="pay-name">Wave</div>
+        <div class="pay-desc">Paiement Wave</div>
+      </label>
+      {% if tenant.stripe_secret_key %}
+      <label class="pay-opt" onclick="selectPay(this)">
+        <input type="radio" name="payment_method" value="carte">
+        <div class="pay-ico">💳</div>
+        <div class="pay-name">Carte bancaire</div>
+        <div class="stripe-badge">⚡ Stripe</div>
+      </label>
+      {% endif %}
     </div>
-    <button type="submit" class="btn btn-primary" style="width:100%;padding:.85rem;font-size:1rem;font-weight:700;">
-      ✓ Confirmer la commande — {{ total|int }} FCFA
-    </button>
+
+    <!-- Note -->
+    <div class="form-group">
+      <label class="form-label" style="font-size:.8rem;">Note <span style="color:var(--muted);font-weight:400;">(optionnel)</span></label>
+      <input name="note" class="form-control" placeholder="Instructions spéciales…" style="font-size:.82rem;">
+    </div>
+
+    <button type="submit" class="btn-confirm" id="btnConfirm">✓ Confirmer — {{ total|int }} FCFA</button>
   </form>
 
+  <!-- Récap -->
   <div>
-    <div class="card" style="padding:1.25rem;">
-      <h3 style="font-size:.9rem;font-weight:700;margin-bottom:.75rem;">Récapitulatif</h3>
+    <div class="card recap">
+      <div style="font-size:.85rem;font-weight:700;margin-bottom:.55rem;">Récapitulatif</div>
       {% for item in cart %}
-      <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.85rem;">
-        <span>{{ item.qty }}× {{ item.name[:30] }}</span>
-        <span style="font-weight:600;">{{ (item.price * item.qty)|int }}</span>
+      <div class="rc-item">
+        <span>{{ item.qty }}× {{ item.name[:25] }}{% if item.name|length > 25 %}…{% endif %}</span>
+        <span style="font-weight:600;font-family:monospace;">{{ (item.price * item.qty)|int }}</span>
       </div>
       {% endfor %}
-
-      <!-- Sous-total -->
-      <div style="display:flex;justify-content:space-between;padding:.5rem 0;font-size:.88rem;border-bottom:1px solid var(--border);">
+      <div class="rc-row" style="margin-top:.25rem;">
         <span>Sous-total</span>
-        <span style="font-weight:600;">{{ subtotal|int }} FCFA</span>
+        <span style="font-weight:600;font-family:monospace;">{{ subtotal|int }} FCFA</span>
       </div>
-
-      <!-- Livraison -->
-      <div style="display:flex;justify-content:space-between;padding:.5rem 0;font-size:.88rem;border-bottom:1px solid var(--border);align-items:center;">
+      <div class="rc-row">
         <span>🚚 Livraison</span>
-        {% if livraison_gratuite %}
-        <span style="color:#22c55e;font-weight:600;">🎁 Gratuite</span>
-        {% else %}
-        <span style="font-weight:600;">{{ frais_livraison|int }} FCFA</span>
-        {% endif %}
+        {% if livraison_gratuite %}<span style="color:#16a34a;font-weight:600;">🎁 Gratuite</span>
+        {% else %}<span style="font-weight:600;font-family:monospace;">{{ frais_livraison|int }} FCFA</span>{% endif %}
       </div>
-
       {% if not livraison_gratuite and seuil > 0 %}
-      <div style="font-size:.75rem;color:var(--accent);margin:.4rem 0;background:#f5a62312;padding:.35rem .5rem;border-radius:5px;">
-        🎁 Ajoutez {{ (seuil - subtotal)|int }} FCFA pour la livraison gratuite
-      </div>
+      <div class="rc-promo">🎁 Plus que {{ (seuil - subtotal)|int }} FCFA pour la livraison gratuite</div>
       {% endif %}
-
-      <!-- Total -->
-      <div style="display:flex;justify-content:space-between;padding:.75rem 0 0;font-size:1.15rem;font-weight:800;">
+      <div class="rc-total">
         <span>Total</span>
         <span style="color:var(--accent);">{{ total|int }} FCFA</span>
       </div>
+      <div class="rc-pay" id="payDisplay">💵 Paiement à la livraison</div>
     </div>
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+function applySaved(r){
+  document.getElementById('fAddr').value=r.dataset.adresse;
+  document.getElementById('fVille').value=r.dataset.ville;
+  document.getElementById('fTel').value=(r.dataset.telephone||'').replace('+225','');
+  document.querySelectorAll('.saved-addr').forEach(el=>el.classList.remove('selected'));
+  r.closest('.saved-addr').classList.add('selected');
+}
+function clearSaved(){
+  document.querySelectorAll('.saved-addr input[type="radio"]').forEach(r=>r.checked=false);
+  document.querySelectorAll('.saved-addr').forEach(el=>el.classList.remove('selected'));
+  document.getElementById('fAddr').value='';document.getElementById('fVille').value='';
+  document.getElementById('fTel').value='';document.getElementById('fAddr').focus();
+}
+
+var payLabels={
+  livraison:'💵 Paiement à la livraison',
+  orange_money:'🟠 Orange Money',
+  mtn_money:'🟡 MTN Mobile Money',
+  moov_money:'🔵 Moov Money',
+  wave:'🌊 Wave',
+  carte:'💳 Carte bancaire (Stripe)'
+};
+
+function selectPay(el){
+  document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  var val=el.querySelector('input').value;
+  document.getElementById('payDisplay').innerHTML=payLabels[val]||val;
+
+  var btn=document.getElementById('btnConfirm');
+  var form=document.getElementById('checkoutForm');
+  if(val==='carte'){
+    btn.textContent='💳 Payer {{ total|int }} FCFA par carte';
+    btn.className='btn-confirm stripe-btn';
+    form.action='{{ url_for("shop.stripe_checkout", slug=tenant.shop_slug) }}';
+  } else {
+    btn.textContent='✓ Confirmer — {{ total|int }} FCFA';
+    btn.className='btn-confirm';
+    form.action='{{ url_for("shop.checkout", slug=tenant.shop_slug) }}';
+  }
+}
+
+document.getElementById('checkoutForm').addEventListener('submit',function(){
+  var t=document.getElementById('fTel');
+  var v=t.value.replace(/\s/g,'').replace('+225','');
+  t.value='+225'+v;
+});
+</script>
+{% endblock %}
+

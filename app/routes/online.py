@@ -510,6 +510,10 @@ def settings():
         t.shop_heure_fermeture = request.form.get('heure_fermeture', '22:00')
         t.shop_jours_fermes = ','.join(request.form.getlist('jours_fermes'))
         t.shop_mode = request.form.get('shop_mode', 'boutique')
+        t.stripe_secret_key = request.form.get('stripe_sk', '').strip() or None
+        t.stripe_publishable_key = request.form.get('stripe_pk', '').strip() or None
+
+
         db.session.commit()
         flash('Paramètres boutique en ligne sauvegardés.', 'success')
         return redirect(url_for('online.settings'))

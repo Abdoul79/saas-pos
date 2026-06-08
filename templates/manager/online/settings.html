@@ -176,6 +176,36 @@
     </div>
   </div>
 
+
+  <!-- Paiement Stripe -->
+  <div class="settings-section">
+    <div class="section-title">💳 Paiement par Carte (Stripe)</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.65rem 1rem;margin-bottom:1rem;font-size:.8rem;color:var(--muted);">
+      💡 Créez un compte sur <a href="https://dashboard.stripe.com/register" target="_blank" style="color:var(--accent);font-weight:600;">stripe.com</a>,
+      puis copiez vos clés API depuis <a href="https://dashboard.stripe.com/apikeys" target="_blank" style="color:var(--accent);">Développeurs → Clés API</a>.
+      L'argent des paiements par carte ira directement dans votre compte Stripe.
+    </div>
+    <div class="form-group">
+      <label class="form-label">Clé publique (pk_test_… ou pk_live_…)</label>
+      <input name="stripe_pk" class="form-control" value="{{ tenant.stripe_publishable_key or '' }}"
+             placeholder="pk_test_..." style="font-family:monospace;font-size:.82rem;">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Clé secrète (sk_test_… ou sk_live_…)</label>
+      <input name="stripe_sk" class="form-control" type="password" value="{{ tenant.stripe_secret_key or '' }}"
+             placeholder="sk_test_..." style="font-family:monospace;font-size:.82rem;">
+    </div>
+    {% if tenant.stripe_secret_key %}
+    <div style="font-size:.8rem;color:#22c55e;">✅ Stripe configuré — le paiement par carte est actif</div>
+    {% else %}
+    <div style="font-size:.8rem;color:var(--muted);">⚠ Sans clés Stripe, l'option carte ne sera pas proposée aux clients</div>
+    {% endif %}
+  </div>
+
+
+
+
+
   <button type="submit" class="btn btn-primary" style="width:100%;padding:.75rem;font-size:1rem;">💾 Sauvegarder les paramètres</button>
 </form>
 

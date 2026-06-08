@@ -1,67 +1,139 @@
 {% extends "shop/base.html" %}
 {% block title %}Panier — {{ tenant.nom_boutique }}{% endblock %}
+{% block head %}
+<style>
+  .cart-item {
+    display:flex;align-items:center;gap:.85rem;
+    padding:.85rem 1rem;border-bottom:1px solid var(--border);
+    transition:background .1s;
+  }
+  .cart-item:last-child { border-bottom:none; }
+  .cart-item:hover { background:#f8fafc; }
+  .ci-img { width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #f1f5f9;flex-shrink:0; }
+  .ci-ph { width:56px;height:56px;background:#f8fafc;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#d1d5db;flex-shrink:0; }
+  .ci-info { flex:1;min-width:0; }
+  .ci-name { font-weight:600;font-size:.88rem;margin-bottom:.1rem; }
+  .ci-unit { color:var(--muted);font-size:.78rem; }
+
+  /* Boutons +/- */
+  .qty-ctrl {
+    display:flex;align-items:center;gap:0;
+    border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;
+  }
+  .qty-btn {
+    width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+    background:#f8fafc;color:#374151;font-size:1rem;font-weight:700;
+    text-decoration:none;transition:background .12s;
+    user-select:none;cursor:pointer;
+  }
+  .qty-btn:hover { background:#e2e8f0; }
+  .qty-btn.dis { opacity:.3;pointer-events:none; }
+  .qty-val {
+    width:36px;text-align:center;font-size:.88rem;font-weight:700;
+    font-family:monospace;color:#111;background:#fff;
+    border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;
+    line-height:32px;
+  }
+
+  .ci-total { font-weight:700;font-size:.95rem;color:var(--accent);min-width:90px;text-align:right;font-family:monospace; }
+
+  .ci-del {
+    width:28px;height:28px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    color:#9ca3af;font-size:.8rem;transition:all .12s;cursor:pointer;
+    text-decoration:none;flex-shrink:0;
+  }
+  .ci-del:hover { background:#fef2f2;color:#ef4444; }
+
+  .cart-summary { padding:.85rem 1rem; }
+  .cs-row { display:flex;justify-content:space-between;padding:.3rem 0;font-size:.88rem; }
+  .cs-total { display:flex;justify-content:space-between;padding:.75rem 0 .25rem;font-size:1.15rem;font-weight:800;border-top:2px solid var(--border);margin-top:.35rem; }
+  .cs-promo { font-size:.75rem;color:var(--accent);margin-top:.3rem;background:#f5a62310;padding:.35rem .6rem;border-radius:6px; }
+
+  .cart-actions { display:flex;gap:.65rem;flex-wrap:wrap; }
+  .cart-actions .btn { font-size:.85rem;padding:.55rem 1rem; }
+
+  @media(max-width:640px) {
+    .cart-item { gap:.6rem;padding:.7rem .75rem; }
+    .ci-img,.ci-ph { width:48px;height:48px; }
+    .ci-total { min-width:70px;font-size:.85rem; }
+    .qty-btn { width:28px;height:28px; }
+    .qty-val { width:30px;line-height:28px;font-size:.82rem; }
+    .cart-actions { flex-direction:column; }
+    .cart-actions .btn { width:100%;text-align:center; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.5rem;">🛒 Mon Panier</h1>
+<h1 style="font-size:1.3rem;font-weight:800;margin-bottom:1.25rem;">🛒 Mon Panier</h1>
 
 {% if cart %}
-<div class="card" style="margin-bottom:1.5rem;">
+<div class="card" style="margin-bottom:1.25rem;overflow:hidden;">
+  <!-- Articles -->
   {% for item in cart %}
-  <div style="display:flex;align-items:center;gap:1rem;padding:1rem;border-bottom:1px solid var(--border);">
+  <div class="cart-item">
     {% if item.image %}
-    <img src="{{ item.image }}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;">
+    <img src="{{ item.image }}" class="ci-img" alt="">
     {% else %}
-    <div style="width:60px;height:60px;background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;">📦</div>
+    <div class="ci-ph">📦</div>
     {% endif %}
-    <div style="flex:1;">
-      <div style="font-weight:600;">{{ item.name }}</div>
-      <div style="color:var(--muted);font-size:.85rem;">{{ item.price|int }} FCFA × {{ item.qty }}</div>
+
+    <div class="ci-info">
+      <div class="ci-name">{{ item.name }}</div>
+      <div class="ci-unit">{{ item.price|int }} FCFA / unité</div>
     </div>
-    <div style="font-weight:700;font-size:1.05rem;color:var(--accent);min-width:100px;text-align:right;">
-      {{ (item.price * item.qty)|int }} FCFA
+
+    <!-- Contrôle quantité +/- -->
+    <div class="qty-ctrl">
+      <a href="{{ url_for('shop.update_cart_qty', slug=tenant.shop_slug, key=item.key, action='minus') }}"
+         class="qty-btn {% if item.qty <= 1 %}dis{% endif %}">−</a>
+      <div class="qty-val">{{ item.qty }}</div>
+      <a href="{{ url_for('shop.update_cart_qty', slug=tenant.shop_slug, key=item.key, action='plus') }}"
+         class="qty-btn">+</a>
     </div>
-    <a href="{{ url_for('shop.remove_from_cart', slug=tenant.shop_slug, key=item.key) }}"
-       style="color:var(--danger);font-size:.85rem;">✕</a>
+
+    <div class="ci-total">{{ (item.price * item.qty)|int }}</div>
+
+    <a href="{{ url_for('shop.remove_from_cart', slug=tenant.shop_slug, key=item.key) }}" class="ci-del" title="Supprimer">✕</a>
   </div>
   {% endfor %}
 
-  <!-- Sous-total + livraison -->
-  <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
-    <div style="display:flex;justify-content:space-between;font-size:.92rem;margin-bottom:.4rem;">
+  <!-- Résumé -->
+  <div class="cart-summary">
+    <div class="cs-row">
       <span>Sous-total</span>
-      <span style="font-weight:600;">{{ subtotal|int }} FCFA</span>
+      <span style="font-weight:600;font-family:monospace;">{{ subtotal|int }} FCFA</span>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:.92rem;align-items:center;">
+    <div class="cs-row">
       <span>🚚 Livraison</span>
       {% if livraison_gratuite %}
-      <span style="color:#22c55e;font-weight:600;">🎁 Gratuite</span>
+      <span style="color:#16a34a;font-weight:600;">🎁 Gratuite</span>
       {% else %}
-      <span style="font-weight:600;">{{ frais_livraison|int }} FCFA</span>
+      <span style="font-weight:600;font-family:monospace;">{{ frais_livraison|int }} FCFA</span>
       {% endif %}
     </div>
     {% if not livraison_gratuite and seuil > 0 %}
-    {% set reste = seuil - subtotal %}
-    <div style="font-size:.78rem;color:var(--accent);margin-top:.35rem;background:#f5a62312;padding:.4rem .65rem;border-radius:6px;">
-      🎁 Plus que <strong>{{ reste|int }} FCFA</strong> pour la livraison gratuite !
-    </div>
+    <div class="cs-promo">🎁 Plus que <strong>{{ (seuil - subtotal)|int }} FCFA</strong> pour la livraison gratuite !</div>
     {% endif %}
-  </div>
-
-  <!-- Total -->
-  <div style="padding:1rem;display:flex;justify-content:space-between;align-items:center;font-size:1.2rem;font-weight:800;">
-    <span>Total</span>
-    <span style="color:var(--accent);">{{ total|int }} FCFA</span>
+    <div class="cs-total">
+      <span>Total</span>
+      <span style="color:var(--accent);">{{ total|int }} FCFA</span>
+    </div>
   </div>
 </div>
 
-<div style="display:flex;gap:1rem;">
-  <a href="{{ url_for('shop.clear_cart', slug=tenant.shop_slug) }}" class="btn btn-danger">🗑 Vider</a>
+<!-- Actions -->
+<div class="cart-actions">
   <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn">← Continuer</a>
+  <a href="{{ url_for('shop.clear_cart', slug=tenant.shop_slug) }}" class="btn btn-danger">🗑 Vider</a>
   <a href="{{ url_for('shop.checkout', slug=tenant.shop_slug) }}" class="btn btn-primary" style="margin-left:auto;">Passer commande →</a>
 </div>
+
 {% else %}
-<div style="text-align:center;padding:4rem;color:var(--muted);">
-  <div style="font-size:3rem;margin-bottom:1rem;">🛒</div>
-  <div>Votre panier est vide.</div>
+<div style="text-align:center;padding:3.5rem 1.5rem;color:var(--muted);">
+  <div style="font-size:3rem;margin-bottom:.75rem;opacity:.4;">🛒</div>
+  <div style="font-size:.92rem;">Votre panier est vide.</div>
   <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn btn-primary" style="margin-top:1rem;">Découvrir nos produits</a>
 </div>
 {% endif %}

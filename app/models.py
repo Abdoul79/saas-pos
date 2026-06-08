@@ -95,6 +95,9 @@ class Tenant(db.Model):
     shop_heure_ouverture     = db.Column(db.String(5), nullable=True, default='08:00')
     shop_heure_fermeture     = db.Column(db.String(5), nullable=True, default='22:00')
     shop_jours_fermes        = db.Column(db.String(50), nullable=True, default='')  # ex: "0,6" = dim,sam
+    stripe_secret_key      = db.Column(db.String(255), nullable=True)
+    stripe_publishable_key = db.Column(db.String(255), nullable=True)
+
 
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -105,6 +108,8 @@ class Tenant(db.Model):
     losses      = db.relationship('LossFiche',  back_populates='tenant', lazy='dynamic', cascade='all, delete-orphan')
     suppliers   = db.relationship('Supplier',   back_populates='tenant', lazy='dynamic', cascade='all, delete-orphan')
     categories  = db.relationship('Category',   back_populates='tenant', lazy='dynamic', cascade='all, delete-orphan')
+
+
 
     def set_password(self, p):   self.password_hash = bcrypt.generate_password_hash(p).decode('utf-8')
     def check_password(self, p): return bcrypt.check_password_hash(self.password_hash, p)
@@ -771,6 +776,8 @@ class OnlineOrder(db.Model):
     customer = db.relationship('OnlineCustomer', back_populates='orders')
     items    = db.relationship('OnlineOrderItem', back_populates='order', cascade='all, delete-orphan')
 
+    payment_method  = db.Column(db.String(30), default='livraison')  # livraison, orange_money, mtn_money, moov_money, wave
+    payment_status  = db.Column(db.String(20), default='en_attente')  # en_attente, paye
 
 class OnlineOrderItem(db.Model):
     __tablename__ = 'online_order_items'
@@ -825,3 +832,17 @@ class ProductFavorite(db.Model):
 
     product  = db.relationship('Product', backref=db.backref('favorites', lazy='dynamic'))
     customer = db.relationship('OnlineCustomer', backref=db.backref('favorites', lazy='dynamic'))
+
+
+#adress registrements
+class CustomerAddress(db.Model):
+    __tablename__ = 'customer_addresses'
+    id          = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('online_customers.id'), nullable=False, index=True)
+    label       = db.Column(db.String(50), default='Maison')  # Maison, Bureau, etc.
+    adresse     = db.Column(db.Text, nullable=False)
+    ville       = db.Column(db.String(100), nullable=False)
+    telephone   = db.Column(db.String(30), nullable=False)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    customer = db.relationship('OnlineCustomer', backref=db.backref('addresses', lazy='dynamic', order_by='CustomerAddress.created_at.desc()'))
