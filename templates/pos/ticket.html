@@ -7,22 +7,25 @@
     * { box-sizing:border-box; margin:0; padding:0; }
     body {
       font-family:'Courier New',monospace;
-      font-size:12px;
+      font-size:13px;
       max-width:300px;
       margin:0 auto;
       padding:1rem .75rem;
       background:#fff;
       color:#000;
+      line-height:1.5;
     }
 
-    /* ── Utilitaires ── */
+    /* ── Style unique pour tout le texte : noir, lisible ── */
     .center  { text-align:center; }
     .bold    { font-weight:bold; }
-    .small   { font-size:.88em; color:#555; }
-    .row     { display:flex; justify-content:space-between; align-items:baseline; }
-    .big     { font-size:1.2em; font-weight:bold; }
-    .line    { border-top:1px dashed #bbb; margin:.5rem 0; }
-    .tva-badge { font-size:.72em; background:#eee; padding:1px 4px; border-radius:3px; margin-left:3px; }
+    .row     { display:flex; justify-content:space-between; align-items:baseline; color:#000; }
+    .big     { font-size:1.25em; font-weight:bold; }
+    .line    { border-top:1px dashed #999; margin:.5rem 0; }
+    .tva-badge { font-size:.85em; font-weight:bold; background:#eee; padding:1px 4px; border-radius:3px; margin-left:3px; color:#000; }
+
+    /* ── Toutes les infos secondaires (adresse, méta, labels) suivent la même règle ── */
+    .info { font-size:.9em; font-weight:bold; color:#000; }
 
     /* ── Header avec logo ── */
     .ticket-header {
@@ -38,8 +41,7 @@
       border-radius:4px;
     }
     .shop-name-block { text-align:center; }
-    .shop-name  { font-size:1.15em; font-weight:bold; letter-spacing:.03em; }
-    .shop-type  { font-size:.82em; color:#555; }
+    .shop-name  { font-size:1.15em; font-weight:bold; letter-spacing:.03em; color:#000; }
 
     /* ── Badge caissier (initiales) ── */
     .cashier-row {
@@ -48,8 +50,6 @@
       justify-content:center;
       gap:.4rem;
       margin:.25rem 0;
-      font-size:.85em;
-      color:#333;
     }
     .initiales-badge {
       display:inline-flex;
@@ -62,7 +62,6 @@
       font-size:.72em;
       font-weight:bold;
       font-family:Arial,sans-serif;
-      letter-spacing:0;
       flex-shrink:0;
     }
 
@@ -74,11 +73,6 @@
     .qr-section img {
       width:90px; height:90px;
       image-rendering:pixelated;
-    }
-    .qr-label {
-      font-size:.7em;
-      color:#888;
-      margin-top:.15rem;
     }
 
     /* ── Print ── */
@@ -98,13 +92,13 @@
     <div class="shop-name-block">
       <div class="shop-name">{{ tenant.nom_boutique or tenant.activite }}</div>
       {% if tenant.nom_boutique %}
-      <div class="shop-type">{{ tenant.activite }}</div>
+      <div class="info">{{ tenant.activite }}</div>
       {% endif %}
     </div>
   </div>
 
   <!-- Coordonnées -->
-  <div class="center small" style="line-height:1.5;">
+  <div class="center info">
     {{ tenant.adresse }}{% if tenant.adresse and tenant.ville %}, {% endif %}{{ tenant.ville }}
     {% if tenant.telephone_entreprise %}
     <br>Tél : {{ tenant.telephone_entreprise }}
@@ -114,13 +108,13 @@
   <div class="line"></div>
 
   <!-- Titre ticket -->
-  <div class="center bold" style="font-size:1em;letter-spacing:.05em;">TICKET DE CAISSE</div>
-  <div class="center small" style="margin-top:.2rem;">
+  <div class="center bold" style="font-size:1.05em;letter-spacing:.05em;">TICKET DE CAISSE</div>
+  <div class="center info" style="margin-top:.2rem;">
     #{{ sale.id }} &nbsp;·&nbsp; {{ sale.created_at.strftime('%d/%m/%Y %H:%M:%S') }}
   </div>
 
   <!-- Caissier avec initiales -->
-  <div class="cashier-row">
+  <div class="cashier-row info">
     <span class="initiales-badge">{{ initiales }}</span>
     <span>{{ cashier_masked }}</span>
   </div>
@@ -135,8 +129,8 @@
     <span class="tva-badge">TVA {{ "%.0f"|format(item.taux_tva) }}%</span>
     {% endif %}
   </div>
-  <div class="row" style="margin-bottom:.2rem;">
-    <span class="small">{{ item.quantity }} × {{ "%.0f"|format(item.prix_vente) }} FCFA</span>
+  <div class="row info" style="margin-bottom:.2rem;">
+    <span>{{ item.quantity }} × {{ "%.0f"|format(item.prix_vente) }} FCFA</span>
     <span>{{ "%.0f"|format(item.subtotal) }} FCFA</span>
   </div>
   {% endfor %}
@@ -145,8 +139,8 @@
 
   <!-- TVA ventilation -->
   {% if sale.total_tva and sale.total_tva > 0 %}
-  <div class="row small"><span>Total HT</span><span>{{ "%.0f"|format(sale.total_ht) }} FCFA</span></div>
-  <div class="row small"><span>Total TVA</span><span>{{ "%.0f"|format(sale.total_tva) }} FCFA</span></div>
+  <div class="row info"><span>Total HT</span><span>{{ "%.0f"|format(sale.total_ht) }} FCFA</span></div>
+  <div class="row info"><span>Total TVA</span><span>{{ "%.0f"|format(sale.total_tva) }} FCFA</span></div>
   <div class="line"></div>
   {% endif %}
 
@@ -158,7 +152,7 @@
 
   <!-- Monnaie (espèces) -->
   {% if sale.payment_method == 'especes' and sale.change_given is not none %}
-  <div class="row small" style="margin-top:.3rem;">
+  <div class="row info" style="margin-top:.3rem;">
     <span>Reçu</span><span>{{ "%.0f"|format(sale.amount_given) }} FCFA</span>
   </div>
   <div class="row bold">
@@ -169,7 +163,7 @@
   <div class="line"></div>
 
   <!-- Mode de paiement -->
-  <div class="center small">
+  <div class="center bold">
     Règlement :
     {% if sale.payment_method == 'especes' %}Espèces
     {% elif sale.payment_method == 'carte' %}Carte bancaire
@@ -181,13 +175,13 @@
   <div class="line"></div>
   <div class="qr-section">
     <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Code ticket">
-    <div class="qr-label">Scanner pour vérifier ce ticket</div>
+    <div class="info" style="margin-top:.15rem;">Scanner pour vérifier ce ticket</div>
   </div>
   {% endif %}
 
   <div class="line"></div>
   <div class="center bold" style="font-size:.95em;">Merci de votre visite !</div>
-  <div class="center small" style="margin-top:.2rem;font-size:.75em;color:#aaa;">
+  <div class="center info" style="margin-top:.2rem;">
     {{ tenant.nom_boutique or tenant.activite }} — {{ tenant.ville }}
   </div>
 
