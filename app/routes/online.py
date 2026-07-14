@@ -512,6 +512,7 @@ def settings():
         t.shop_mode = request.form.get('shop_mode', 'boutique')
         t.stripe_secret_key = request.form.get('stripe_sk', '').strip() or None
         t.stripe_publishable_key = request.form.get('stripe_pk', '').strip() or None
+        t.shop_whatsapp = request.form.get('shop_whatsapp', '').strip() or None
 
 
         db.session.commit()

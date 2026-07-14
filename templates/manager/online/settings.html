@@ -202,6 +202,40 @@
     {% endif %}
   </div>
 
+  <!-- WhatsApp -->
+  <div class="settings-section">
+    <div class="section-title">💬 Contact WhatsApp</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.65rem 1rem;margin-bottom:1rem;font-size:.8rem;color:var(--muted);">
+      💡 Les clients pourront vous contacter directement sur WhatsApp pour passer commande ou poser des questions.
+    </div>
+    <div class="form-group">
+      <label class="form-label">Numéro WhatsApp</label>
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.45rem .65rem;font-size:.85rem;font-weight:600;color:#25d366;white-space:nowrap;">
+          🇨🇮 +225
+        </div>
+        <input name="shop_whatsapp" class="form-control"
+               value="{{ (tenant.shop_whatsapp or '')|replace('+225','') }}"
+               placeholder="07 08 09 10 11"
+               style="font-family:monospace;font-size:.95rem;font-weight:600;max-width:200px;">
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;">Sans espaces ni tirets. Ex: 0708091011</div>
+    </div>
+    {% if tenant.shop_whatsapp %}
+    <div style="display:flex;align-items:center;gap:.65rem;background:#25d36615;border:1px solid #25d36633;border-radius:8px;padding:.6rem .9rem;">
+      <span style="font-size:1.2rem;">💬</span>
+      <div>
+        <div style="font-size:.8rem;font-weight:600;color:#25d366;">WhatsApp actif</div>
+        <div style="font-size:.75rem;color:var(--muted);">{{ tenant.shop_whatsapp }} — visible sur votre boutique</div>
+      </div>
+      <a href="https://wa.me/{{ tenant.shop_whatsapp|replace('+','') }}" target="_blank"
+         class="btn btn-sm" style="margin-left:auto;background:#25d36618;color:#25d366;border:1px solid #25d36633;font-size:.75rem;">
+        Tester →
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
 
 
 
