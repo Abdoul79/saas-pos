@@ -110,11 +110,6 @@
 
 {% block content %}
 
-<div class="hero">
-  <h1>{{ tenant.nom_boutique or tenant.activite }}</h1>
-  <p>{{ tenant.shop_description or 'Découvrez nos produits et commandez en ligne' }}</p>
-</div>
-
 <div class="search-float">
   <form method="GET" action="{{ url_for('shop.home', slug=tenant.shop_slug) }}">
     {% if current_cat %}<input type="hidden" name="cat" value="{{ current_cat }}">{% endif %}
