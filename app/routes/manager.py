@@ -290,6 +290,7 @@ def _next_sku():
     return f'ART-{next_num:04d}'
 
 
+# ── CREATE PRODUCT ───────────────────────────────────────────────────────
 @manager_bp.route('/products/create', methods=['GET', 'POST'])
 @_manager_access
 def create_product():
@@ -313,7 +314,8 @@ def create_product():
 
         if not designation or prix_vente_ht <= 0:
             flash('Désignation et prix de vente HT sont obligatoires.', 'danger')
-            return render_template('manager/product_form.html', suppliers=suppliers, categories=categories, next_sku=_next_sku())
+            return render_template('manager/product_form.html', suppliers=suppliers,
+                                   categories=categories, next_sku=_next_sku())
 
         prix_vente_ttc = _calc_ttc(prix_vente_ht, taux_tva)
         image_file = request.files.get('image')
@@ -341,13 +343,42 @@ def create_product():
             product.barcode = barcode_input
 
         db.session.add(product)
+        db.session.flush()  # pour avoir product.id
+
+        # ── Images supplémentaires ──────────────────────────────────────
+        from app.models import ProductImage
+        extra_files = request.files.getlist('extra_images')
+        for i, img_file in enumerate(extra_files):
+            if img_file and img_file.filename:
+                fname = _save_image(img_file)
+                if fname:
+                    db.session.add(ProductImage(
+                        product_id=product.id,
+                        filename=fname,
+                        order_num=i
+                    ))
+
         db.session.commit()
+        # Supprimer images cochées
+        delete_img_ids = request.form.getlist('delete_extra_image')
+        for img_id in delete_img_ids:
+            from app.models import ProductImage
+            pi = ProductImage.query.get(int(img_id))
+            if pi and pi.product.tenant_id == _tid():
+                try: delete_image(pi.filename)
+                except: pass
+                db.session.delete(pi)
+        db.session.commit()
+
+
         flash(f'Produit « {designation} » créé. Prix TTC : {prix_vente_ttc:,.0f} FCFA.', 'success')
         return redirect(url_for('manager.products'))
 
-    return render_template('manager/product_form.html', suppliers=suppliers, categories=categories, next_sku=_next_sku())
+    return render_template('manager/product_form.html', suppliers=suppliers,
+                           categories=categories, next_sku=_next_sku())
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 @manager_bp.route('/products/<int:product_id>/edit', methods=['GET', 'POST'])
 @_manager_access
 def edit_product(product_id):
@@ -370,22 +401,49 @@ def edit_product(product_id):
         product.supplier_id   = int(sid) if sid else None
         product.category_id   = int(cid) if cid else None
 
-        # Image update
+        # Image principale — update
         image_file = request.files.get('image')
         if image_file and image_file.filename:
             _delete_image(product.image_filename)
             product.image_filename = _save_image(image_file)
 
-        # Delete image
+        # Image principale — suppression
         if request.form.get('delete_image') == '1':
             _delete_image(product.image_filename)
             product.image_filename = None
+
+        # ── Images supplémentaires — suppression ───────────────────────
+        from app.models import ProductImage
+        delete_extra_ids = request.form.getlist('delete_extra_image')
+        for img_id in delete_extra_ids:
+            try:
+                pi = ProductImage.query.get(int(img_id))
+                if pi and pi.product_id == product_id:
+                    _delete_image(pi.filename)
+                    db.session.delete(pi)
+            except Exception:
+                pass
+
+        # ── Images supplémentaires — ajout ─────────────────────────────
+        extra_files = request.files.getlist('extra_images')
+        existing_count = ProductImage.query.filter_by(product_id=product_id).count()
+        for i, img_file in enumerate(extra_files):
+            if img_file and img_file.filename:
+                fname = _save_image(img_file)
+                if fname:
+                    db.session.add(ProductImage(
+                        product_id=product_id,
+                        filename=fname,
+                        order_num=existing_count + i
+                    ))
 
         db.session.commit()
         flash('Produit mis à jour.', 'success')
         return redirect(url_for('manager.products'))
 
-    return render_template('manager/product_form.html', product=product, suppliers=suppliers, categories=categories)
+    return render_template('manager/product_form.html', product=product,
+                           suppliers=suppliers, categories=categories)
+
 
 
 @manager_bp.route('/products/<int:product_id>/barcode')
@@ -444,7 +502,9 @@ def delete_product(product_id):
     name = p.designation
     try:
         from app.models import (SaleItem, StockTransfer, ProductVariant,
-                                 SupplierOrderItem, LossFicheItem)
+                                 SupplierOrderItem, LossFicheItem,
+                                 ProductFavorite, ShopVisit, ProductReview,
+                                 OnlineOrderItem, ProductImage)
         from app.utils.storage import delete_image
 
         # 1. Supprimer images variantes
@@ -452,39 +512,59 @@ def delete_product(product_id):
             try: delete_image(v.image_filename)
             except Exception: pass
 
-        # 2. Supprimer image produit
+        # 2. Supprimer image principale
         try: delete_image(p.image_filename)
         except Exception: pass
 
-        # 3. Détacher les ventes (conserver l'historique — juste nullifier la référence)
+        # 2b. Supprimer images supplémentaires
+        for pi in ProductImage.query.filter_by(product_id=product_id).all():
+            try: delete_image(pi.filename)
+            except Exception: pass
+        ProductImage.query.filter_by(product_id=product_id).delete(synchronize_session=False)
+
+        # 3. Détacher les ventes
         SaleItem.query.filter_by(product_id=product_id).update(
-            {'product_id': None, 'variant_id': None},
-            synchronize_session=False
+            {'product_id': None, 'variant_id': None}, synchronize_session=False
         )
-        # Supprimer les données opérationnelles (pas l'historique ventes)
+
+        # 3b. Nettoyer les dépendances boutique en ligne
+        ProductFavorite.query.filter_by(product_id=product_id).delete(synchronize_session=False)
+        ShopVisit.query.filter_by(product_id=product_id).update(
+            {'product_id': None}, synchronize_session=False
+        )
+        ProductReview.query.filter_by(product_id=product_id).update(
+            {'product_id': None}, synchronize_session=False
+        )
+        OnlineOrderItem.query.filter_by(product_id=product_id).update(
+            {'product_id': None}, synchronize_session=False
+        )
+
+        # Supprimer les données opérationnelles
         StockTransfer.query.filter_by(product_id=product_id).delete()
         SupplierOrderItem.query.filter_by(product_id=product_id).delete()
         try:
             LossFicheItem.query.filter_by(product_id=product_id).delete()
         except Exception:
             pass
-        # Variantes — détacher leurs ventes puis les supprimer
+
+        # Variantes
         for v in ProductVariant.query.filter_by(product_id=product_id).all():
             SaleItem.query.filter_by(variant_id=v.id).update(
                 {'variant_id': None}, synchronize_session=False
             )
             db.session.delete(v)
 
-        # 4. Supprimer le produit
+        db.session.flush()
         db.session.delete(p)
         db.session.commit()
-        flash(f'Produit "{name}" supprime avec succes.', 'success')
+        flash(f'Produit "{name}" supprimé avec succès.', 'success')
 
     except Exception as e:
         db.session.rollback()
         flash(f'Erreur lors de la suppression : {str(e)[:120]}', 'danger')
 
     return redirect(url_for('manager.products'))
+# ── DELETE PRODUCT ──────────────────────────────────────────────────────────
 
 
 # ── STOCK TRANSFER (Entrepôt → Magasin) ───────────────────────────────────

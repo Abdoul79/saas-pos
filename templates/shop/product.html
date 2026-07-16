@@ -1,96 +1,172 @@
 {% extends "shop/base.html" %}
 {% block title %}{{ product.designation }} — {{ tenant.nom_boutique }}{% endblock %}
+
 {% block head %}
 <style>
   /* ── Breadcrumb ── */
-  .crumb { display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:var(--muted);margin-bottom:.75rem;flex-wrap:wrap; }
-  .crumb a { color:var(--muted); }
-  .crumb a:hover { color:var(--accent); }
-  .crumb .s { color:var(--border); }
+  .crumb { 
+    display: flex; 
+    align-items: center; 
+    gap: .3rem; 
+    font-size: .75rem; 
+    color: var(--muted); 
+    margin-bottom: .75rem; 
+    flex-wrap: wrap; 
+  }
+  .crumb a { color: var(--muted); text-decoration: none; }
+  .crumb a:hover { color: var(--accent); }
+  .crumb .s { color: var(--border); }
 
   /* ── Grid 2 colonnes ── */
-  .pg { display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.75rem; }
+  .pg { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 1.25rem; 
+    margin-bottom: 1.75rem; 
+  }
 
   /* ── Image + loupe ── */
-  .iw { position:relative;border-radius:10px;overflow:hidden;background:var(--surface);cursor:crosshair; }
-  .iw img { width:100%;aspect-ratio:1;object-fit:cover;display:block; }
-  .iw-ph { width:100%;aspect-ratio:1;background:var(--surface);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:3.5rem;color:#d1d5db; }
-  .iw-hint { font-size:.65rem;color:var(--muted);text-align:center;margin-top:.25rem; }
-  .lens { display:none;position:absolute;width:90px;height:90px;border:2px solid var(--accent);border-radius:50%;pointer-events:none;z-index:10;box-shadow:0 2px 10px rgba(0,0,0,.12);background:rgba(245,166,35,.05); }
+  .iw { 
+    position: relative; 
+    border-radius: 10px; 
+    overflow: hidden; 
+    background: var(--surface); 
+    cursor: crosshair; 
+  }
+  .iw img { 
+    width: 100%; 
+    aspect-ratio: 1; 
+    object-fit: cover; 
+    display: block; 
+  }
+  .iw-ph { 
+    width: 100%; 
+    aspect-ratio: 1; 
+    background: var(--surface); 
+    border-radius: 10px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 3.5rem; 
+    color: #d1d5db; 
+  }
+  .iw-hint { 
+    font-size: .65rem; 
+    color: var(--muted); 
+    text-align: center; 
+    margin-top: .25rem; 
+  }
+  .lens { 
+    display: none; 
+    position: absolute; 
+    width: 90px; 
+    height: 90px; 
+    border: 2px solid var(--accent); 
+    border-radius: 50%; 
+    pointer-events: none; 
+    z-index: 10; 
+    box-shadow: 0 2px 10px rgba(0,0,0,.12); 
+    background: rgba(245,166,35,.05); 
+  }
 
   /* ── Zoom panel ── */
-  .rcol { position:relative; }
-  .zp { display:none;position:absolute;top:0;left:0;right:0;aspect-ratio:1;border:2px solid var(--accent);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.1);z-index:20; }
-  .zp img { position:absolute;top:0;left:0; }
+  .rcol { position: relative; }
+  .zp { 
+    display: none; 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    aspect-ratio: 1; 
+    border: 2px solid var(--accent); 
+    border-radius: 10px; 
+    overflow: hidden; 
+    background: #fff; 
+    box-shadow: 0 4px 24px rgba(0,0,0,.1); 
+    z-index: 20; 
+  }
+  .zp img { position: absolute; top: 0; left: 0; }
 
   /* ── Product info ── */
-  .p-cat { font-size:.72rem;color:var(--muted);margin-bottom:.3rem; }
-  .p-title { font-size:1.15rem;font-weight:800;line-height:1.25;margin-bottom:.35rem; }
-  .p-stars { margin-bottom:.35rem;font-size:.85rem; }
-  .p-price { font-size:1.4rem;font-weight:800;color:var(--accent);margin-bottom:.7rem; }
+  .p-cat { font-size: .72rem; color: var(--muted); margin-bottom: .3rem; }
+  .p-title { font-size: 1.15rem; font-weight: 800; line-height: 1.25; margin-bottom: .35rem; }
+  .p-stars { margin-bottom: .35rem; font-size: .85rem; }
+  .p-price { font-size: 1.4rem; font-weight: 800; color: var(--accent); margin-bottom: .7rem; }
 
   /* ── Fav ── */
-  .fav-r { display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem; }
-  .fav-b { display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .7rem;border-radius:99px;font-size:.78rem;font-weight:600;border:1px solid var(--border);background:#fff;cursor:pointer;transition:all .1s; }
-  .fav-b:hover { border-color:#ef4444;background:#fef2f2; }
-  .fav-b.on { background:#fef2f2;border-color:#ef4444;color:#ef4444; }
-  .fav-c { font-size:.72rem;color:var(--muted); }
+  .fav-r { display: flex; align-items: center; gap: .5rem; margin-bottom: .7rem; }
+  .fav-b { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: .3rem; 
+    padding: .35rem .7rem; 
+    border-radius: 99px; 
+    font-size: .78rem; 
+    font-weight: 600; 
+    border: 1px solid var(--border); 
+    background: #fff; 
+    cursor: pointer; 
+    transition: all .1s; 
+  }
+  .fav-b:hover { border-color: #ef4444; background: #fef2f2; }
+  .fav-b.on { background: #fef2f2; border-color: #ef4444; color: #ef4444; }
+  .fav-c { font-size: .72rem; color: var(--muted); }
 
   /* ── Stat boxes ── */
-  .sr { display:flex;gap:.45rem;margin-bottom:.75rem; }
-  .sb { flex:1;padding:.4rem .5rem;border-radius:6px;text-align:center;border:1px solid var(--border); }
-  .sb-v { font-size:.88rem;font-weight:800;font-family:monospace; }
-  .sb-l { font-size:.6rem;color:var(--muted);margin-top:.05rem; }
+  .sr { display: flex; gap: .45rem; margin-bottom: .75rem; }
+  .sb { flex: 1; padding: .4rem .5rem; border-radius: 6px; text-align: center; border: 1px solid var(--border); }
+  .sb-v { font-size: .88rem; font-weight: 800; font-family: monospace; }
+  .sb-l { font-size: .6rem; color: var(--muted); margin-top: .05rem; }
 
-  .p-desc { color:var(--muted);font-size:.8rem;line-height:1.6;margin-bottom:.75rem; }
+  .p-desc { color: var(--muted); font-size: .8rem; line-height: 1.6; margin-bottom: .75rem; }
 
   /* ── Add to cart ── */
-  .qty-r { display:flex;gap:.4rem;align-items:center;margin-bottom:.6rem; }
-  .qty-r label { font-size:.78rem;font-weight:600;min-width:50px; }
-  .qty-i { width:62px;padding:.35rem .4rem;border:1px solid var(--border);border-radius:6px;font-size:.85rem;text-align:center; }
-  .btn-c { width:100%;padding:.6rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.88rem;font-weight:700;cursor:pointer;transition:background .1s; }
-  .btn-c:hover { background:var(--accent2); }
-  .btn-c:disabled { opacity:.4;cursor:not-allowed; }
+  .qty-r { display: flex; gap: .4rem; align-items: center; margin-bottom: .6rem; }
+  .qty-r label { font-size: .78rem; font-weight: 600; min-width: 50px; }
+  .qty-i { width: 62px; padding: .35rem .4rem; border: 1px solid var(--border); border-radius: 6px; font-size: .85rem; text-align: center; }
+  .btn-c { width: 100%; padding: .6rem; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: .88rem; font-weight: 700; cursor: pointer; transition: background .1s; }
+  .btn-c:hover { background: var(--accent2); }
+  .btn-c:disabled { opacity: .4; cursor: not-allowed; }
 
   /* ── Reviews ── */
-  .rv { margin-top:1.5rem; }
-  .rv-t { font-size:.92rem;font-weight:700;margin-bottom:.65rem; }
-  .rv-form { display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap;padding:.85rem;margin-bottom:.85rem;background:#fff;border:1px solid var(--border);border-radius:8px; }
-  .rv-card { padding:.7rem;margin-bottom:.4rem;background:#fff;border:1px solid var(--border);border-radius:7px; }
-  .rv-head { display:flex;justify-content:space-between;align-items:center;margin-bottom:.15rem; }
-  .rv-name { font-weight:600;font-size:.8rem; }
-  .rv-txt { color:var(--muted);font-size:.78rem;line-height:1.45; }
-  .rv-dt { font-size:.64rem;color:var(--muted);margin-top:.15rem; }
+  .rv { margin-top: 1.5rem; }
+  .rv-t { font-size: .92rem; font-weight: 700; margin-bottom: .65rem; }
+  .rv-form { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; padding: .85rem; margin-bottom: .85rem; background: #fff; border: 1px solid var(--border); border-radius: 8px; }
+  .rv-card { padding: .7rem; margin-bottom: .4rem; background: #fff; border: 1px solid var(--border); border-radius: 7px; }
+  .rv-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .15rem; }
+  .rv-name { font-weight: 600; font-size: .8rem; }
+  .rv-txt { color: var(--muted); font-size: .78rem; line-height: 1.45; }
+  .rv-dt { font-size: .64rem; color: var(--muted); margin-top: .15rem; }
 
   /* ── Related ── */
-  .rl { margin-top:1.5rem; }
-  .rl-t { font-size:.92rem;font-weight:700;margin-bottom:.65rem;display:flex;align-items:center;gap:.35rem; }
-  .rl-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.7rem; }
-  .rl-card { border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;transition:transform .1s,box-shadow .1s; }
-  .rl-card:hover { transform:translateY(-1px);box-shadow:0 3px 12px rgba(0,0,0,.05); }
-  .rl-img { width:100%;aspect-ratio:1;object-fit:cover;background:var(--surface); }
-  .rl-ph { width:100%;aspect-ratio:1;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#d1d5db; }
-  .rl-body { padding:.4rem .55rem; }
-  .rl-name { font-size:.72rem;font-weight:600;margin-bottom:.1rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
-  .rl-price { font-size:.8rem;font-weight:800;color:var(--accent); }
+  .rl { margin-top: 1.5rem; }
+  .rl-t { font-size: .92rem; font-weight: 700; margin-bottom: .65rem; display: flex; align-items: center; gap: .35rem; }
+  .rl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: .7rem; }
+  .rl-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; text-decoration: none; color: inherit; transition: transform .1s, box-shadow .1s; }
+  .rl-card:hover { transform: translateY(-1px); box-shadow: 0 3px 12px rgba(0,0,0,.05); }
+  .rl-img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--surface); }
+  .rl-ph { width: 100%; aspect-ratio: 1; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #d1d5db; }
+  .rl-body { padding: .4rem .55rem; }
+  .rl-name { font-size: .72rem; font-weight: 600; margin-bottom: .1rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rl-price { font-size: .8rem; font-weight: 800; color: var(--accent); }
 
   /* ── Responsive ── */
-  @media(max-width:900px) {
-    .pg { grid-template-columns:1fr;gap:.85rem; }
-    .zp,.lens { display:none !important; }
-    .iw { cursor:zoom-in; }
-    .iw-hint { display:none; }
+  @media(max-width: 900px) {
+    .pg { grid-template-columns: 1fr; gap: .85rem; }
+    .zp, .lens { display: none !important; }
+    .iw { cursor: zoom-in; }
+    .iw-hint { display: none; }
   }
-  @media(max-width:640px) {
-    .sr { flex-wrap:wrap; }
-    .sb { min-width:calc(50% - .25rem); }
-    .fav-r { flex-direction:column;align-items:flex-start;gap:.25rem; }
-    .rl-grid { grid-template-columns:repeat(2,1fr);gap:.5rem; }
-    .rv-form { flex-direction:column;align-items:stretch; }
+  @media(max-width: 640px) {
+    .sr { flex-wrap: wrap; }
+    .sb { min-width: calc(50% - .25rem); }
+    .fav-r { flex-direction: column; align-items: flex-start; gap: .25rem; }
+    .rl-grid { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+    .rv-form { flex-direction: column; align-items: stretch; }
   }
-  @media(max-width:380px) {
-    .sr { flex-direction:column; }
-    .sb { min-width:100%; }
+  @media(max-width: 380px) {
+    .sr { flex-direction: column; }
+    .sb { min-width: 100%; }
   }
 </style>
 {% endblock %}
@@ -98,42 +174,69 @@
 {% block content %}
 
 <div class="crumb">
-  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}">Boutique</a><span class="s">›</span>
+  <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}">Boutique</a>
+  <span class="s">›</span>
   {% if product.category %}
-  <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=product.category_id) }}">{{ product.category.icone }} {{ product.category.nom }}</a><span class="s">›</span>
+    <a href="{{ url_for('shop.home', slug=tenant.shop_slug, cat=product.category_id) }}">{{ product.category.icone }} {{ product.category.nom }}</a>
+    <span class="s">›</span>
   {% endif %}
-  <span style="color:var(--text);">{{ product.designation }}</span>
+  <span style="color: var(--text);">{{ product.designation }}</span>
 </div>
 
 <div class="pg">
-  <!-- Image -->
   <div>
-    {% if product.image_url %}
-    <div class="iw" id="imgWrap">
-      <img src="{{ product.image_url }}" id="mainImg" alt="{{ product.designation }}">
-      <div class="lens" id="lens"></div>
-    </div>
-    
+    {% set all_images = [] %}
+    {% if product.image_url %}{% set _ = all_images.append(product.image_url) %}{% endif %}
+    {% for ei in product.extra_images.all() %}{% set _ = all_images.append(ei.image_url) %}{% endfor %}
+
+    {% if all_images %}
+      <div class="iw" id="imgWrap">
+        <img src="{{ all_images[0] }}" id="mainImg" alt="{{ product.designation }}">
+        <div class="lens" id="lens"></div>
+      </div>
+      
+
+      {% if all_images|length > 1 %}
+        <div style="display: flex; gap: .5rem; margin-top: .65rem; overflow-x: auto; scrollbar-width: none;">
+          {% for img_url in all_images %}
+            <img src="{{ img_url }}" 
+                 onclick="switchMain('{{ img_url }}')"
+                 style="width: 60px; height: 60px; object-fit: cover; border-radius: 7px; cursor: pointer; border: 2px solid {% if loop.first %}var(--accent){% else %}var(--border){% endif %}; flex-shrink: 0; transition: border-color .12s;"
+                 class="thumb-img {% if loop.first %}active-thumb{% endif %}"
+                 alt="">
+          {% endfor %}
+        </div>
+      {% endif %}
     {% else %}
-    <div class="iw-ph">📦</div>
+      <div class="iw-ph">📦</div>
     {% endif %}
   </div>
 
-  <!-- Infos -->
   <div class="rcol">
-    <div class="zp" id="zoomPanel"><img src="{{ product.image_url or '' }}" id="zoomImg"></div>
+    <div class="zp" id="zoomPanel">
+      <img src="{{ product.image_url or '' }}" id="zoomImg" alt="">
+    </div>
 
-    {% if product.category %}<div class="p-cat">{{ product.category.icone }} {{ product.category.nom }}</div>{% endif %}
+    {% if product.category %}
+      <div class="p-cat">{{ product.category.icone }} {{ product.category.nom }}</div>
+    {% endif %}
+    
     <h1 class="p-title">{{ product.designation }}</h1>
 
     <div class="p-stars">
-      <span class="stars">{% for i in range(1,6) %}{% if i <= avg_rating|round %}★{% else %}<span class="stars-empty">★</span>{% endif %}{% endfor %}</span>
-      <span style="color:var(--muted);font-size:.72rem;">({{ reviews|length }})</span>
+      <span class="stars">
+        {% for i in range(1, 6) %}
+          {% if i <= avg_rating|round %}★{% else %}<span class="stars-empty">★</span>{% endif %}
+        {% endfor %}
+      </span>
+      <span style="color: var(--muted); font-size: .72rem;">({{ reviews|length }})</span>
     </div>
 
     <div class="fav-r">
-      <form method="POST" action="{{ url_for('shop.toggle_favorite', slug=tenant.shop_slug, pid=product.id) }}" style="margin:0;">
-        <button type="submit" class="fav-b {% if is_fav %}on{% endif %}">{% if is_fav %}❤️ Favori{% else %}🤍 Favoris{% endif %}</button>
+      <form method="POST" action="{{ url_for('shop.toggle_favorite', slug=tenant.shop_slug, pid=product.id) }}" style="margin: 0;">
+        <button type="submit" class="fav-b {% if is_fav %}on{% endif %}">
+          {% if is_fav %}❤️ Favori{% else %}🤍 Favoris{% endif %}
+        </button>
       </form>
       <span class="fav-c">❤️ {{ fav_count }}</span>
     </div>
@@ -142,87 +245,109 @@
 
     {% set stock_total = product.total_stock_entrepot %}
     <div class="sr">
-      <div class="sb" style="{% if stock_total > 3 %}background:#f0fdf4;border-color:#bbf7d0{% elif stock_total > 0 %}background:#fffbeb;border-color:#fde68a{% else %}background:#fef2f2;border-color:#fecaca{% endif %}">
-        <div class="sb-v" style="color:{% if stock_total > 3 %}#16a34a{% elif stock_total > 0 %}#f59e0b{% else %}#dc2626{% endif %}">{% if stock_total > 3 %}✓ Stock{% elif stock_total > 0 %}⚠ {{ stock_total }}{% else %}✕ Rupture{% endif %}</div>
+      <div class="sb" style="{% if stock_total > 3 %}background: #f0fdf4; border-color: #bbf7d0{% elif stock_total > 0 %}background: #fffbeb; border-color: #fde68a{% else %}background: #fef2f2; border-color: #fecaca{% endif %}">
+        <div class="sb-v" style="color: {% if stock_total > 3 %}#16a34a{% elif stock_total > 0 %}#f59e0b{% else %}#dc2626{% endif %}">
+          {% if stock_total > 3 %}✓ Stock{% elif stock_total > 0 %}⚠ {{ stock_total }}{% else %}✕ Rupture{% endif %}
+        </div>
         <div class="sb-l">Disponibilité</div>
       </div>
-      <div class="sb"><div class="sb-v">{{ fav_count }}</div><div class="sb-l">❤️ Favoris</div></div>
-      <div class="sb"><div class="sb-v">{{ reviews|length }}</div><div class="sb-l">⭐ Avis</div></div>
+      <div class="sb">
+        <div class="sb-v">{{ fav_count }}</div>
+        <div class="sb-l">❤️ Favoris</div>
+      </div>
+      <div class="sb">
+        <div class="sb-v">{{ reviews|length }}</div>
+        <div class="sb-l">⭐ Avis</div>
+      </div>
     </div>
 
-    {% if product.description %}<p class="p-desc">{{ product.description }}</p>{% endif %}
+    {% if product.description %}
+      <p class="p-desc">{{ product.description }}</p>
+    {% endif %}
 
     <form method="POST" action="{{ url_for('shop.add_to_cart', slug=tenant.shop_slug) }}">
       <input type="hidden" name="product_id" value="{{ product.id }}">
       {% if variants %}
-      <div class="form-group" style="margin-bottom:.5rem;">
-        <label class="form-label" style="font-size:.78rem;">Variante</label>
-        <select name="variant_id" class="form-control" required style="font-size:.82rem;padding:.4rem;">
-          {% for v in variants %}
-          <option value="{{ v.id }}">{{ v.attributs_display }} — {{ v.prix_vente_ttc|int }} FCFA</option>
-          {% endfor %}
-        </select>
-      </div>
+        <div class="form-group" style="margin-bottom: .5rem;">
+          <label class="form-label" style="font-size: .78rem;">Variante</label>
+          <select name="variant_id" class="form-control" required style="font-size: .82rem; padding: .4rem;">
+            {% for v in variants %}
+              <option value="{{ v.id }}">{{ v.attributs_display }} — {{ v.prix_vente_ttc|int }} FCFA</option>
+            {% endfor %}
+          </select>
+        </div>
       {% endif %}
+      
       <div class="qty-r">
         <label>Quantité</label>
         <input type="number" name="quantity" value="1" min="1" max="{{ stock_total }}" class="qty-i">
       </div>
+      
       {% if stock_total > 0 %}
-      <button type="submit" class="btn-c">🛒 Ajouter au panier</button>
+        <button type="submit" class="btn-c">🛒 Ajouter au panier</button>
       {% else %}
-      <button type="button" class="btn-c" disabled>Rupture de stock</button>
+        <button type="button" class="btn-c" disabled>Rupture de stock</button>
       {% endif %}
     </form>
   </div>
 </div>
 
-<!-- Avis -->
 <div class="rv">
   <div class="rv-t">⭐ Avis clients ({{ reviews|length }})</div>
   {% if customer %}
-  <form method="POST" action="{{ url_for('shop.add_review', slug=tenant.shop_slug, pid=product.id) }}" class="rv-form">
-    <div class="form-group" style="margin:0;">
-      <label class="form-label" style="font-size:.75rem;">Note</label>
-      <select name="rating" class="form-control" style="width:110px;font-size:.82rem;padding:.35rem;">
-        <option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option>
-      </select>
-    </div>
-    <div class="form-group" style="margin:0;flex:1;min-width:180px;">
-      <label class="form-label" style="font-size:.75rem;">Commentaire</label>
-      <input name="comment" class="form-control" placeholder="Votre avis…" style="font-size:.82rem;padding:.35rem .5rem;">
-    </div>
-    <button type="submit" class="btn btn-primary" style="padding:.4rem .85rem;font-size:.78rem;">Envoyer</button>
-  </form>
+    <form method="POST" action="{{ url_for('shop.add_review', slug=tenant.shop_slug, pid=product.id) }}" class="rv-form">
+      <div class="form-group" style="margin: 0;">
+        <label class="form-label" style="font-size: .75rem;">Note</label>
+        <select name="rating" class="form-control" style="width: 110px; font-size: .82rem; padding: .35rem;">
+          <option value="5">★★★★★</option>
+          <option value="4">★★★★☆</option>
+          <option value="3">★★★☆☆</option>
+          <option value="2">★★☆☆☆</option>
+          <option value="1">★☆☆☆☆</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin: 0; flex: 1; min-width: 180px;">
+        <label class="form-label" style="font-size: .75rem;">Commentaire</label>
+        <input name="comment" class="form-control" placeholder="Votre avis…" style="font-size: .82rem; padding: .35rem .5rem;">
+      </div>
+      <button type="submit" class="btn btn-primary" style="padding: .4rem .85rem; font-size: .78rem;">Envoyer</button>
+    </form>
   {% endif %}
+  
   {% for r in reviews %}
-  <div class="rv-card">
-    <div class="rv-head">
-      <span class="rv-name">{{ r.customer.full_name }}</span>
-      <span class="stars" style="font-size:.75rem;">{% for i in range(r.rating) %}★{% endfor %}<span class="stars-empty">{% for i in range(5-r.rating) %}★{% endfor %}</span></span>
+    <div class="rv-card">
+      <div class="rv-head">
+        <span class="rv-name">{{ r.customer.full_name }}</span>
+        <span class="stars" style="font-size: .75rem;">
+          {% for i in range(r.rating) %}★{% endfor %}<span class="stars-empty">{% for i in range(5 - r.rating) %}★{% endfor %}</span>
+        </span>
+      </div>
+      {% if r.comment %}
+        <p class="rv-txt">{{ r.comment }}</p>
+      {% endif %}
+      <div class="rv-dt">{{ r.created_at.strftime('%d/%m/%Y') }}</div>
     </div>
-    {% if r.comment %}<p class="rv-txt">{{ r.comment }}</p>{% endif %}
-    <div class="rv-dt">{{ r.created_at.strftime('%d/%m/%Y') }}</div>
-  </div>
   {% else %}
-  <p style="color:var(--muted);font-size:.8rem;">Aucun avis.</p>
+    <p style="color: var(--muted); font-size: .8rem;">Aucun avis.</p>
   {% endfor %}
 </div>
 
-<!-- Produits similaires -->
 {% if related_products %}
 <div class="rl">
   <div class="rl-t">{% if product.category %}{{ product.category.icone }}{% endif %} Vous pourriez aussi aimer</div>
   <div class="rl-grid">
     {% for rp in related_products %}
-    <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=rp.id) }}" class="rl-card">
-      {% if rp.image_url %}<img src="{{ rp.image_url }}" class="rl-img" alt="{{ rp.designation }}" loading="lazy">
-      {% else %}<div class="rl-ph">📦</div>{% endif %}
-      <div class="rl-body">
-        <div class="rl-name">{{ rp.designation }}</div>
-        <div class="rl-price">{{ (rp.prix_vente_ttc or 0)|int }} FCFA</div>
-      </div>
-    </a>
+      <a href="{{ url_for('shop.product_detail', slug=tenant.shop_slug, pid=rp.id) }}" class="rl-card">
+        {% if rp.image_url %}
+          <img src="{{ rp.image_url }}" class="rl-img" alt="{{ rp.designation }}" loading="lazy">
+        {% else %}
+          <div class="rl-ph">📦</div>
+        {% endif %}
+        <div class="rl-body">
+          <div class="rl-name">{{ rp.designation }}</div>
+          <div class="rl-price">{{ (rp.prix_vente_ttc or 0)|int }} FCFA</div>
+        </div>
+      </a>
     {% endfor %}
   </div>
 </div>
@@ -233,14 +358,67 @@
 {% block scripts %}
 <script>
 (function(){
-  var w=document.getElementById('imgWrap');if(!w)return;
-  var img=document.getElementById('mainImg'),lens=document.getElementById('lens'),
-      pan=document.getElementById('zoomPanel'),zi=document.getElementById('zoomImg'),
-      Z=3,LR=45;
-  w.onmouseenter=function(){if(innerWidth<=900)return;lens.style.display='block';pan.style.display='block';var r=w.getBoundingClientRect();pan.style.width=r.width+'px';pan.style.height=r.height+'px';zi.style.width=r.width*Z+'px';zi.style.height=r.height*Z+'px';};
-  w.onmouseleave=function(){lens.style.display='none';pan.style.display='none';};
-  w.onmousemove=function(e){if(innerWidth<=900)return;var r=w.getBoundingClientRect(),x=Math.max(LR,Math.min(r.width-LR,e.clientX-r.left)),y=Math.max(LR,Math.min(r.height-LR,e.clientY-r.top));lens.style.left=x-LR+'px';lens.style.top=y-LR+'px';zi.style.left=-(x/r.width*r.width*Z-pan.offsetWidth/2)+'px';zi.style.top=-(y/r.height*r.height*Z-pan.offsetHeight/2)+'px';};
-  w.onclick=function(){if(innerWidth>900)return;var m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:.75rem;';m.innerHTML='<img src="'+img.src+'" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;">';m.onclick=function(){m.remove();};document.body.appendChild(m);};
+  var w = document.getElementById('imgWrap'); if(!w) return;
+  var img = document.getElementById('mainImg'),
+      lens = document.getElementById('lens'),
+      pan = document.getElementById('zoomPanel'),
+      zi = document.getElementById('zoomImg'),
+      Z = 3, 
+      LR = 45;
+
+  w.onmouseenter = function() {
+    if(innerWidth <= 900) return;
+    lens.style.display = 'block';
+    pan.style.display = 'block';
+    var r = w.getBoundingClientRect();
+    pan.style.width = r.width + 'px';
+    pan.style.height = r.height + 'px';
+    zi.style.width = (r.width * Z) + 'px';
+    zi.style.height = (r.height * Z) + 'px';
+  };
+
+  w.onmouseleave = function() {
+    lens.style.display = 'none';
+    pan.style.display = 'none';
+  };
+
+  w.onmousemove = function(e) {
+    if(innerWidth <= 900) return;
+    var r = w.getBoundingClientRect(),
+        x = Math.max(LR, Math.min(r.width - LR, e.clientX - r.left)),
+        y = Math.max(LR, Math.min(r.height - LR, e.clientY - r.top));
+    
+    lens.style.left = (x - LR) + 'px';
+    lens.style.top = (y - LR) + 'px';
+    zi.style.left = -(x / r.width * r.width * Z - pan.offsetWidth / 2) + 'px';
+    zi.style.top = -(y / r.height * r.height * Z - pan.offsetHeight / 2) + 'px';
+  };
+
+  w.onclick = function() {
+    if(innerWidth > 900) return;
+    var m = document.createElement('div');
+    m.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:1000; display:flex; align-items:center; justify-content:center; cursor:zoom-out; padding:.75rem;';
+    m.innerHTML = '<img src="' + img.src + '" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:6px;">';
+    m.onclick = function() { m.remove(); };
+    document.body.appendChild(m);
+  };
 })();
+
+function switchMain(url) {
+  document.getElementById('mainImg').src = url;
+  document.getElementById('zoomImg').src = url;
+  
+  document.querySelectorAll('.thumb-img').forEach(t => {
+    // Normalise les chemins pour éviter les erreurs de comparaison (ex: relatif vs absolu)
+    var isCurrent = t.getAttribute('src') === url || t.src === url;
+    t.style.borderColor = isCurrent ? 'var(--accent)' : 'var(--border)';
+    if(isCurrent) {
+      t.classList.add('active-thumb');
+    } else {
+      t.classList.remove('active-thumb');
+    }
+  });
+}
 </script>
 {% endblock %}
+

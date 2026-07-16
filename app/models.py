@@ -365,6 +365,24 @@ class Product(db.Model):
 
     def __repr__(self): return f'<Product {self.designation}>'
 
+# images suplementaires
+class ProductImage(db.Model):
+    __tablename__ = 'product_images'
+    id         = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    filename   = db.Column(db.String(255), nullable=False)
+    order_num  = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    product = db.relationship('Product', backref=db.backref('extra_images', lazy='dynamic', order_by='ProductImage.order_num'))
+
+    @property
+    def image_url(self):
+        if not self.filename:
+            return None
+        if self.filename.startswith('http') or self.filename.startswith('/static/'):
+            return self.filename
+        return f'/static/uploads/products/{self.filename}'
 
 # ─────────────────────────────────────────
 # PRODUCT VARIANT
