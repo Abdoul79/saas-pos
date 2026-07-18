@@ -670,3 +670,64 @@ def cart_count(slug):
     return jsonify({'count': sum(i['qty'] for i in cart)})
 
 
+#for google claude connexion automatique
+# ── GOOGLE OAUTH ───────────────────────────────────────────────────────────
+from authlib.integrations.flask_client import OAuth as _OAuth
+import os
+
+_oauth = _OAuth()
+
+def _get_google(app=None):
+    from flask import current_app
+    _oauth.init_app(current_app)
+    google = _oauth.register(
+        name='google',
+        client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+        client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'},
+    )
+    return google
+
+@shop_bp.route('/<slug>/login/google')
+def google_login(slug):
+    t = _get_tenant(slug)
+    session['google_slug'] = slug
+    callback_url = url_for('shop.google_callback', _external=True)
+    return _get_google().authorize_redirect(callback_url)
+
+@shop_bp.route('/google/callback')
+def google_callback():
+    slug = session.pop('google_slug', None)
+    if not slug:
+        abort(400)
+    t = _get_tenant(slug)
+    try:
+        token = _get_google().authorize_access_token()
+        info  = token.get('userinfo') or _get_google().userinfo()
+    except Exception as e:
+        flash(f'Erreur Google : {e}', 'danger')
+        return redirect(url_for('shop.login', slug=slug))
+
+    email  = info.get('email', '').lower()
+    prenom = info.get('given_name', '')
+    nom    = info.get('family_name', '')
+
+    # Trouver ou créer le compte client
+    c = OnlineCustomer.query.filter_by(tenant_id=t.id, email=email).first()
+    if not c:
+        c = OnlineCustomer(
+            tenant_id=t.id,
+            email=email,
+            prenom=prenom,
+            nom=nom,
+        )
+        c.set_password(secrets.token_hex(16))  # mot de passe aléatoire
+        db.session.add(c)
+        db.session.commit()
+        flash(f'Compte créé avec succès, bienvenue {prenom} !', 'success')
+    else:
+        flash(f'Bienvenue {c.prenom} !', 'success')
+
+    session[f'shop_customer_{t.id}'] = c.id
+    return redirect(url_for('shop.home', slug=slug))
