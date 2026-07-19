@@ -154,6 +154,26 @@ def shop_qr():
     return Response(buf.getvalue(), mimetype='image/png',
                     headers={'Content-Disposition': f'inline; filename=qr-{t.shop_slug}.png'})
 
+# carte viiste de la boutique
+@online_bp.route('/carte-visite')
+@_mgr
+def business_card():
+    """Page carte de visite avec QR code - téléchargeable."""
+    import qrcode, io, base64
+    t = current_user.tenant
+    if not t.shop_slug:
+        flash('Configurez votre slug d\'abord.', 'warning')
+        return redirect(url_for('online.settings'))
+    url = request.host_url.rstrip('/') + f'/shop/{t.shop_slug}'
+    qr = qrcode.QRCode(box_size=7, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='#1e293b', back_color='white')
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    return render_template('manager/online/business_card.html',
+                           tenant=t, qr_b64=qr_b64, shop_url=url)
 
 # ── COMMANDES ──────────────────────────────────────────────────────────────
 

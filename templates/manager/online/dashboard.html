@@ -71,11 +71,19 @@
          class="btn btn-sm" style="background:#06b6d422;color:#06b6d4;border:1px solid #06b6d444;font-size:.7rem;">
         ⬇ QR Code
       </a>
+      <a href="{{ url_for('online.business_card') }}" 
+  class="btn btn-sm" 
+   style="background:#a78bfa22;color:#a78bfa;border:1px solid #a78bfa44;font-size:.7rem;"
+   target="_blank">
+  🪪 Carte de visite
+</a>
     </div>
   </div>
   {% else %}
   <div class="oh-url" style="color:#f59e0b;">⚠ Configurez votre slug dans Paramètres</div>
   {% endif %}
+
+
 
 
   <div style="position:absolute;top:1rem;right:1.25rem;display:flex;gap:.5rem;">

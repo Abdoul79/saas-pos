@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Carte de visite — {{ tenant.nom_boutique or tenant.activite }}</title>
+  <style>
+    * { box-sizing:border-box;margin:0;padding:0; }
+    body { font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem; }
+
+    .no-print { margin-bottom:1.5rem;display:flex;gap:.65rem;flex-wrap:wrap;justify-content:center; }
+    .btn { padding:.55rem 1.25rem;border-radius:8px;border:none;font-size:.88rem;font-weight:600;cursor:pointer; }
+    .btn-print { background:#1e293b;color:#fff; }
+    .btn-dl { background:#f5a623;color:#fff; }
+    .btn-back { background:#e2e8f0;color:#374151;text-decoration:none;display:inline-flex;align-items:center; }
+
+    @media print {
+      .no-print { display:none !important; }
+      body { background:#fff;padding:0;justify-content:flex-start; }
+    }
+
+    /* ── Carte recto ── */
+    .card-wrap {
+      display:flex;flex-direction:column;gap:1.5rem;
+      align-items:center;
+    }
+
+    .biz-card {
+      width:85.6mm;height:54mm;
+      border-radius:5mm;
+      display:flex;
+      overflow:hidden;
+      box-shadow:0 8px 32px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);
+      page-break-inside:avoid;
+    }
+
+    /* Bande gauche colorée */
+    .card-accent {
+      width:10mm;
+      background:linear-gradient(180deg,#f5a623,#f97316);
+      flex-shrink:0;
+    }
+
+    /* Corps de la carte */
+    .card-body {
+      flex:1;
+      background:#fff;
+      padding:5mm 5mm 4mm 5mm;
+      display:flex;
+      gap:3mm;
+    }
+
+    /* Infos */
+    .card-info {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+    }
+
+    .card-shop-name {
+      font-size:12pt;
+      font-weight:800;
+      color:#1e293b;
+      line-height:1.2;
+      margin-bottom:1.5mm;
+    }
+
+    .card-person {
+      font-size:8.5pt;
+      color:#f5a623;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.4px;
+      margin-bottom:3mm;
+    }
+
+    .card-divider {
+      height:0.5mm;
+      background:linear-gradient(90deg,#f5a623,transparent);
+      margin-bottom:3mm;
+    }
+
+    .card-contact { display:flex;flex-direction:column;gap:1.5mm; }
+    .card-contact-row {
+      display:flex;align-items:center;gap:1.5mm;
+      font-size:7.5pt;color:#475569;
+    }
+    .contact-ico { font-size:8pt;flex-shrink:0; }
+
+    .card-url {
+      font-size:6.5pt;
+      color:#94a3b8;
+      margin-top:2mm;
+      font-family:monospace;
+    }
+
+    /* QR */
+    .card-qr {
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5mm;
+      flex-shrink:0;
+    }
+    .card-qr img {
+      width:19mm;height:19mm;
+      border:1px solid #e2e8f0;
+      border-radius:2mm;
+      padding:1mm;
+      background:#fff;
+    }
+    .card-qr-label { font-size:5pt;color:#94a3b8;text-align:center;white-space:nowrap; }
+
+    /* ── Variante sombre ── */
+    .biz-card.dark .card-accent { background:linear-gradient(180deg,#1e293b,#0f172a); }
+    .biz-card.dark .card-body { background:#1e293b; }
+    .biz-card.dark .card-shop-name { color:#e2e8f0; }
+    .biz-card.dark .card-divider { background:linear-gradient(90deg,#f5a623,transparent); }
+    .biz-card.dark .card-contact-row { color:#94a3b8; }
+    .biz-card.dark .card-url { color:#475569; }
+    .biz-card.dark .card-qr img { border-color:#334155;background:#1e293b; }
+
+    .card-label {
+      font-size:.72rem;color:#94a3b8;text-align:center;
+      margin-top:.35rem;font-style:italic;
+    }
+
+    @media print {
+      .card-wrap { flex-direction:row;flex-wrap:wrap;gap:8mm;justify-content:center; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="no-print">
+  <a href="{{ url_for('online.dashboard') }}" class="btn btn-back">← Dashboard</a>
+  <button class="btn btn-print" onclick="window.print()">🖨 Imprimer</button>
+  <button class="btn btn-dl" onclick="downloadCard()">⬇ Télécharger PNG</button>
+</div>
+
+<div class="card-wrap" id="cardWrap">
+
+  <!-- Carte CLAIRE -->
+  <div>
+    <div class="biz-card" id="card-light">
+      <div class="card-accent"></div>
+      <div class="card-body">
+        <div class="card-info">
+          <div>
+            <div class="card-shop-name">{{ tenant.nom_boutique or tenant.activite }}</div>
+            {% if tenant.nom_boutique and tenant.activite %}
+            <div class="card-person">{{ tenant.activite }}</div>
+            {% endif %}
+            <div class="card-person" style="color:#64748b;text-transform:none;font-size:7.5pt;font-weight:600;">
+              {{ tenant.prenom }} {{ tenant.nom }}
+            </div>
+            <div class="card-divider"></div>
+          </div>
+          <div class="card-contact">
+            {% if tenant.adresse %}
+            <div class="card-contact-row"><span class="contact-ico">📍</span>{{ tenant.adresse }}{% if tenant.ville %}, {{ tenant.ville }}{% endif %}</div>
+            {% endif %}
+            {% if tenant.shop_whatsapp %}
+            <div class="card-contact-row"><span class="contact-ico">💬</span>WhatsApp : {{ tenant.shop_whatsapp }}</div>
+            {% endif %}
+            {% if tenant.telephone_entreprise %}
+            <div class="card-contact-row"><span class="contact-ico">📞</span>{{ tenant.telephone_entreprise }}</div>
+            {% endif %}
+            {% if tenant.email %}
+            <div class="card-contact-row"><span class="contact-ico">✉</span>{{ tenant.email }}</div>
+            {% endif %}
+          </div>
+          <div class="card-url">🛒 {{ shop_url }}</div>
+        </div>
+        <div class="card-qr">
+          <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+          <div class="card-qr-label">Scanner pour<br>visiter la boutique</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-label">Version claire</div>
+  </div>
+
+  <!-- Carte SOMBRE -->
+  <div>
+    <div class="biz-card dark" id="card-dark">
+      <div class="card-accent"></div>
+      <div class="card-body">
+        <div class="card-info">
+          <div>
+            <div class="card-shop-name">{{ tenant.nom_boutique or tenant.activite }}</div>
+            {% if tenant.nom_boutique and tenant.activite %}
+            <div class="card-person">{{ tenant.activite }}</div>
+            {% endif %}
+            <div class="card-person" style="color:#64748b;text-transform:none;font-size:7.5pt;font-weight:600;">
+              {{ tenant.prenom }} {{ tenant.nom }}
+            </div>
+            <div class="card-divider"></div>
+          </div>
+          <div class="card-contact">
+            {% if tenant.adresse %}
+            <div class="card-contact-row"><span class="contact-ico">📍</span>{{ tenant.adresse }}{% if tenant.ville %}, {{ tenant.ville }}{% endif %}</div>
+            {% endif %}
+            {% if tenant.shop_whatsapp %}
+            <div class="card-contact-row"><span class="contact-ico">💬</span>WhatsApp : {{ tenant.shop_whatsapp }}</div>
+            {% endif %}
+            {% if tenant.telephone_entreprise %}
+            <div class="card-contact-row"><span class="contact-ico">📞</span>{{ tenant.telephone_entreprise }}</div>
+            {% endif %}
+            {% if tenant.email %}
+            <div class="card-contact-row"><span class="contact-ico">✉</span>{{ tenant.email }}</div>
+            {% endif %}
+          </div>
+          <div class="card-url">🛒 {{ shop_url }}</div>
+        </div>
+        <div class="card-qr">
+          <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+          <div class="card-qr-label" style="color:#475569;">Scanner pour<br>visiter la boutique</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-label">Version sombre</div>
+  </div>
+
+</div>
+
+<script>
+async function downloadCard() {
+  // Utilise html2canvas si disponible, sinon ouvre en print
+  if (typeof html2canvas === 'undefined') {
+    alert('Utilisez le bouton Imprimer et sauvegardez en PDF depuis votre navigateur.');
+    window.print();
+    return;
+  }
+  var card = document.getElementById('card-light');
+  var canvas = await html2canvas(card, {scale:4, useCORS:true, backgroundColor:null});
+  var a = document.createElement('a');
+  a.download = 'carte-visite-{{ tenant.shop_slug or "boutique" }}.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+</script>
+<!-- html2canvas pour export PNG -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+</body>
+</html>
