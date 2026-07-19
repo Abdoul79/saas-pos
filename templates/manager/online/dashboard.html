@@ -55,21 +55,36 @@
     🌐 Boutique en Ligne
     <span class="badge badge-green" style="font-size:.7rem;">Active</span>
   </div>
+
   {% if tenant.shop_slug %}
-  <div class="oh-url">
-    <a href="{{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }}" target="_blank" style="color:#06b6d4;">
-      {{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }} ↗
-    </a>
+  <div style="display:flex;align-items:center;gap:1rem;margin-top:.35rem;flex-wrap:wrap;">
+    <div class="oh-url">
+      <a href="{{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }}" target="_blank" style="color:#06b6d4;">
+        {{ url_for('shop.home', slug=tenant.shop_slug, _external=True) }} ↗
+      </a>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;">
+      <img src="{{ url_for('online.shop_qr') }}"
+           style="width:52px;height:52px;border-radius:6px;border:2px solid #334155;background:#fff;padding:2px;"
+           alt="QR boutique">
+      <a href="{{ url_for('online.shop_qr') }}" download="qr-boutique-{{ tenant.shop_slug }}.png"
+         class="btn btn-sm" style="background:#06b6d422;color:#06b6d4;border:1px solid #06b6d444;font-size:.7rem;">
+        ⬇ QR Code
+      </a>
+    </div>
   </div>
   {% else %}
   <div class="oh-url" style="color:#f59e0b;">⚠ Configurez votre slug dans Paramètres</div>
   {% endif %}
+
+
   <div style="position:absolute;top:1rem;right:1.25rem;display:flex;gap:.5rem;">
     {% if tenant.shop_slug %}
     <a href="{{ url_for('shop.home', slug=tenant.shop_slug) }}" class="btn btn-sm" style="background:#06b6d422;color:#06b6d4;border:1px solid #06b6d444;" target="_blank">🔗 Voir la boutique</a>
     {% endif %}
     <a href="{{ url_for('online.settings') }}" class="btn btn-sm" style="background:#ffffff08;color:#94a3b8;border:1px solid #334155;">⚙ Paramètres</a>
   </div>
+
 </div>
 
 <!-- Stats -->

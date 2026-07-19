@@ -133,6 +133,28 @@ def dashboard():
                            tenant=current_user.tenant)
 
 
+#adress qr code for shop
+@online_bp.route('/qr-boutique')
+@_mgr
+def shop_qr():
+    """QR code PNG de l'URL de la boutique."""
+    import qrcode, io
+    from flask import Response, current_app
+    t = current_user.tenant
+    if not t.shop_slug:
+        abort(404)
+    url = request.host_url.rstrip('/') + f'/shop/{t.shop_slug}'
+    qr = qrcode.QRCode(box_size=8, border=3)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='#1e293b', back_color='white')
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    return Response(buf.getvalue(), mimetype='image/png',
+                    headers={'Content-Disposition': f'inline; filename=qr-{t.shop_slug}.png'})
+
+
 # ── COMMANDES ──────────────────────────────────────────────────────────────
 
 @online_bp.route('/commandes')
