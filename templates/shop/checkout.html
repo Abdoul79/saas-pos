@@ -12,6 +12,52 @@
   .sa-city { font-weight:600;font-size:.82rem; }
   .sa-detail { color:var(--muted);font-size:.75rem;margin-top:.05rem; }
 
+  /* Localisation */
+  .loc-box { border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1rem; }
+  .loc-actions { display:flex;gap:.5rem;padding:.65rem;background:var(--surface);border-bottom:1px solid var(--border); }
+  .btn-locate {
+    display:flex;align-items:center;gap:.4rem;padding:.5rem .85rem;
+    border-radius:8px;border:1.5px solid #3b82f6;background:#eff6ff;
+    color:#1d4ed8;font-size:.8rem;font-weight:600;cursor:pointer;
+    transition:all .12s;
+  }
+  .btn-locate:hover { background:#dbeafe; }
+  .btn-locate.loading { opacity:.6;pointer-events:none; }
+  .btn-manual {
+    display:flex;align-items:center;gap:.4rem;padding:.5rem .85rem;
+    border-radius:8px;border:1.5px solid var(--border);background:#fff;
+    color:var(--muted);font-size:.8rem;font-weight:600;cursor:pointer;
+    transition:all .12s;
+  }
+  .btn-manual:hover { border-color:var(--accent);color:var(--accent); }
+
+  /* Map */
+  #mapContainer { height:220px;position:relative; }
+  #map { width:100%;height:100%; }
+  .map-pin-center {
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);
+    font-size:2rem;pointer-events:none;z-index:10;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.3));
+    transition:transform .15s;
+  }
+  .map-pin-center.dragging { transform:translate(-50%,-120%); }
+  .map-confirm-bar {
+    position:absolute;bottom:0;left:0;right:0;
+    background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
+    padding:.5rem .75rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  }
+  .map-addr-preview { color:#fff;font-size:.75rem;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .btn-map-confirm { padding:.35rem .75rem;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer; }
+
+  .loc-status { padding:.5rem .75rem;font-size:.75rem;color:var(--muted);border-top:1px solid var(--border);background:#fafafa;display:none; }
+  .loc-status.show { display:block; }
+  .loc-status.ok { color:#16a34a;background:#f0fdf4; }
+  .loc-status.err { color:#dc2626;background:#fef2f2; }
+
+  /* Champs manuels */
+  .manual-fields { display:none; }
+  .manual-fields.show { display:block; }
+
   .phone-wrap { display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .15s; }
   .phone-wrap:focus-within { border-color:var(--accent); }
   .phone-prefix { background:#f8fafc;padding:.45rem .6rem;font-size:.82rem;font-weight:600;color:#374151;border-right:1px solid var(--border);white-space:nowrap;display:flex;align-items:center;gap:.25rem; }
@@ -19,21 +65,14 @@
   .ville-select { width:100%;padding:.45rem .6rem;border:1px solid var(--border);border-radius:8px;font-size:.85rem;background:#fff; }
   .ville-select:focus { outline:none;border-color:var(--accent); }
 
-  /* Méthodes de paiement */
   .pay-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;margin-bottom:1rem; }
-  .pay-opt {
-    display:flex;flex-direction:column;align-items:center;gap:.3rem;
-    padding:.65rem .5rem;border:2px solid var(--border);border-radius:10px;
-    cursor:pointer;transition:all .15s;text-align:center;
-  }
+  .pay-opt { display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:.65rem .5rem;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all .15s;text-align:center; }
   .pay-opt:hover { border-color:var(--accent);background:#fef7ee; }
   .pay-opt.selected { border-color:var(--accent);background:#fef7ee;box-shadow:0 0 0 3px rgba(245,166,35,.1); }
   .pay-opt input[type="radio"] { display:none; }
   .pay-ico { font-size:1.5rem; }
   .pay-name { font-weight:600;font-size:.75rem;line-height:1.2; }
   .pay-desc { font-size:.62rem;color:var(--muted); }
-
-  /* Stripe badge */
   .stripe-badge { display:inline-flex;align-items:center;gap:.25rem;font-size:.6rem;color:#635bff;background:#635bff10;padding:.1rem .35rem;border-radius:3px;margin-top:.15rem;font-weight:700; }
 
   .recap { padding:.85rem; }
@@ -42,14 +81,16 @@
   .rc-total { display:flex;justify-content:space-between;padding:.55rem 0 .1rem;font-size:1.05rem;font-weight:800;border-top:2px solid var(--border);margin-top:.25rem; }
   .rc-promo { font-size:.7rem;color:var(--accent);margin:.25rem 0;background:#f5a62310;padding:.25rem .45rem;border-radius:5px; }
   .rc-pay { margin-top:.5rem;padding:.45rem .65rem;background:#f8fafc;border-radius:6px;font-size:.78rem;display:flex;align-items:center;gap:.35rem; }
-
   .btn-confirm { width:100%;padding:.7rem;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:.92rem;font-weight:700;cursor:pointer;transition:background .12s; }
   .btn-confirm:hover { background:var(--accent2); }
   .btn-confirm.stripe-btn { background:#635bff; }
   .btn-confirm.stripe-btn:hover { background:#4b45c6; }
 
-  @media(max-width:768px) { .checkout-grid { grid-template-columns:1fr; } .pay-grid { grid-template-columns:repeat(2,1fr); } }
-  @media(max-width:400px) { .pay-grid { grid-template-columns:1fr 1fr; } }
+  /* Coordonnées cachées */
+  #fLat, #fLng { display:none; }
+
+  @media(max-width:768px) { .checkout-grid{grid-template-columns:1fr} .pay-grid{grid-template-columns:repeat(2,1fr)} #mapContainer{height:180px} }
+  @media(max-width:400px) { .pay-grid{grid-template-columns:1fr 1fr} }
 </style>
 {% endblock %}
 
@@ -58,6 +99,8 @@
 
 <div class="checkout-grid">
   <form method="POST" id="checkoutForm" action="{{ url_for('shop.checkout', slug=tenant.shop_slug) }}">
+    <input type="hidden" name="lat" id="fLat">
+    <input type="hidden" name="lng" id="fLng">
 
     <!-- Adresses sauvegardées -->
     {% if saved_addresses %}
@@ -78,12 +121,44 @@
     </div>
     {% endif %}
 
-    <!-- Adresse -->
-    <div class="section-title">🚚 Livraison</div>
-    <div class="form-group">
-      <label class="form-label" style="font-size:.8rem;">Adresse complète</label>
-      <textarea name="adresse" id="fAddr" class="form-control" rows="2" required placeholder="Quartier, rue, bâtiment…" style="font-size:.85rem;">{{ customer.adresse or '' }}</textarea>
+    <!-- Adresse livraison -->
+    <div class="section-title">🚚 Adresse de livraison</div>
+
+    <!-- Boîte localisation -->
+    <div class="loc-box">
+      <div class="loc-actions">
+        <button type="button" class="btn-locate" id="btnLocate" onclick="startLocate()">
+          📍 Utiliser ma position
+        </button>
+        <button type="button" class="btn-manual" onclick="toggleManual()">
+          ✏️ Saisir manuellement
+        </button>
+      </div>
+
+      <!-- Carte Google Maps -->
+      <div id="mapContainer" style="display:none;">
+        <div id="map"></div>
+        <div class="map-pin-center" id="mapPin">📍</div>
+        <div class="map-confirm-bar">
+          <div class="map-addr-preview" id="mapAddrPreview">Déplacez la carte pour ajuster</div>
+          <button type="button" class="btn-map-confirm" onclick="confirmMapLocation()">✓ Confirmer</button>
+        </div>
+      </div>
+
+      <div class="loc-status" id="locStatus"></div>
     </div>
+
+    <!-- Adresse complète (remplie auto ou manuelle) -->
+    <div class="form-group">
+      <label class="form-label" style="font-size:.8rem;">
+        Adresse complète
+        <span id="addrSource" style="font-size:.68rem;color:var(--muted);margin-left:.3rem;"></span>
+      </label>
+      <textarea name="adresse" id="fAddr" class="form-control" rows="2" required
+                placeholder="Quartier, rue, bâtiment, repère…"
+                style="font-size:.85rem;">{{ customer.adresse or '' }}</textarea>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
       <div class="form-group">
         <label class="form-label" style="font-size:.8rem;">Ville</label>
@@ -109,45 +184,33 @@
     <div class="pay-grid">
       <label class="pay-opt selected" onclick="selectPay(this)">
         <input type="radio" name="payment_method" value="livraison" checked>
-        <div class="pay-ico">💵</div>
-        <div class="pay-name">À la livraison</div>
-        <div class="pay-desc">Espèces</div>
+        <div class="pay-ico">💵</div><div class="pay-name">À la livraison</div><div class="pay-desc">Espèces</div>
       </label>
       <label class="pay-opt" onclick="selectPay(this)">
         <input type="radio" name="payment_method" value="orange_money">
-        <div class="pay-ico">🟠</div>
-        <div class="pay-name">Orange Money</div>
-        <div class="pay-desc">Mobile Orange</div>
+        <div class="pay-ico">🟠</div><div class="pay-name">Orange Money</div><div class="pay-desc">Mobile Orange</div>
       </label>
       <label class="pay-opt" onclick="selectPay(this)">
         <input type="radio" name="payment_method" value="mtn_money">
-        <div class="pay-ico">🟡</div>
-        <div class="pay-name">MTN MoMo</div>
-        <div class="pay-desc">Mobile MTN</div>
+        <div class="pay-ico">🟡</div><div class="pay-name">MTN MoMo</div><div class="pay-desc">Mobile MTN</div>
       </label>
       <label class="pay-opt" onclick="selectPay(this)">
         <input type="radio" name="payment_method" value="moov_money">
-        <div class="pay-ico">🔵</div>
-        <div class="pay-name">Moov Money</div>
-        <div class="pay-desc">Mobile Moov</div>
+        <div class="pay-ico">🔵</div><div class="pay-name">Moov Money</div><div class="pay-desc">Mobile Moov</div>
       </label>
       <label class="pay-opt" onclick="selectPay(this)">
         <input type="radio" name="payment_method" value="wave">
-        <div class="pay-ico">🌊</div>
-        <div class="pay-name">Wave</div>
-        <div class="pay-desc">Paiement Wave</div>
+        <div class="pay-ico">🌊</div><div class="pay-name">Wave</div><div class="pay-desc">Paiement Wave</div>
       </label>
       {% if tenant.stripe_secret_key %}
       <label class="pay-opt" onclick="selectPay(this)">
         <input type="radio" name="payment_method" value="carte">
-        <div class="pay-ico">💳</div>
-        <div class="pay-name">Carte bancaire</div>
+        <div class="pay-ico">💳</div><div class="pay-name">Carte bancaire</div>
         <div class="stripe-badge">⚡ Stripe</div>
       </label>
       {% endif %}
     </div>
 
-    <!-- Note -->
     <div class="form-group">
       <label class="form-label" style="font-size:.8rem;">Note <span style="color:var(--muted);font-weight:400;">(optionnel)</span></label>
       <input name="note" class="form-control" placeholder="Instructions spéciales…" style="font-size:.82rem;">
@@ -179,8 +242,7 @@
       <div class="rc-promo">🎁 Plus que {{ (seuil - subtotal)|int }} FCFA pour la livraison gratuite</div>
       {% endif %}
       <div class="rc-total">
-        <span>Total</span>
-        <span style="color:var(--accent);">{{ total|int }} FCFA</span>
+        <span>Total</span><span style="color:var(--accent);">{{ total|int }} FCFA</span>
       </div>
       <div class="rc-pay" id="payDisplay">💵 Paiement à la livraison</div>
     </div>
@@ -189,22 +251,184 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_key or '' }}&libraries=places&callback=initMapReady" async defer></script>
+
 <script>
-function applySaved(r){
-  document.getElementById('fAddr').value=r.dataset.adresse;
-  document.getElementById('fVille').value=r.dataset.ville;
-  document.getElementById('fTel').value=(r.dataset.telephone||'').replace('+225','');
+var map, geocoder, mapReady = false, currentLat, currentLng;
+
+// Init Google Maps
+function initMapReady() {
+  mapReady = true;
+  geocoder = new google.maps.Geocoder();
+}
+
+// Démarrer la géolocalisation
+function startLocate() {
+  var btn = document.getElementById('btnLocate');
+  var status = document.getElementById('locStatus');
+  btn.classList.add('loading');
+  btn.textContent = '⏳ Localisation…';
+  setStatus('', '');
+
+  if (!navigator.geolocation) {
+    setStatus('Géolocalisation non supportée par votre navigateur.', 'err');
+    btn.classList.remove('loading');
+    btn.innerHTML = '📍 Utiliser ma position';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      currentLat = pos.coords.latitude;
+      currentLng = pos.coords.longitude;
+      btn.classList.remove('loading');
+      btn.innerHTML = '📍 Utiliser ma position';
+      showMap(currentLat, currentLng);
+      reverseGeocode(currentLat, currentLng);
+    },
+    function(err) {
+      btn.classList.remove('loading');
+      btn.innerHTML = '📍 Utiliser ma position';
+      var msg = err.code === 1 ? 'Permission refusée. Activez la localisation.' :
+                err.code === 2 ? 'Position indisponible.' : 'Délai dépassé.';
+      setStatus('❌ ' + msg + ' Saisissez l\'adresse manuellement.', 'err');
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+
+// Afficher la carte
+function showMap(lat, lng) {
+  var container = document.getElementById('mapContainer');
+  container.style.display = 'block';
+
+  if (!mapReady) {
+    setTimeout(function(){ showMap(lat, lng); }, 300);
+    return;
+  }
+
+  var center = { lat: lat, lng: lng };
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: center,
+    zoom: 16,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+    zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER }
+  });
+
+  // Écouter les déplacements de la carte
+  map.addListener('center_changed', function() {
+    var c = map.getCenter();
+    currentLat = c.lat();
+    currentLng = c.lng();
+  });
+
+  // Mise à jour adresse après arrêt déplacement
+  var idleTimer;
+  map.addListener('idle', function() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function() {
+      reverseGeocode(currentLat, currentLng);
+    }, 500);
+  });
+
+  // Animation pin pendant drag
+  map.addListener('dragstart', function() {
+    document.getElementById('mapPin').classList.add('dragging');
+  });
+  map.addListener('dragend', function() {
+    document.getElementById('mapPin').classList.remove('dragging');
+  });
+}
+
+// Reverse geocoding
+function reverseGeocode(lat, lng) {
+  if (!geocoder) return;
+  geocoder.geocode({ location: { lat: lat, lng: lng } }, function(results, status) {
+    if (status === 'OK' && results[0]) {
+      var addr = results[0].formatted_address;
+      document.getElementById('mapAddrPreview').textContent = addr;
+    }
+  });
+}
+
+// Confirmer la position de la carte
+function confirmMapLocation() {
+  if (!map) return;
+  var center = map.getCenter();
+  currentLat = center.lat();
+  currentLng = center.lng();
+
+  document.getElementById('fLat').value = currentLat.toFixed(6);
+  document.getElementById('fLng').value = currentLng.toFixed(6);
+
+  if (geocoder) {
+    geocoder.geocode({ location: { lat: currentLat, lng: currentLng } }, function(results, status) {
+      if (status === 'OK' && results[0]) {
+        var addr = results[0].formatted_address;
+        document.getElementById('fAddr').value = addr;
+        document.getElementById('addrSource').textContent = '📍 Depuis la carte';
+
+        // Essayer de détecter la ville
+        var comps = results[0].address_components;
+        for (var i = 0; i < comps.length; i++) {
+          var c = comps[i];
+          if (c.types.indexOf('locality') >= 0 || c.types.indexOf('sublocality') >= 0) {
+            var cityName = c.long_name;
+            var sel = document.getElementById('fVille');
+            for (var j = 0; j < sel.options.length; j++) {
+              if (sel.options[j].text.toLowerCase().indexOf(cityName.toLowerCase()) >= 0) {
+                sel.selectedIndex = j;
+                break;
+              }
+            }
+            break;
+          }
+        }
+        setStatus('✓ Position confirmée : ' + addr, 'ok');
+      }
+    });
+  }
+  document.getElementById('mapContainer').style.display = 'none';
+}
+
+// Basculer saisie manuelle
+function toggleManual() {
+  document.getElementById('mapContainer').style.display = 'none';
+  document.getElementById('fAddr').focus();
+  document.getElementById('addrSource').textContent = '✏️ Saisie manuelle';
+  setStatus('', '');
+}
+
+function setStatus(msg, type) {
+  var el = document.getElementById('locStatus');
+  el.textContent = msg;
+  el.className = 'loc-status' + (msg ? ' show' : '') + (type ? ' ' + type : '');
+}
+
+// Adresses sauvegardées
+function applySaved(r) {
+  document.getElementById('fAddr').value = r.dataset.adresse;
+  document.getElementById('fVille').value = r.dataset.ville;
+  document.getElementById('fTel').value = (r.dataset.telephone||'').replace('+225','');
+  document.getElementById('addrSource').textContent = '📂 Adresse enregistrée';
   document.querySelectorAll('.saved-addr').forEach(el=>el.classList.remove('selected'));
   r.closest('.saved-addr').classList.add('selected');
 }
-function clearSaved(){
+function clearSaved() {
   document.querySelectorAll('.saved-addr input[type="radio"]').forEach(r=>r.checked=false);
   document.querySelectorAll('.saved-addr').forEach(el=>el.classList.remove('selected'));
-  document.getElementById('fAddr').value='';document.getElementById('fVille').value='';
-  document.getElementById('fTel').value='';document.getElementById('fAddr').focus();
+  document.getElementById('fAddr').value='';
+  document.getElementById('fVille').value='';
+  document.getElementById('fTel').value='';
+  document.getElementById('addrSource').textContent='';
+  document.getElementById('fAddr').focus();
 }
 
-var payLabels={
+// Paiement
+var payLabels = {
   livraison:'💵 Paiement à la livraison',
   orange_money:'🟠 Orange Money',
   mtn_money:'🟡 MTN Mobile Money',
@@ -212,31 +436,28 @@ var payLabels={
   wave:'🌊 Wave',
   carte:'💳 Carte bancaire (Stripe)'
 };
-
-function selectPay(el){
+function selectPay(el) {
   document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('selected'));
   el.classList.add('selected');
-  var val=el.querySelector('input').value;
-  document.getElementById('payDisplay').innerHTML=payLabels[val]||val;
-
-  var btn=document.getElementById('btnConfirm');
-  var form=document.getElementById('checkoutForm');
-  if(val==='carte'){
-    btn.textContent='💳 Payer {{ total|int }} FCFA par carte';
-    btn.className='btn-confirm stripe-btn';
-    form.action='{{ url_for("shop.stripe_checkout", slug=tenant.shop_slug) }}';
+  var val = el.querySelector('input').value;
+  document.getElementById('payDisplay').innerHTML = payLabels[val]||val;
+  var btn = document.getElementById('btnConfirm');
+  var form = document.getElementById('checkoutForm');
+  if (val === 'carte') {
+    btn.textContent = '💳 Payer {{ total|int }} FCFA par carte';
+    btn.className = 'btn-confirm stripe-btn';
+    form.action = '{{ url_for("shop.stripe_checkout", slug=tenant.shop_slug) }}';
   } else {
-    btn.textContent='✓ Confirmer — {{ total|int }} FCFA';
-    btn.className='btn-confirm';
-    form.action='{{ url_for("shop.checkout", slug=tenant.shop_slug) }}';
+    btn.textContent = '✓ Confirmer — {{ total|int }} FCFA';
+    btn.className = 'btn-confirm';
+    form.action = '{{ url_for("shop.checkout", slug=tenant.shop_slug) }}';
   }
 }
 
-document.getElementById('checkoutForm').addEventListener('submit',function(){
-  var t=document.getElementById('fTel');
-  var v=t.value.replace(/\s/g,'').replace('+225','');
-  t.value='+225'+v;
+// +225 auto
+document.getElementById('checkoutForm').addEventListener('submit', function() {
+  var t = document.getElementById('fTel');
+  t.value = '+225' + t.value.replace(/\s/g,'').replace('+225','');
 });
 </script>
 {% endblock %}
-

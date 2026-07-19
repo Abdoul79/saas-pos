@@ -8,6 +8,7 @@ from app.models import (Tenant, Product, ProductVariant, Category,
                         ShopVisit, ProductFavorite, CustomerAddress)
 from datetime import datetime, date
 import secrets, hashlib
+import os
 
 shop_bp = Blueprint('shop', __name__, template_folder='../../templates/shop')
 
@@ -378,7 +379,8 @@ def checkout(slug):
     return render_template('shop/checkout.html', tenant=t, customer=customer,
                            cart=cart, subtotal=subtotal, frais_livraison=frais_final,
                            livraison_gratuite=livraison_gratuite, seuil=seuil, total=total,
-                           saved_addresses=saved_addresses)
+                           saved_addresses=saved_addresses,
+                           google_maps_key=os.environ.get('AIzaSyAfaGh1vSoP24dTMH6my8PJ8S9OkoKRYRg', ''))
 
 
 @shop_bp.route('/<slug>/mes-commandes')
@@ -673,7 +675,7 @@ def cart_count(slug):
 #for google claude connexion automatique
 # ── GOOGLE OAUTH ───────────────────────────────────────────────────────────
 from authlib.integrations.flask_client import OAuth as _OAuth
-import os
+
 
 _oauth = _OAuth()
 
