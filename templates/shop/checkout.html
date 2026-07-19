@@ -1,7 +1,6 @@
 {% extends "shop/base.html" %}
 {% block title %}Commande — {{ tenant.nom_boutique }}{% endblock %}
 {% block head %}
-<!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   .checkout-grid { display:grid;grid-template-columns:1fr 340px;gap:1.5rem; }
@@ -14,55 +13,21 @@
   .sa-city { font-weight:600;font-size:.82rem; }
   .sa-detail { color:var(--muted);font-size:.75rem;margin-top:.05rem; }
 
-  /* Boutons localisation */
   .loc-btns { display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap; }
-  .btn-locate {
-    display:flex;align-items:center;gap:.4rem;padding:.5rem .9rem;
-    border-radius:8px;border:1.5px solid #3b82f6;background:#eff6ff;
-    color:#1d4ed8;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .12s;
-  }
+  .btn-locate { display:flex;align-items:center;gap:.4rem;padding:.5rem .9rem;border-radius:8px;border:1.5px solid #3b82f6;background:#eff6ff;color:#1d4ed8;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .12s; }
   .btn-locate:hover { background:#dbeafe; }
   .btn-locate:disabled { opacity:.55;cursor:not-allowed; }
-  .btn-manual-addr {
-    display:flex;align-items:center;gap:.4rem;padding:.5rem .9rem;
-    border-radius:8px;border:1.5px solid var(--border);background:#fff;
-    color:var(--muted);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .12s;
-  }
+  .btn-manual-addr { display:flex;align-items:center;gap:.4rem;padding:.5rem .9rem;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--muted);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .12s; }
   .btn-manual-addr:hover { border-color:var(--accent);color:var(--accent); }
 
-  /* Carte Leaflet */
-  #mapWrap {
-    display:none;position:relative;
-    border:1px solid var(--border);border-radius:10px;overflow:hidden;
-    margin-bottom:.75rem;
-  }
+  #mapWrap { display:none;position:relative;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.75rem; }
   #leafMap { height:230px;width:100%; }
-
-  /* Pin fixe au centre */
-  .center-pin {
-    position:absolute;top:50%;left:50%;
-    transform:translate(-50%, -100%);
-    font-size:2rem;z-index:999;pointer-events:none;
-    filter:drop-shadow(0 2px 5px rgba(0,0,0,.35));
-    transition:transform .15s;
-  }
-  .center-pin.moving { transform:translate(-50%, -110%) scale(1.1); }
-
-  /* Barre bas de carte */
-  .map-bar {
-    position:absolute;bottom:0;left:0;right:0;z-index:999;
-    background:rgba(15,15,30,.82);backdrop-filter:blur(6px);
-    padding:.5rem .75rem;
-    display:flex;align-items:center;gap:.5rem;
-  }
+  .center-pin { position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);font-size:2rem;z-index:999;pointer-events:none;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35));transition:transform .15s; }
+  .center-pin.moving { transform:translate(-50%,-110%) scale(1.1); }
+  .map-bar { position:absolute;bottom:0;left:0;right:0;z-index:999;background:rgba(15,15,30,.82);backdrop-filter:blur(6px);padding:.5rem .75rem;display:flex;align-items:center;gap:.5rem; }
   .map-addr-txt { flex:1;color:#e2e8f0;font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-  .btn-map-ok {
-    padding:.35rem .75rem;border-radius:6px;border:none;
-    background:var(--accent);color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0;
-  }
-  .btn-map-ok:hover { opacity:.9; }
+  .btn-map-ok { padding:.35rem .75rem;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0; }
 
-  /* Status */
   .loc-msg { font-size:.75rem;padding:.4rem .65rem;border-radius:6px;margin-bottom:.5rem;display:none; }
   .loc-msg.ok  { background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;display:block; }
   .loc-msg.err { background:#fef2f2;color:#dc2626;border:1px solid #fecaca;display:block; }
@@ -84,6 +49,37 @@
   .pay-name { font-weight:600;font-size:.75rem;line-height:1.2; }
   .pay-desc { font-size:.62rem;color:var(--muted); }
   .stripe-badge { display:inline-flex;align-items:center;gap:.25rem;font-size:.6rem;color:#635bff;background:#635bff10;padding:.1rem .35rem;border-radius:3px;margin-top:.15rem;font-weight:700; }
+
+  /* ── Politiques de paiement ── */
+  .policy-box {
+    display:none;
+    border-radius:10px;padding:.75rem .9rem;margin-bottom:.85rem;
+    border:1px solid;font-size:.78rem;line-height:1.6;
+    animation:fadeSlide .2s ease;
+  }
+  @keyframes fadeSlide { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+  .policy-box.show { display:block; }
+
+  .policy-livraison {
+    background:#fff7ed;border-color:#fed7aa;
+  }
+  .policy-mobile {
+    background:#f0fdf4;border-color:#bbf7d0;
+  }
+  .policy-carte {
+    background:#f5f3ff;border-color:#c4b5fd;
+  }
+
+  .policy-title {
+    font-weight:700;font-size:.82rem;margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem;
+  }
+  .policy-steps { padding-left:1.1rem; }
+  .policy-steps li { margin-bottom:.2rem; }
+  .policy-warn {
+    display:flex;align-items:flex-start;gap:.35rem;
+    margin-top:.5rem;padding:.4rem .55rem;border-radius:6px;
+    background:rgba(0,0,0,.04);font-size:.73rem;color:#555;
+  }
 
   .recap { padding:.85rem; }
   .rc-item { display:flex;justify-content:space-between;padding:.25rem 0;font-size:.8rem;border-bottom:1px solid var(--border); }
@@ -130,21 +126,11 @@
 
     <!-- Livraison -->
     <div class="section-title">🚚 Adresse de livraison</div>
-
-    <!-- Boutons -->
     <div class="loc-btns">
-      <button type="button" class="btn-locate" id="btnLocate" onclick="startLocate()">
-        📍 Localiser ma position
-      </button>
-      <button type="button" class="btn-manual-addr" onclick="focusManual()">
-        ✏️ Saisir manuellement
-      </button>
+      <button type="button" class="btn-locate" id="btnLocate" onclick="startLocate()">📍 Localiser ma position</button>
+      <button type="button" class="btn-manual-addr" onclick="focusManual()">✏️ Saisir manuellement</button>
     </div>
-
-    <!-- Message status -->
     <div class="loc-msg" id="locMsg"></div>
-
-    <!-- Carte Leaflet -->
     <div id="mapWrap">
       <div id="leafMap"></div>
       <div class="center-pin" id="centerPin">📍</div>
@@ -154,7 +140,6 @@
       </div>
     </div>
 
-    <!-- Adresse -->
     <div class="form-group">
       <label class="form-label" style="font-size:.8rem;">
         Adresse complète *
@@ -188,33 +173,77 @@
     <!-- Paiement -->
     <div class="section-title" style="margin-top:.5rem;">💳 Mode de paiement</div>
     <div class="pay-grid">
-      <label class="pay-opt selected" onclick="selectPay(this)">
+      <label class="pay-opt selected" onclick="selectPay(this,'livraison')">
         <input type="radio" name="payment_method" value="livraison" checked>
         <div class="pay-ico">💵</div><div class="pay-name">À la livraison</div><div class="pay-desc">Espèces</div>
       </label>
-      <label class="pay-opt" onclick="selectPay(this)">
+      <label class="pay-opt" onclick="selectPay(this,'orange_money')">
         <input type="radio" name="payment_method" value="orange_money">
         <div class="pay-ico">🟠</div><div class="pay-name">Orange Money</div><div class="pay-desc">Mobile Orange</div>
       </label>
-      <label class="pay-opt" onclick="selectPay(this)">
+      <label class="pay-opt" onclick="selectPay(this,'mtn_money')">
         <input type="radio" name="payment_method" value="mtn_money">
         <div class="pay-ico">🟡</div><div class="pay-name">MTN MoMo</div><div class="pay-desc">Mobile MTN</div>
       </label>
-      <label class="pay-opt" onclick="selectPay(this)">
+      <label class="pay-opt" onclick="selectPay(this,'moov_money')">
         <input type="radio" name="payment_method" value="moov_money">
         <div class="pay-ico">🔵</div><div class="pay-name">Moov Money</div><div class="pay-desc">Mobile Moov</div>
       </label>
-      <label class="pay-opt" onclick="selectPay(this)">
+      <label class="pay-opt" onclick="selectPay(this,'wave')">
         <input type="radio" name="payment_method" value="wave">
         <div class="pay-ico">🌊</div><div class="pay-name">Wave</div><div class="pay-desc">Paiement Wave</div>
       </label>
       {% if tenant.stripe_secret_key %}
-      <label class="pay-opt" onclick="selectPay(this)">
+      <label class="pay-opt" onclick="selectPay(this,'carte')">
         <input type="radio" name="payment_method" value="carte">
         <div class="pay-ico">💳</div><div class="pay-name">Carte bancaire</div>
         <div class="stripe-badge">⚡ Stripe</div>
       </label>
       {% endif %}
+    </div>
+
+    <!-- ── Politiques de paiement ── -->
+
+    <!-- 1. Livraison -->
+    <div class="policy-box policy-livraison show" id="policy-livraison">
+      <div class="policy-title" style="color:#ea580c;">💵 Politique — Paiement à la livraison</div>
+      <ol class="policy-steps" style="color:#7c2d12;">
+        <li>Passez votre commande et attendez la <strong>confirmation</strong> de notre équipe.</li>
+        <li>Votre colis sera préparé et livré à l'adresse indiquée.</li>
+        <li>Payez en <strong>espèces</strong> au livreur à la réception du colis.</li>
+        <li>Vérifiez votre commande avant de payer.</li>
+      </ol>
+      <div class="policy-warn">
+        ℹ️ En cas d'absence lors de la livraison, un nouveau créneau sera convenu par téléphone.
+      </div>
+    </div>
+
+    <!-- 2. Mobile Money -->
+    <div class="policy-box policy-mobile" id="policy-mobile">
+      <div class="policy-title" style="color:#15803d;">📱 Politique — Paiement Mobile Money</div>
+      <ol class="policy-steps" style="color:#14532d;">
+        <li>Après confirmation de votre commande, vous recevrez un <strong>numéro de paiement</strong> par email ou WhatsApp.</li>
+        <li>Effectuez le virement du montant exact via Orange Money, MTN MoMo, Moov Money ou Wave.</li>
+        <li>Envoyez la <strong>capture d'écran</strong> de la transaction à notre WhatsApp.</li>
+        <li>La commande sera traitée après <strong>vérification du paiement</strong> (délai : 15–30 min).</li>
+      </ol>
+      <div class="policy-warn">
+        ⚠️ Tout paiement non confirmé dans les <strong>24h</strong> entraîne l'annulation automatique de la commande.
+      </div>
+    </div>
+
+    <!-- 3. Carte Stripe -->
+    <div class="policy-box policy-carte" id="policy-carte">
+      <div class="policy-title" style="color:#6d28d9;">💳 Politique — Paiement par Carte Bancaire</div>
+      <ol class="policy-steps" style="color:#4c1d95;">
+        <li>Vous serez redirigé vers une page de paiement <strong>sécurisée Stripe</strong>.</li>
+        <li>Entrez vos informations de carte (Visa, Mastercard…).</li>
+        <li>Le paiement est <strong>débité immédiatement</strong> après validation.</li>
+        <li>Votre commande est confirmée automatiquement et une <strong>facture</strong> vous est envoyée par email.</li>
+      </ol>
+      <div class="policy-warn">
+        🔒 Vos données bancaires sont chiffrées et sécurisées par Stripe. Nous ne conservons aucune information de carte.
+      </div>
     </div>
 
     <div class="form-group">
@@ -257,81 +286,59 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Leaflet JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-
 <script>
 var leafMap = null;
 
 function showMsg(txt, type) {
   var el = document.getElementById('locMsg');
   el.textContent = txt;
-  el.className = 'loc-msg ' + type;
+  el.className = 'loc-msg ' + (txt ? type : '');
 }
 
 function startLocate() {
   var btn = document.getElementById('btnLocate');
-  btn.disabled = true;
-  btn.textContent = '⏳ Localisation…';
-  showMsg('Demande de permission de géolocalisation…', 'inf');
-
+  btn.disabled = true; btn.textContent = '⏳ Localisation…';
+  showMsg('Demande de permission…', 'inf');
   if (!navigator.geolocation) {
-    showMsg('Géolocalisation non supportée. Saisissez votre adresse manuellement.', 'err');
-    btn.disabled = false; btn.textContent = '📍 Localiser ma position';
-    return;
+    showMsg('Non supporté. Saisissez manuellement.', 'err');
+    btn.disabled = false; btn.textContent = '📍 Localiser ma position'; return;
   }
-
   navigator.geolocation.getCurrentPosition(
     function(pos) {
       btn.disabled = false; btn.textContent = '📍 Localiser ma position';
-      showMsg('', '');
-      openMap(pos.coords.latitude, pos.coords.longitude);
+      showMsg('', ''); openMap(pos.coords.latitude, pos.coords.longitude);
     },
     function(err) {
       btn.disabled = false; btn.textContent = '📍 Localiser ma position';
-      var msgs = {1:'Permission refusée. Activez la localisation dans votre navigateur.', 2:'Position indisponible.', 3:'Délai dépassé.'};
-      showMsg('❌ ' + (msgs[err.code] || 'Erreur') + ' → Saisissez votre adresse manuellement.', 'err');
+      var msgs = {1:'Permission refusée.',2:'Position indisponible.',3:'Délai dépassé.'};
+      showMsg('❌ ' + (msgs[err.code]||'Erreur') + ' Saisissez manuellement.', 'err');
     },
     {timeout:10000, enableHighAccuracy:true}
   );
 }
 
 function openMap(lat, lng) {
-  var wrap = document.getElementById('mapWrap');
-  wrap.style.display = 'block';
-
+  document.getElementById('mapWrap').style.display = 'block';
   if (!leafMap) {
     leafMap = L.map('leafMap', {zoomControl:true, attributionControl:false}).setView([lat, lng], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(leafMap);
-
-    // Pendant déplacement : animer le pin
     leafMap.on('movestart', function(){ document.getElementById('centerPin').classList.add('moving'); });
     leafMap.on('moveend', function(){
       document.getElementById('centerPin').classList.remove('moving');
-      var c = leafMap.getCenter();
-      reverseGeocode(c.lat, c.lng);
+      var c = leafMap.getCenter(); reverseGeocode(c.lat, c.lng);
     });
-  } else {
-    leafMap.setView([lat, lng], 16);
-  }
-
-  // Forcer le rendu après affichage
+  } else { leafMap.setView([lat, lng], 16); }
   setTimeout(function(){ leafMap.invalidateSize(); }, 100);
   reverseGeocode(lat, lng);
 }
 
 function reverseGeocode(lat, lng) {
-  var url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&accept-language=fr';
   document.getElementById('mapAddrTxt').textContent = 'Chargement…';
-  fetch(url, {headers:{'User-Agent':'SaasPos/1.0'}})
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&accept-language=fr')
     .then(function(r){ return r.json(); })
-    .then(function(d){
-      var addr = d.display_name || (lat.toFixed(5)+', '+lng.toFixed(5));
-      document.getElementById('mapAddrTxt').textContent = addr;
-    })
-    .catch(function(){
-      document.getElementById('mapAddrTxt').textContent = lat.toFixed(5)+', '+lng.toFixed(5);
-    });
+    .then(function(d){ document.getElementById('mapAddrTxt').textContent = d.display_name || (lat.toFixed(5)+', '+lng.toFixed(5)); })
+    .catch(function(){ document.getElementById('mapAddrTxt').textContent = lat.toFixed(5)+', '+lng.toFixed(5); });
 }
 
 function confirmPosition() {
@@ -339,35 +346,25 @@ function confirmPosition() {
   var c = leafMap.getCenter();
   document.getElementById('fLat').value = c.lat.toFixed(6);
   document.getElementById('fLng').value = c.lng.toFixed(6);
-
-  var url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat='+c.lat+'&lon='+c.lng+'&accept-language=fr';
-  fetch(url, {headers:{'User-Agent':'SaasPos/1.0'}})
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+c.lat+'&lon='+c.lng+'&accept-language=fr')
     .then(function(r){ return r.json(); })
     .then(function(d){
-      // Remplir l'adresse
-      var parts = [];
-      var a = d.address || {};
+      var a = d.address || {}, parts = [];
       if (a.road) parts.push(a.road);
-      if (a.suburb || a.neighbourhood || a.quarter) parts.push(a.suburb || a.neighbourhood || a.quarter);
-      if (a.city || a.town || a.village) parts.push(a.city || a.town || a.village);
+      if (a.suburb||a.neighbourhood||a.quarter) parts.push(a.suburb||a.neighbourhood||a.quarter);
+      if (a.city||a.town||a.village) parts.push(a.city||a.town||a.village);
       document.getElementById('fAddr').value = parts.join(', ') || d.display_name;
       document.getElementById('addrBadge').textContent = '📍 Depuis la carte';
-
-      // Détecter ville CI
-      var city = (a.city || a.town || a.village || a.suburb || '').toLowerCase();
+      var city = (a.city||a.town||a.village||a.suburb||'').toLowerCase();
       var sel = document.getElementById('fVille');
-      for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value.toLowerCase().indexOf(city) >= 0 || city.indexOf(sel.options[i].value.toLowerCase()) >= 0) {
-          sel.selectedIndex = i; break;
-        }
+      for (var i=0;i<sel.options.length;i++) {
+        if (sel.options[i].value.toLowerCase().indexOf(city)>=0 || city.indexOf(sel.options[i].value.toLowerCase())>=0) { sel.selectedIndex=i; break; }
       }
-      showMsg('✓ Position confirmée ! Vérifiez et ajustez l\'adresse si besoin.', 'ok');
-    })
-    .catch(function(){
+      showMsg('✓ Position confirmée ! Vérifiez l\'adresse si besoin.', 'ok');
+    }).catch(function(){
       document.getElementById('fAddr').value = c.lat.toFixed(5)+', '+c.lng.toFixed(5);
-      showMsg('✓ Coordonnées enregistrées. Complétez l\'adresse manuellement.', 'ok');
+      showMsg('✓ Coordonnées enregistrées. Complétez l\'adresse.', 'ok');
     });
-
   document.getElementById('mapWrap').style.display = 'none';
 }
 
@@ -390,22 +387,37 @@ function applySaved(r) {
 function clearSaved() {
   document.querySelectorAll('.saved-addr input[type="radio"]').forEach(r=>r.checked=false);
   document.querySelectorAll('.saved-addr').forEach(el=>el.classList.remove('selected'));
-  document.getElementById('fAddr').value='';
-  document.getElementById('fVille').value='';
-  document.getElementById('fTel').value='';
-  document.getElementById('addrBadge').textContent='';
+  document.getElementById('fAddr').value=''; document.getElementById('fVille').value='';
+  document.getElementById('fTel').value=''; document.getElementById('addrBadge').textContent='';
   document.getElementById('fAddr').focus();
 }
 
-var payLabels={livraison:'💵 Paiement à la livraison',orange_money:'🟠 Orange Money',mtn_money:'🟡 MTN Mobile Money',moov_money:'🔵 Moov Money',wave:'🌊 Wave',carte:'💳 Carte bancaire (Stripe)'};
-function selectPay(el) {
+// ── Politique paiement ──────────────────────────────────────────────────────
+var MOBILE_METHODS = ['orange_money','mtn_money','moov_money','wave'];
+var payLabels = {
+  livraison:'💵 Paiement à la livraison',
+  orange_money:'🟠 Orange Money',
+  mtn_money:'🟡 MTN Mobile Money',
+  moov_money:'🔵 Moov Money',
+  wave:'🌊 Wave',
+  carte:'💳 Carte bancaire (Stripe)'
+};
+
+function showPolicy(type) {
+  document.querySelectorAll('.policy-box').forEach(function(el){ el.classList.remove('show'); });
+  if (type === 'livraison') document.getElementById('policy-livraison').classList.add('show');
+  else if (MOBILE_METHODS.indexOf(type) >= 0) document.getElementById('policy-mobile').classList.add('show');
+  else if (type === 'carte') document.getElementById('policy-carte').classList.add('show');
+}
+
+function selectPay(el, val) {
   document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('selected'));
   el.classList.add('selected');
-  var val = el.querySelector('input').value;
   document.getElementById('payDisplay').innerHTML = payLabels[val]||val;
+  showPolicy(val);
   var btn = document.getElementById('btnConfirm');
   var form = document.getElementById('checkoutForm');
-  if (val==='carte') {
+  if (val === 'carte') {
     btn.textContent = '💳 Payer {{ total|int }} FCFA par carte';
     btn.className = 'btn-confirm stripe-btn';
     form.action = '{{ url_for("shop.stripe_checkout", slug=tenant.shop_slug) }}';
@@ -416,9 +428,13 @@ function selectPay(el) {
   }
 }
 
+// Init : afficher politique livraison par défaut
+showPolicy('livraison');
+
 document.getElementById('checkoutForm').addEventListener('submit', function(){
   var t = document.getElementById('fTel');
   t.value = '+225' + t.value.replace(/\s/g,'').replace('+225','');
 });
 </script>
 {% endblock %}
+
