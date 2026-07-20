@@ -175,6 +175,8 @@ def business_card():
     return render_template('manager/online/business_card.html',
                            tenant=t, qr_b64=qr_b64, shop_url=url)
 
+
+
 # ── COMMANDES ──────────────────────────────────────────────────────────────
 
 @online_bp.route('/commandes')

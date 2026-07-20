@@ -284,6 +284,170 @@ def logout(slug):
     return redirect(url_for('shop.home', slug=slug))
 
 
+#getway mobile payment
+@shop_bp.route('/<slug>/paiement/mobile', methods=['POST'])
+def mobile_payment(slug):
+    """Initie un paiement CinetPay (Mobile Money)."""
+    import os, requests as req
+    t = _get_tenant(slug)
+    customer = _get_customer(t.id)
+    if not customer:
+        return redirect(url_for('shop.login', slug=slug))
+
+    cart = _get_cart(t.id)
+    if not cart:
+        return redirect(url_for('shop.home', slug=slug))
+
+    subtotal = sum(item['price'] * item['qty'] for item in cart)
+    frais = float(t.frais_livraison or 0)
+    seuil = float(t.seuil_livraison_gratuite or 0)
+    livraison_gratuite = (frais == 0) or (seuil > 0 and subtotal >= seuil)
+    frais_final = 0 if livraison_gratuite else frais
+    total = subtotal + frais_final
+
+    payment_method = request.form.get('payment_method', 'wave')
+    tel = request.form.get('telephone', '').strip().replace(' ', '')
+    if not tel.startswith('+'):
+        tel = '+225' + tel.replace('+225', '')
+
+    # Créer la commande en base (pending)
+    ref = f"WEB-{t.id}-{datetime.utcnow().strftime('%y%m%d%H%M')}-{secrets.token_hex(2).upper()}"
+    order = OnlineOrder(
+        tenant_id=t.id,
+        customer_id=customer.id,
+        reference=ref,
+        total_amount=total,
+        total_ht=subtotal,
+        total_tva=0,
+        frais_livraison=frais_final,
+        adresse_livraison=request.form.get('adresse', ''),
+        ville_livraison=request.form.get('ville', ''),
+        telephone_contact=tel,
+        note_client=request.form.get('note', ''),
+        payment_method=payment_method,
+        payment_status='en_attente',
+    )
+    db.session.add(order)
+    db.session.flush()
+
+    for item in cart:
+        db.session.add(OnlineOrderItem(
+            order_id=order.id,
+            product_id=item['product_id'],
+            variant_id=item.get('variant_id'),
+            designation=item['name'],
+            prix_vente=item['price'],
+            quantity=item['qty'],
+            subtotal=item['price'] * item['qty'],
+        ))
+    db.session.commit()
+
+    # Mapper le mode paiement vers CinetPay
+    channel_map = {
+        'orange_money': 'ORANGE_MONEY',
+        'mtn_money': 'MTN_MONEY',
+        'moov_money': 'MOOV_MONEY',
+        'wave': 'WAVE',
+    }
+    channel = channel_map.get(payment_method, 'WAVE')
+
+    apikey  = os.environ.get('CINETPAY_APIKEY', '')
+    site_id = os.environ.get('CINETPAY_SITE_ID', '')
+
+    if not apikey or not site_id:
+        flash('Paiement mobile non configuré. Choisissez un autre mode.', 'danger')
+        db.session.delete(order)
+        db.session.commit()
+        return redirect(url_for('shop.checkout', slug=slug))
+
+    # Appel API CinetPay
+    try:
+        payload = {
+            'apikey': apikey,
+            'site_id': site_id,
+            'transaction_id': ref,
+            'amount': int(total),
+            'currency': 'XOF',
+            'description': f'Commande {ref} — {t.nom_boutique or t.activite}',
+            'customer_name': customer.full_name,
+            'customer_email': customer.email,
+            'customer_phone_number': tel,
+            'customer_address': order.adresse_livraison,
+            'customer_city': order.ville_livraison,
+            'customer_country': 'CI',
+            'notify_url': request.host_url.rstrip('/') + url_for('shop.cinetpay_notify', slug=slug),
+            'return_url': request.host_url.rstrip('/') + url_for('shop.cinetpay_return', slug=slug, ref=ref),
+            'cancel_url': request.host_url.rstrip('/') + url_for('shop.checkout', slug=slug),
+            'channels': channel,
+        }
+        r = req.post('https://api-checkout.cinetpay.com/v2/payment', json=payload, timeout=15)
+        data = r.json()
+
+        if data.get('code') == '201' and data.get('data', {}).get('payment_url'):
+            _save_cart(t.id, [])
+            return redirect(data['data']['payment_url'])
+        else:
+            msg = data.get('message', 'Erreur CinetPay')
+            flash(f'Erreur paiement : {msg}', 'danger')
+            db.session.delete(order)
+            db.session.commit()
+            return redirect(url_for('shop.checkout', slug=slug))
+
+    except Exception as e:
+        print(f'[cinetpay] Erreur: {e}')
+        flash('Erreur de connexion au service de paiement.', 'danger')
+        db.session.delete(order)
+        db.session.commit()
+        return redirect(url_for('shop.checkout', slug=slug))
+
+
+@shop_bp.route('/<slug>/paiement/retour/<ref>')
+def cinetpay_return(slug, ref):
+    """Retour client après paiement CinetPay."""
+    t = _get_tenant(slug)
+    order = OnlineOrder.query.filter_by(tenant_id=t.id, reference=ref).first_or_404()
+    status = request.args.get('status', '')
+    if status == 'ACCEPTED' or order.payment_status == 'paye':
+        flash('Paiement réussi ! Votre commande est confirmée.', 'success')
+    else:
+        flash('Paiement en cours de vérification…', 'info')
+    return redirect(url_for('shop.order_detail', slug=slug, ref=ref))
+
+
+@shop_bp.route('/<slug>/paiement/notify', methods=['POST'])
+def cinetpay_notify(slug):
+    """Webhook CinetPay — confirmation paiement côté serveur."""
+    import os, requests as req
+    t = _get_tenant(slug)
+    transaction_id = request.form.get('cpm_trans_id') or request.json.get('cpm_trans_id', '')
+    order = OnlineOrder.query.filter_by(tenant_id=t.id, reference=transaction_id).first()
+    if not order:
+        return 'NOT FOUND', 404
+
+    # Vérifier le paiement auprès de CinetPay
+    apikey  = os.environ.get('CINETPAY_APIKEY', '')
+    site_id = os.environ.get('CINETPAY_SITE_ID', '')
+    try:
+        r = req.post('https://api-checkout.cinetpay.com/v2/payment/check', json={
+            'apikey': apikey, 'site_id': site_id, 'transaction_id': transaction_id
+        }, timeout=10)
+        data = r.json()
+        if data.get('code') == '00' and data.get('data', {}).get('status') == 'ACCEPTED':
+            order.payment_status = 'paye'
+            db.session.commit()
+            # Envoyer la facture
+            try:
+                from app.routes.online import _send_invoice
+                _send_invoice(order)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f'[cinetpay notify] Erreur: {e}')
+
+    return 'OK', 200
+
+
+
 # ── COMMANDE ───────────────────────────────────────────────────────────────
 @shop_bp.route('/<slug>/commander', methods=['GET', 'POST'])
 def checkout(slug):

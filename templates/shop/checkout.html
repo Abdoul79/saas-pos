@@ -413,20 +413,28 @@ function showPolicy(type) {
 function selectPay(el, val) {
   document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('selected'));
   el.classList.add('selected');
-  document.getElementById('payDisplay').innerHTML = payLabels[val]||val;
+  document.getElementById('payDisplay').innerHTML = payLabels[val] || val;
   showPolicy(val);
-  var btn = document.getElementById('btnConfirm');
+
+  var btn  = document.getElementById('btnConfirm');
   var form = document.getElementById('checkoutForm');
-  if (val === 'carte') {
+  var MOBILE = ['orange_money','mtn_money','moov_money','wave'];
+
+  if (MOBILE.indexOf(val) >= 0) {
+    btn.textContent = '📱 Payer {{ total|int }} FCFA via ' + (payLabels[val] || val);
+    btn.className   = 'btn-confirm';
+    form.action     = '{{ url_for("shop.mobile_payment", slug=tenant.shop_slug) }}';
+  } else if (val === 'carte') {
     btn.textContent = '💳 Payer {{ total|int }} FCFA par carte';
-    btn.className = 'btn-confirm stripe-btn';
-    form.action = '{{ url_for("shop.stripe_checkout", slug=tenant.shop_slug) }}';
+    btn.className   = 'btn-confirm stripe-btn';
+    form.action     = '{{ url_for("shop.stripe_checkout", slug=tenant.shop_slug) }}';
   } else {
     btn.textContent = '✓ Confirmer — {{ total|int }} FCFA';
-    btn.className = 'btn-confirm';
-    form.action = '{{ url_for("shop.checkout", slug=tenant.shop_slug) }}';
+    btn.className   = 'btn-confirm';
+    form.action     = '{{ url_for("shop.checkout", slug=tenant.shop_slug) }}';
   }
 }
+
 
 // Init : afficher politique livraison par défaut
 showPolicy('livraison');
