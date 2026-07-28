@@ -236,6 +236,61 @@
     {% endif %}
   </div>
 
+  <div class="settings-section">
+    <div class="section-title">📱 Paiement Mobile Money (CinetPay)</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.65rem 1rem;margin-bottom:1rem;font-size:.8rem;color:var(--muted);">
+      💡 Créez un compte marchand sur
+      <a href="https://cinetpay.com" target="_blank" style="color:var(--accent);font-weight:600;">cinetpay.com</a>,
+      puis récupérez votre <strong>API Key</strong> et <strong>Site ID</strong> dans votre tableau de bord.
+      Vos clients pourront payer via Orange Money, MTN MoMo, Moov Money et Wave directement.
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input name="cinetpay_apikey" class="form-control" type="password"
+               value="{{ tenant.cinetpay_apikey or '' }}"
+               placeholder="Votre clé API CinetPay"
+               style="font-family:monospace;font-size:.82rem;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Site ID</label>
+        <input name="cinetpay_site_id" class="form-control"
+               value="{{ tenant.cinetpay_site_id or '' }}"
+               placeholder="Votre Site ID"
+               style="font-family:monospace;font-size:.82rem;">
+      </div>
+    </div>
+
+    {% if tenant.cinetpay_apikey and tenant.cinetpay_site_id %}
+    <div style="display:flex;align-items:center;gap:.65rem;background:#22c55e15;border:1px solid #22c55e44;border-radius:8px;padding:.6rem .9rem;margin-top:.25rem;">
+      <span style="font-size:1.1rem;">📱</span>
+      <div>
+        <div style="font-size:.8rem;font-weight:600;color:#22c55e;">CinetPay configuré ✅</div>
+        <div style="font-size:.72rem;color:var(--muted);">
+          Orange Money · MTN MoMo · Moov Money · Wave — disponibles au checkout
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div style="font-size:.78rem;color:var(--muted);margin-top:.25rem;display:flex;align-items:center;gap:.4rem;">
+      ⚠ Sans CinetPay, les paiements Mobile Money ne seront pas disponibles.
+    </div>
+    {% endif %}
+
+    <!-- Guide rapide -->
+    <details style="margin-top:.75rem;">
+      <summary style="font-size:.78rem;color:var(--accent);cursor:pointer;font-weight:600;">📖 Comment obtenir mes clés CinetPay ?</summary>
+      <ol style="font-size:.75rem;color:var(--muted);line-height:1.8;margin-top:.5rem;padding-left:1.1rem;">
+        <li>Rendez-vous sur <a href="https://cinetpay.com" target="_blank" style="color:var(--accent);">cinetpay.com</a> et créez un compte marchand.</li>
+        <li>Validez votre compte (documents d'identité + RIB).</li>
+        <li>Dans votre dashboard → <strong>Intégration</strong> → <strong>Mes applications</strong>.</li>
+        <li>Copiez l'<strong>API Key</strong> et le <strong>Site ID</strong> de votre application.</li>
+        <li>Collez-les ici et sauvegardez.</li>
+      </ol>
+    </details>
+  </div>
+
 
 
 

@@ -97,6 +97,8 @@ class Tenant(db.Model):
     shop_jours_fermes        = db.Column(db.String(50), nullable=True, default='')  # ex: "0,6" = dim,sam
     stripe_secret_key      = db.Column(db.String(255), nullable=True)
     stripe_publishable_key = db.Column(db.String(255), nullable=True)
+    cinetpay_apikey  = db.Column(db.String(255), nullable=True)
+    cinetpay_site_id = db.Column(db.String(100), nullable=True)
     shop_whatsapp = db.Column(db.String(30), nullable=True)
 
 
@@ -109,6 +111,9 @@ class Tenant(db.Model):
     losses      = db.relationship('LossFiche',  back_populates='tenant', lazy='dynamic', cascade='all, delete-orphan')
     suppliers   = db.relationship('Supplier',   back_populates='tenant', lazy='dynamic', cascade='all, delete-orphan')
     categories  = db.relationship('Category',   back_populates='tenant', lazy='dynamic', cascade='all, delete-orphan')
+
+    
+
 
 
 

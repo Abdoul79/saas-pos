@@ -1,20 +1,94 @@
 {% extends "base.html" %}
 {% block title %}Code-Barres — {{ product.designation }}{% endblock %}
+{% block head %}
+<style>
+  @media print {
+    .no-print { display:none !important; }
+    body > *:not(main) { display:none !important; }
+    main { padding:0 !important; }
+    .print-area { margin:0;padding:0; }
+  }
+
+  .label-sheet {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:.5rem;
+    padding:.5rem;
+    max-width:600px;
+    margin:0 auto;
+  }
+  .label-item {
+    border:1px solid #ddd;border-radius:6px;
+    padding:.4rem .5rem;text-align:center;
+    background:#fff;
+  }
+  .label-name {
+    font-size:.68rem;font-weight:700;color:#111;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-bottom:.15rem;
+  }
+  .label-barcode img { width:100%;height:auto; }
+  .label-code {
+    font-size:.6rem;color:#555;
+    font-family:monospace;margin-top:.1rem;
+  }
+  .label-price {
+    font-size:.72rem;font-weight:800;color:#f5a623;margin-top:.1rem;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="max-width:480px;margin:0 auto;text-align:center;">
-  <div class="page-title">Planche d'étiquettes</div>
-  <div class="card">
-    <h2 style="margin-bottom:.5rem;">{{ product.designation }}</h2>
-    <p class="text-muted mb-2">Code : <span class="text-mono text-accent">{{ product.barcode }}</span></p>
-    {% if bc_b64 %}
-      <img src="data:image/png;base64,{{ bc_b64 }}" style="max-width:100%;border:1px solid var(--border);border-radius:8px;padding:.5rem;background:#fff;">
-    {% else %}
-      <div class="text-muted" style="padding:2rem;">Code-barres non disponible (bibliothèque python-barcode non installée).</div>
-    {% endif %}
-    <div style="margin-top:1.5rem;">
-      <button onclick="window.print()" class="btn btn-primary">🖨 Imprimer</button>
-      <a href="{{ url_for('manager.products') }}" class="btn btn-secondary" style="margin-left:.5rem;">Retour</a>
-    </div>
+<!-- Contrôles (pas imprimés) -->
+<div class="no-print" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+  <div>
+    <div class="page-title" style="margin-bottom:0;">Planche d'étiquettes</div>
+    <div style="font-size:.82rem;color:var(--muted);">{{ product.designation }}</div>
+  </div>
+  <div style="display:flex;gap:.5rem;align-items:center;">
+    <label style="font-size:.82rem;color:var(--muted);">Quantité :</label>
+    <input type="number" id="qtyInput" value="12" min="1" max="60"
+           style="width:60px;padding:.35rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.88rem;text-align:center;"
+           onchange="buildSheet()">
+    <button onclick="window.print()" class="btn btn-primary btn-sm">🖨 Imprimer</button>
+    <a href="{{ url_for('manager.products') }}" class="btn btn-secondary btn-sm">← Retour</a>
   </div>
 </div>
+
+<!-- Zone d'impression -->
+<div class="print-area">
+  <div class="label-sheet" id="labelSheet"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var BC_B64  = '{{ bc_b64 or "" }}';
+var NAME    = {{ product.designation | tojson }};
+var CODE    = {{ (product.barcode or '') | tojson }};
+var PRICE   = '{{ product.prix_vente_ttc|int }} FCFA';
+var SKU     = {{ (product.sku or '') | tojson }};
+
+function buildSheet() {
+  var qty = Math.max(1, Math.min(60, parseInt(document.getElementById('qtyInput').value) || 12));
+  var sheet = document.getElementById('labelSheet');
+  sheet.innerHTML = '';
+  for (var i = 0; i < qty; i++) {
+    var div = document.createElement('div');
+    div.className = 'label-item';
+    div.innerHTML =
+      '<div class="label-name" title="'+NAME+'">'+NAME+'</div>' +
+      (BC_B64
+        ? '<div class="label-barcode"><img src="data:image/png;base64,'+BC_B64+'" alt="barcode"></div>'
+        : '<div style="height:30px;line-height:30px;font-size:.65rem;color:#aaa;">—</div>') +
+      '<div class="label-code">'+CODE+'</div>' +
+      (SKU ? '<div class="label-code" style="color:#999;">'+SKU+'</div>' : '') +
+      '<div class="label-price">'+PRICE+'</div>';
+    sheet.appendChild(div);
+  }
+}
+
+buildSheet();
+</script>
 {% endblock %}

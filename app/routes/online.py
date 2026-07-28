@@ -557,6 +557,8 @@ def settings():
         t.stripe_secret_key = request.form.get('stripe_sk', '').strip() or None
         t.stripe_publishable_key = request.form.get('stripe_pk', '').strip() or None
         t.shop_whatsapp = request.form.get('shop_whatsapp', '').strip() or None
+        t.cinetpay_apikey  = request.form.get('cinetpay_apikey', '').strip() or None
+        t.cinetpay_site_id = request.form.get('cinetpay_site_id', '').strip() or None
 
 
         db.session.commit()
