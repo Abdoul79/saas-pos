@@ -277,7 +277,9 @@
       <a href="{{ url_for('pos.engros') }}" {% if request.endpoint == 'pos.engros' %}class="active"{% endif %} style="color:var(--success);">🏭 Caisse Gros</a>
       {% endif %}
       <a href="{{ url_for('manager.sales') }}"      {% if request.endpoint == 'manager.sales' %}class="active"{% endif %}>Ventes</a>
+      {% if current_user.is_authenticated and not current_user.is_super_admin and current_user.tenant and current_user.tenant.boutique_en_ligne_active %}
       <a href="{{ url_for('online.dashboard') }}"   {% if 'online' in request.endpoint %}class="active"{% endif %} style="color:#06b6d4;">🌐 En ligne</a>
+      {% endif %}
       <a href="{{ url_for('manager.losses') }}"     {% if 'loss' in request.endpoint %}class="active"{% endif %}>Casse</a>
       <a href="{{ url_for('manager.users') }}"      {% if 'user' in request.endpoint %}class="active"{% endif %}>Employés</a>
       <a href="{{ url_for('manager.settings') }}"   {% if 'settings' in request.endpoint %}class="active"{% endif %}>Paramètres</a>
@@ -290,9 +292,166 @@
       <a href="{{ url_for('cashier.casse') }}"     {% if 'cashier.casse' == request.endpoint %}class="active"{% endif %}>Casse</a>
       <a href="{{ url_for('cashier.my_history') }}" {% if 'cashier.my_history' == request.endpoint %}class="active"{% endif %}>Mon Historique</a>
     {% endif %}
+
     <a href="{{ url_for('auth.logout') }}" style="color:var(--danger)">Déconnexion</a>
+    <button onclick="lockScreen()" title="Verrouiller" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:.85rem;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🔒</button>
   </div>
 </nav>
+
+
+<!-- ── Modal verrouillage écran ── -->
+<div id="lockOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,12,18,.97);backdrop-filter:blur(12px);flex-direction:column;align-items:center;justify-content:center;">
+  <div style="text-align:center;max-width:320px;width:90%;">
+    <div style="font-size:3rem;margin-bottom:.5rem;">🔒</div>
+    <div style="font-family:var(--mono);font-size:1rem;color:var(--accent);margin-bottom:.25rem;">Écran verrouillé</div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:1.5rem;">{{ current_user.prenom }} {{ current_user.nom }}</div>
+
+    <!-- Points PIN -->
+    <div style="display:flex;justify-content:center;gap:.65rem;margin-bottom:1.25rem;" id="pinDots">
+      <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;" class="pin-dot"></div>
+      <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;" class="pin-dot"></div>
+      <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;" class="pin-dot"></div>
+      <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;" class="pin-dot"></div>
+    </div>
+
+    <!-- Clavier numérique -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem;" id="pinPad">
+      <!-- 1-9 -->
+      <button onclick="pinPress('1')" class="pin-key">1</button>
+      <button onclick="pinPress('2')" class="pin-key">2</button>
+      <button onclick="pinPress('3')" class="pin-key">3</button>
+      <button onclick="pinPress('4')" class="pin-key">4</button>
+      <button onclick="pinPress('5')" class="pin-key">5</button>
+      <button onclick="pinPress('6')" class="pin-key">6</button>
+      <button onclick="pinPress('7')" class="pin-key">7</button>
+      <button onclick="pinPress('8')" class="pin-key">8</button>
+      <button onclick="pinPress('9')" class="pin-key">9</button>
+      <!-- Rangée bas -->
+      <button onclick="pinPress('clear')" class="pin-key" style="color:var(--muted);font-size:.75rem;">✕ Effacer</button>
+      <button onclick="pinPress('0')" class="pin-key">0</button>
+      <button onclick="pinPress('del')" class="pin-key" style="color:var(--muted);">⌫</button>
+    </div>
+
+    <div id="pinError" style="display:none;color:var(--danger);font-size:.78rem;margin-bottom:.5rem;">⚠ Code incorrect</div>
+    <div style="font-size:.72rem;color:var(--muted);">Code PIN à 4 chiffres</div>
+    <a href="{{ url_for('auth.logout') }}" style="display:block;margin-top:1rem;font-size:.74rem;color:var(--muted);">Pas votre compte ? Se déconnecter →</a>
+  </div>
+</div>
+
+<style>
+  .pin-key {
+    padding:.85rem;border:1px solid var(--border);border-radius:10px;
+    background:var(--surface);color:var(--text);
+    font-size:1.2rem;font-weight:600;cursor:pointer;
+    transition:all .12s;font-family:var(--mono);
+  }
+  .pin-key:hover { border-color:var(--accent);background:#f5a62315;transform:translateY(-1px); }
+  .pin-key:active { transform:scale(.95); }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-7px)} 40%,80%{transform:translateX(7px)} }
+  @keyframes popDot { 0%{transform:scale(1)} 40%{transform:scale(1.4)} 100%{transform:scale(1)} }
+</style>
+
+<script>
+(function(){
+  var PIN_KEY  = 'screen_lock_pin_{{ current_user.id }}';
+  var LOCK_KEY = 'screen_locked_{{ current_user.id }}';
+  var entered  = '';
+  var overlay  = document.getElementById('lockOverlay');
+
+  // Restaurer l'état verrouillé après rechargement
+  if (sessionStorage.getItem(LOCK_KEY) === '1') showLock();
+
+  function showLock() {
+    overlay.style.display = 'flex';
+    entered = '';
+    updateDots();
+    sessionStorage.setItem(LOCK_KEY, '1');
+    document.body.style.overflow = 'hidden';
+  }
+  function hideLock() {
+    overlay.style.display = 'none';
+    sessionStorage.removeItem(LOCK_KEY);
+    document.body.style.overflow = '';
+  }
+
+  window.lockScreen = function() {
+    // Si pas de PIN défini → demander d'en créer un
+    if (!localStorage.getItem(PIN_KEY)) {
+      var pin = prompt('Définissez votre code PIN (4 chiffres) :');
+      if (!pin || !/^\d{4}$/.test(pin)) { alert('Code invalide. Entrez exactement 4 chiffres.'); return; }
+      var confirm = prompt('Confirmez votre code PIN :');
+      if (pin !== confirm) { alert('Les codes ne correspondent pas.'); return; }
+      localStorage.setItem(PIN_KEY, pin);
+    }
+    showLock();
+  };
+
+  window.pinPress = function(val) {
+    var err = document.getElementById('pinError');
+    err.style.display = 'none';
+
+    if (val === 'clear') { entered = ''; }
+    else if (val === 'del') { entered = entered.slice(0, -1); }
+    else if (entered.length < 4) { entered += val; }
+
+    updateDots();
+
+    if (entered.length === 4) {
+      var stored = localStorage.getItem(PIN_KEY);
+      if (entered === stored) {
+        // Succès : animation verte
+        document.querySelectorAll('.pin-dot').forEach(function(d) {
+          d.style.background = 'var(--success)';
+          d.style.borderColor = 'var(--success)';
+          d.style.animation = 'popDot .3s ease';
+        });
+        setTimeout(hideLock, 400);
+      } else {
+        // Erreur : shake + rouge
+        err.style.display = 'block';
+        err.style.animation = 'none';
+        void err.offsetWidth; // reflow
+        err.style.animation = 'shake .35s ease';
+        document.querySelectorAll('.pin-dot').forEach(function(d) {
+          d.style.background = 'var(--danger)';
+          d.style.borderColor = 'var(--danger)';
+        });
+        setTimeout(function(){ entered = ''; updateDots(); }, 500);
+      }
+    }
+  };
+
+  function updateDots() {
+    var dots = document.querySelectorAll('.pin-dot');
+    dots.forEach(function(d, i) {
+      if (i < entered.length) {
+        d.style.background = 'var(--accent)';
+        d.style.borderColor = 'var(--accent)';
+        d.style.animation = 'popDot .15s ease';
+      } else {
+        d.style.background = 'transparent';
+        d.style.borderColor = 'var(--border)';
+        d.style.animation = 'none';
+      }
+    });
+  }
+
+  // Clavier physique
+  document.addEventListener('keydown', function(e) {
+    if (overlay.style.display === 'none') return;
+    if (e.key >= '0' && e.key <= '9') pinPress(e.key);
+    else if (e.key === 'Backspace') pinPress('del');
+    else if (e.key === 'Escape') pinPress('clear');
+  });
+
+  // Bloquer les interactions derrière le overlay
+  overlay.addEventListener('click', function(e) { e.stopPropagation(); });
+})();
+</script>
+
+
+
+
 {% endif %}
 
 <main>
