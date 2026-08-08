@@ -640,12 +640,20 @@ def create_transfer():
 
 
 # ── USERS ──────────────────────────────────────────────────────────────────
+from app.models import User
+
 @manager_bp.route('/users')
 @_manager_access
 def users():
-    users = User.query.filter_by(tenant_id=_tid())\
-                .filter(User.role != UserRole.MANAGER).all()
+    users = (
+        User.query
+        .filter_by(tenant_id=_tid(), is_manager=False)
+        .order_by(User.prenom)
+        .all()
+    )
     return render_template('manager/users.html', users=users)
+    
+
 
 
 @manager_bp.route('/users/create', methods=['GET', 'POST'])
@@ -926,7 +934,9 @@ def settings():
                 current_user.set_password(new_pw)
                 db.session.commit()
                 flash('Mot de passe changé.', 'success')
+
     return render_template('manager/settings.html', tenant=tenant)
+
 
 
 @manager_bp.route('/api/cashiers/presence')
@@ -974,4 +984,41 @@ def cashiers_presence():
     return {'cashiers': result}
 
 
+@manager_bp.route('/settings/pin', methods=['POST'])
+@_manager_access
+def save_pin():
+    from flask_login import current_user
+    pin = request.form.get('pin', '').strip()
+    if not pin.isdigit() or len(pin) != 4:
+        flash('Code PIN invalide. 4 chiffres requis.', 'danger')
+        return redirect(url_for('manager.settings'))
+    current_user.set_pin(pin)
+    db.session.commit()
+    flash('Code PIN enregistré.', 'success')
+    return redirect(url_for('manager.settings'))
 
+
+@manager_bp.route('/settings/pin/employee/<int:uid>', methods=['POST'])
+@_manager_access
+def save_employee_pin(uid):
+    from app.models import User
+    u = User.query.filter_by(id=uid, tenant_id=_tid()).first_or_404()
+    pin = request.form.get('pin', '').strip()
+    if not pin.isdigit() or len(pin) != 4:
+        flash('Code PIN invalide.', 'danger')
+        return redirect(url_for('manager.settings'))
+    u.set_pin(pin)
+    db.session.commit()
+    flash(f'Code PIN de {u.prenom} enregistré.', 'success')
+    return redirect(url_for('manager.settings'))
+
+
+@manager_bp.route('/api/verify-pin', methods=['POST'])
+def verify_pin():
+    """Vérifie le PIN côté serveur — appelé depuis le lock screen."""
+    from flask_login import current_user
+    data = request.get_json() or {}
+    pin = data.get('pin', '')
+    if current_user.check_pin(pin):
+        return jsonify({'ok': True})
+    return jsonify({'ok': False}), 401

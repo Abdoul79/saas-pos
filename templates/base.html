@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -315,8 +316,7 @@
     </div>
 
     <!-- Clavier numérique -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem;" id="pinPad">
-      <!-- 1-9 -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem;">
       <button onclick="pinPress('1')" class="pin-key">1</button>
       <button onclick="pinPress('2')" class="pin-key">2</button>
       <button onclick="pinPress('3')" class="pin-key">3</button>
@@ -326,13 +326,13 @@
       <button onclick="pinPress('7')" class="pin-key">7</button>
       <button onclick="pinPress('8')" class="pin-key">8</button>
       <button onclick="pinPress('9')" class="pin-key">9</button>
-      <!-- Rangée bas -->
-      <button onclick="pinPress('clear')" class="pin-key" style="color:var(--muted);font-size:.75rem;">✕ Effacer</button>
+      <button onclick="pinPress('clear')" class="pin-key" style="color:var(--muted);font-size:.72rem;">✕ Effacer</button>
       <button onclick="pinPress('0')" class="pin-key">0</button>
       <button onclick="pinPress('del')" class="pin-key" style="color:var(--muted);">⌫</button>
     </div>
 
     <div id="pinError" style="display:none;color:var(--danger);font-size:.78rem;margin-bottom:.5rem;">⚠ Code incorrect</div>
+    <div id="pinLoading" style="display:none;color:var(--muted);font-size:.78rem;margin-bottom:.5rem;">⏳ Vérification…</div>
     <div style="font-size:.72rem;color:var(--muted);">Code PIN à 4 chiffres</div>
     <a href="{{ url_for('auth.logout') }}" style="display:block;margin-top:1rem;font-size:.74rem;color:var(--muted);">Pas votre compte ? Se déconnecter →</a>
   </div>
@@ -348,23 +348,24 @@
   .pin-key:hover { border-color:var(--accent);background:#f5a62315;transform:translateY(-1px); }
   .pin-key:active { transform:scale(.95); }
   @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-7px)} 40%,80%{transform:translateX(7px)} }
-  @keyframes popDot { 0%{transform:scale(1)} 40%{transform:scale(1.4)} 100%{transform:scale(1)} }
 </style>
 
 <script>
 (function(){
-  var PIN_KEY  = 'screen_lock_pin_{{ current_user.id }}';
   var LOCK_KEY = 'screen_locked_{{ current_user.id }}';
+  var HAS_PIN  = {{ 'true' if current_user.pin_hash else 'false' }}; // ce ligne de code erreur
   var entered  = '';
   var overlay  = document.getElementById('lockOverlay');
+  var busy     = false;
 
-  // Restaurer l'état verrouillé après rechargement
+  // Restaurer l'état verrouillé si page rechargée
   if (sessionStorage.getItem(LOCK_KEY) === '1') showLock();
 
   function showLock() {
     overlay.style.display = 'flex';
     entered = '';
     updateDots();
+    hideError();
     sessionStorage.setItem(LOCK_KEY, '1');
     document.body.style.overflow = 'hidden';
   }
@@ -372,68 +373,92 @@
     overlay.style.display = 'none';
     sessionStorage.removeItem(LOCK_KEY);
     document.body.style.overflow = '';
+    entered = '';
+    updateDots();
+    hideError();
+  }
+  function hideError() {
+    document.getElementById('pinError').style.display   = 'none';
+    document.getElementById('pinLoading').style.display = 'none';
   }
 
   window.lockScreen = function() {
-    // Si pas de PIN défini → demander d'en créer un
-    if (!localStorage.getItem(PIN_KEY)) {
-      var pin = prompt('Définissez votre code PIN (4 chiffres) :');
-      if (!pin || !/^\d{4}$/.test(pin)) { alert('Code invalide. Entrez exactement 4 chiffres.'); return; }
-      var confirm = prompt('Confirmez votre code PIN :');
-      if (pin !== confirm) { alert('Les codes ne correspondent pas.'); return; }
-      localStorage.setItem(PIN_KEY, pin);
+    if (!HAS_PIN) {
+      alert('Aucun code PIN défini. Allez dans Paramètres → Code PIN pour en créer un.');
+      return;
     }
     showLock();
   };
 
   window.pinPress = function(val) {
-    var err = document.getElementById('pinError');
-    err.style.display = 'none';
+    if (busy) return;
 
     if (val === 'clear') { entered = ''; }
     else if (val === 'del') { entered = entered.slice(0, -1); }
     else if (entered.length < 4) { entered += val; }
 
     updateDots();
+    document.getElementById('pinError').style.display = 'none';
 
     if (entered.length === 4) {
-      var stored = localStorage.getItem(PIN_KEY);
-      if (entered === stored) {
-        // Succès : animation verte
-        document.querySelectorAll('.pin-dot').forEach(function(d) {
-          d.style.background = 'var(--success)';
-          d.style.borderColor = 'var(--success)';
-          d.style.animation = 'popDot .3s ease';
-        });
-        setTimeout(hideLock, 400);
-      } else {
-        // Erreur : shake + rouge
-        err.style.display = 'block';
-        err.style.animation = 'none';
-        void err.offsetWidth; // reflow
-        err.style.animation = 'shake .35s ease';
-        document.querySelectorAll('.pin-dot').forEach(function(d) {
-          d.style.background = 'var(--danger)';
-          d.style.borderColor = 'var(--danger)';
-        });
-        setTimeout(function(){ entered = ''; updateDots(); }, 500);
-      }
+      busy = true;
+      document.getElementById('pinLoading').style.display = 'block';
+
+      fetch('{{ url_for("manager.verify_pin") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+        body: JSON.stringify({pin: entered})
+      })
+      .then(function(r) { return r.json().then(function(d){ return {ok: r.ok, data: d}; }); })
+      .then(function(res) {
+        busy = false;
+        document.getElementById('pinLoading').style.display = 'none';
+        if (res.ok && res.data.ok) {
+          // Succès → points verts
+          document.querySelectorAll('.pin-dot').forEach(function(d) {
+            d.style.background   = '#22c55e';
+            d.style.borderColor  = '#22c55e';
+          });
+          setTimeout(hideLock, 350);
+        } else {
+          // Erreur → rouge + shake
+          document.querySelectorAll('.pin-dot').forEach(function(d) {
+            d.style.background  = '#ef4444';
+            d.style.borderColor = '#ef4444';
+          });
+          var err = document.getElementById('pinError');
+          err.style.display = 'block';
+          err.style.animation = 'none';
+          void err.offsetWidth;
+          err.style.animation = 'shake .35s ease';
+          setTimeout(function(){ entered = ''; updateDots(); }, 500);
+        }
+      })
+      .catch(function() {
+        busy = false;
+        document.getElementById('pinLoading').style.display = 'none';
+        document.getElementById('pinError').textContent = '⚠ Erreur réseau. Réessayez.';
+        document.getElementById('pinError').style.display = 'block';
+        setTimeout(function(){ entered = ''; updateDots(); }, 800);
+      });
     }
   };
 
   function updateDots() {
-    var dots = document.querySelectorAll('.pin-dot');
-    dots.forEach(function(d, i) {
+    document.querySelectorAll('.pin-dot').forEach(function(d, i) {
       if (i < entered.length) {
-        d.style.background = 'var(--accent)';
+        d.style.background  = 'var(--accent)';
         d.style.borderColor = 'var(--accent)';
-        d.style.animation = 'popDot .15s ease';
       } else {
-        d.style.background = 'transparent';
+        d.style.background  = 'transparent';
         d.style.borderColor = 'var(--border)';
-        d.style.animation = 'none';
       }
     });
+  }
+
+  function getCsrf() {
+    var m = document.cookie.match(/csrf_token=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
   }
 
   // Clavier physique
@@ -444,13 +469,9 @@
     else if (e.key === 'Escape') pinPress('clear');
   });
 
-  // Bloquer les interactions derrière le overlay
   overlay.addEventListener('click', function(e) { e.stopPropagation(); });
-})();
+})(); // ce ligne de code erreur
 </script>
-
-
-
 
 {% endif %}
 

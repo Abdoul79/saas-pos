@@ -114,9 +114,6 @@ class Tenant(db.Model):
 
     
 
-
-
-
     def set_password(self, p):   self.password_hash = bcrypt.generate_password_hash(p).decode('utf-8')
     def check_password(self, p): return bcrypt.check_password_hash(self.password_hash, p)
 
@@ -235,6 +232,18 @@ class User(UserMixin, db.Model):
     def set_password(self, p):   self.password_hash = bcrypt.generate_password_hash(p).decode('utf-8')
     def check_password(self, p): return bcrypt.check_password_hash(self.password_hash, p)
 
+    pin_hash = db.Column(db.String(255), nullable=True)
+
+    def set_pin(self, pin):
+        from app import bcrypt
+        self.pin_hash = bcrypt.generate_password_hash(pin).decode('utf-8')
+
+    def check_pin(self, pin):
+         if not self.pin_hash:
+            return False
+         from app import bcrypt
+         return bcrypt.check_password_hash(self.pin_hash, str(pin))
+
     @property
     def logo_url(self):
         if not self.logo_filename:
@@ -266,6 +275,8 @@ class User(UserMixin, db.Model):
     def full_name(self):      return f'{self.prenom} {self.nom}'
 
     def __repr__(self): return f'<User {self.email} [{self.role}]>'
+
+
 
 
 @login_manager.user_loader

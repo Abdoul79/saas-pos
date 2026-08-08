@@ -9,26 +9,20 @@
     <div class="card-header">// Informations de la boutique</div>
     <form method="POST" enctype="multipart/form-data">
       <input type="hidden" name="action" value="update_profile">
-
-      <!-- Logo actuel + upload -->
       <div class="form-group" style="margin-top:1rem;">
         <label class="form-label">Logo de la boutique</label>
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.5rem;">
           {% if tenant.logo_url %}
-          <img src="{{ tenant.logo_url }}" alt="Logo"
-               style="width:60px;height:60px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:var(--bg);">
+          <img src="{{ tenant.logo_url }}" alt="Logo" style="width:60px;height:60px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:var(--bg);">
           {% else %}
           <div style="width:60px;height:60px;background:var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);">🏪</div>
           {% endif %}
           <div>
             <input class="form-control" type="file" name="logo" accept="image/*" style="max-width:260px;">
-            <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem;">
-              PNG, JPG ou WEBP — affiché sur les tickets de caisse
-            </div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem;">PNG, JPG ou WEBP — affiché sur les tickets de caisse</div>
           </div>
         </div>
       </div>
-
       <div class="grid-2">
         <div class="form-group">
           <label class="form-label">Nom de la boutique</label>
@@ -52,8 +46,7 @@
       <div class="grid-2">
         <div class="form-group">
           <label class="form-label">Téléphone entreprise</label>
-          <input class="form-control" type="tel" name="telephone_entreprise"
-                 value="{{ tenant.telephone_entreprise or '' }}" placeholder="+225 07 XX XX XX">
+          <input class="form-control" type="tel" name="telephone_entreprise" value="{{ tenant.telephone_entreprise or '' }}" placeholder="+225 07 XX XX XX">
         </div>
         <div class="form-group">
           <label class="form-label">Ville</label>
@@ -85,6 +78,57 @@
     </form>
   </div>
 
+  <!-- ── Code PIN écran verrouillé ── -->
+<div class="card mb-2">
+  <div class="card-header">// Code PIN — Verrouillage d'écran</div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted);margin-bottom:1rem;">
+    Le code PIN est stocké de façon sécurisée en base de données.
+  </div>
+
+  <!-- Mon PIN -->
+  <form method="POST" action="{{ url_for('manager.save_pin') }}" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:end;">
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">Nouveau code PIN (4 chiffres)</label>
+      <input type="password" name="pin" class="form-control" maxlength="4"
+             pattern="\d{4}" placeholder="••••" inputmode="numeric" required
+             style="font-family:var(--mono);font-size:1.2rem;letter-spacing:.4rem;max-width:140px;">
+    </div>
+    <div>
+      <button type="submit" class="btn btn-primary btn-sm">🔒 Enregistrer mon PIN</button>
+      {% if current_user.pin_hash %}
+      <div style="font-size:.72rem;color:var(--success);margin-top:.3rem;">✓ PIN défini</div>
+      {% else %}
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">⚠ Aucun PIN défini</div>
+      {% endif %}
+    </div>
+  </form>
+
+  <!-- PIN employés -->
+  {% if current_user.is_manager and users %}
+  <div style="margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1rem;">
+    <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem;">PIN des employés</div>
+    {% for u in users %}
+    <form method="POST" action="{{ url_for('manager.save_employee_pin', uid=u.id) }}"
+          style="display:flex;align-items:center;gap:.65rem;padding:.55rem 0;border-bottom:1px solid var(--border);">
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">
+        {{ u.prenom[0] }}{{ u.nom[0] }}
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:.82rem;font-weight:600;">{{ u.prenom }} {{ u.nom }}</div>
+        <div style="font-size:.68rem;color:var(--muted);">
+          {% if u.pin_hash %}<span style="color:var(--success);">✓ PIN défini</span>{% else %}Aucun PIN{% endif %}
+        </div>
+      </div>
+      <input type="password" name="pin" class="form-control" maxlength="4"
+             pattern="\d{4}" placeholder="••••" inputmode="numeric" required
+             style="width:80px;font-family:var(--mono);font-size:.95rem;letter-spacing:.3rem;text-align:center;padding:.35rem .4rem;">
+      <button type="submit" class="btn btn-secondary btn-sm">💾</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
   <!-- ── Abonnement ── -->
   <div class="card">
     <div class="card-header">// Abonnement</div>
@@ -96,4 +140,75 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var PIN_KEY = 'screen_lock_pin_{{ current_user.id }}';
+
+// Afficher état PIN actuel
+function refreshPinStatus() {
+  var stored = localStorage.getItem(PIN_KEY);
+  var txt = document.getElementById('pinStatusText');
+  var btn = document.getElementById('btnClearPin');
+  if (stored) {
+    txt.innerHTML = '🔒 Code PIN défini — <span style="color:var(--success);">Actif</span>';
+    btn.style.display = 'inline-block';
+  } else {
+    txt.innerHTML = '⚠ Aucun code PIN défini';
+    btn.style.display = 'none';
+  }
+}
+refreshPinStatus();
+
+function savePin() {
+  var np = document.getElementById('newPin').value;
+  var cp = document.getElementById('confirmPin').value;
+  var msg = document.getElementById('pinMsg');
+  msg.style.display = 'block';
+
+  if (!/^\d{4}$/.test(np)) {
+    msg.textContent = '⚠ Le code doit contenir exactement 4 chiffres.';
+    msg.style.background = '#dc262615'; msg.style.color = 'var(--danger)'; msg.style.border = '1px solid #dc262633';
+    return;
+  }
+  if (np !== cp) {
+    msg.textContent = '⚠ Les deux codes ne correspondent pas.';
+    msg.style.background = '#dc262615'; msg.style.color = 'var(--danger)'; msg.style.border = '1px solid #dc262633';
+    return;
+  }
+  localStorage.setItem(PIN_KEY, np);
+  document.getElementById('newPin').value = '';
+  document.getElementById('confirmPin').value = '';
+  msg.textContent = '✓ Code PIN enregistré avec succès.';
+  msg.style.background = '#16a34a15'; msg.style.color = 'var(--success)'; msg.style.border = '1px solid #16a34a33';
+  refreshPinStatus();
+  setTimeout(function(){ msg.style.display='none'; }, 3000);
+}
+
+function clearPin() {
+  if (!confirm('Supprimer le code PIN ? Vous ne pourrez plus verrouiller l\'écran.')) return;
+  localStorage.removeItem(PIN_KEY);
+  refreshPinStatus();
+}
+
+// PIN employés (stocké par ID utilisateur)
+function saveEmployeePin(uid, prenom) {
+  var val = document.getElementById('pin_user_'+uid).value;
+  var msg = document.getElementById('empPinMsg');
+  msg.style.display = 'block';
+
+  if (!/^\d{4}$/.test(val)) {
+    msg.textContent = '⚠ Code invalide. 4 chiffres requis.';
+    msg.style.background = '#dc262615'; msg.style.color = 'var(--danger)'; msg.style.border = '1px solid #dc262633';
+    return;
+  }
+  var empKey = 'screen_lock_pin_' + uid;
+  localStorage.setItem(empKey, val);
+  document.getElementById('pin_user_'+uid).value = '';
+  msg.textContent = '✓ Code PIN de ' + prenom + ' enregistré.';
+  msg.style.background = '#16a34a15'; msg.style.color = 'var(--success)'; msg.style.border = '1px solid #16a34a33';
+  setTimeout(function(){ msg.style.display='none'; }, 3000);
+}
+</script>
 {% endblock %}
