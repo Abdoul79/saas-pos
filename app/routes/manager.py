@@ -1014,11 +1014,11 @@ def save_employee_pin(uid):
 
 
 @manager_bp.route('/api/verify-pin', methods=['POST'])
+@login_required
 def verify_pin():
-    """Vérifie le PIN côté serveur — appelé depuis le lock screen."""
-    from flask_login import current_user
+    from flask import jsonify
     data = request.get_json() or {}
-    pin = data.get('pin', '')
+    pin  = str(data.get('pin', ''))
     if current_user.check_pin(pin):
         return jsonify({'ok': True})
     return jsonify({'ok': False}), 401
