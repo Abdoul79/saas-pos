@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -51,30 +50,130 @@
       text-decoration: none;
     }
     .nav-brand span { color: var(--muted); }
-    .nav-links { display: flex; gap: .25rem; align-items: center; }
-    .nav-links a {
-      color: var(--muted);
-      text-decoration: none;
+    .nav-right { display: flex; gap: .5rem; align-items: center; }
+
+    /* ── Bouton menu tactile ── */
+    .menu-trigger {
+      display: flex; align-items: center; gap: .5rem;
+      background: var(--border);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--sans);
       font-size: .82rem;
       font-weight: 500;
-      padding: .4rem .75rem;
-      border-radius: 6px;
+      padding: .45rem .9rem;
+      border-radius: 8px;
+      cursor: pointer;
       transition: all .15s;
     }
-    .nav-links a:hover, .nav-links a.active {
-      color: var(--text);
-      background: var(--border);
+    .menu-trigger:hover { border-color: var(--accent); color: var(--accent); }
+    .menu-trigger .grid-icon {
+      display: grid; grid-template-columns: repeat(2,4px); grid-template-rows: repeat(2,4px); gap: 2px;
     }
+    .menu-trigger .grid-icon span { width: 4px; height: 4px; background: currentColor; border-radius: 1px; }
+
     .nav-badge {
       font-family: var(--mono);
       font-size: .7rem;
       padding: .15rem .5rem;
       border-radius: 99px;
-      margin-left: .5rem;
     }
     .badge-admin  { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
     .badge-mgr    { background: #0369a122; color: #38bdf8; border: 1px solid #0369a144; }
     .badge-cashier{ background: #15803d22; color: #4ade80; border: 1px solid #15803d44; }
+
+    /* ── ÉCRAN TACTILE DE NAVIGATION (grille plein écran) ── */
+    #navGrid {
+      display: none;
+      position: fixed; inset: 0; z-index: 9998;
+      background: rgba(10,12,18,.97);
+      backdrop-filter: blur(12px);
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .navgrid-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: rgba(10,12,18,.97);
+    }
+    .navgrid-title {
+      font-family: var(--mono);
+      color: var(--accent);
+      letter-spacing: .08em;
+      font-size: .95rem;
+    }
+    .navgrid-close {
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .navgrid-close:hover { border-color: var(--danger); color: var(--danger); }
+
+    .navgrid-body { padding: 1.5rem 2rem 2.5rem; max-width: 1200px; width: 100%; margin: 0 auto; }
+    .navgrid-section-label {
+      font-family: var(--mono);
+      font-size: .7rem;
+      color: var(--muted);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin: 1.5rem 0 .75rem;
+    }
+    .navgrid-section-label:first-child { margin-top: 0; }
+
+    .navgrid-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: .85rem;
+    }
+    .navgrid-tile {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: .5rem;
+      aspect-ratio: 1 / 1;
+      min-height: 110px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all .12s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .navgrid-tile .tile-icon { font-size: 1.9rem; line-height: 1; }
+    .navgrid-tile .tile-label { font-size: .8rem; font-weight: 500; text-align: center; padding: 0 .4rem; }
+    .navgrid-tile:hover {
+      border-color: var(--accent);
+      background: #f5a62312;
+      transform: translateY(-2px);
+    }
+    .navgrid-tile:active { transform: scale(.96); }
+    .navgrid-tile.active {
+      border-color: var(--accent);
+      background: #f5a62320;
+    }
+    .navgrid-tile.active .tile-icon,
+    .navgrid-tile.active .tile-label { color: var(--accent); }
+    .navgrid-tile.tile-success { }
+    .navgrid-tile.tile-success .tile-icon { color: var(--success); }
+    .navgrid-tile.tile-info .tile-icon { color: #06b6d4; }
+    .navgrid-tile.tile-danger { border-color: #dc262644; }
+    .navgrid-tile.tile-danger .tile-icon,
+    .navgrid-tile.tile-danger .tile-label { color: var(--danger); }
+
+    @media (max-width: 640px) {
+      .navgrid-tiles { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+      .navgrid-tile { min-height: 92px; }
+      .navgrid-body, .navgrid-header { padding-left: 1rem; padding-right: 1rem; }
+    }
 
     /* ── MAIN ── */
     main { flex: 1; padding: 2rem; max-width: 1400px; width: 100%; margin: 0 auto; }
@@ -251,7 +350,9 @@
 <body>
 {% if current_user.is_authenticated %}
 <nav>
-  <a href="#" class="nav-brand">▣ SaaS<span>POS</span>
+  <a href="#" class="nav-brand">▣ SaaS<span>POS</span></a>
+
+  <div class="nav-right">
     {% if current_user.is_super_admin %}
       <span class="nav-badge badge-admin">SUPER ADMIN</span>
     {% elif current_user.is_manager %}
@@ -259,45 +360,134 @@
     {% else %}
       <span class="nav-badge badge-cashier">CAISSIER</span>
     {% endif %}
-  </a>
 
-  <div class="nav-links">
-    {% if current_user.is_super_admin %}
-      <a href="{{ url_for('super_admin.dashboard') }}" {% if request.endpoint == 'super_admin.dashboard' %}class="active"{% endif %}>Tableau de bord</a>
-      <a href="{{ url_for('super_admin.settings') }}" {% if request.endpoint == 'super_admin.settings' %}class="active"{% endif %}>⚙ Paramètres</a>
-      <a href="{{ url_for('super_admin.tenants') }}" {% if request.endpoint == 'super_admin.tenants' %}class="active"{% endif %}>Commerçants</a>
-    {% elif current_user.is_manager %}
-      <a href="{{ url_for('manager.dashboard') }}"  {% if request.endpoint == 'manager.dashboard' %}class="active"{% endif %}>Dashboard</a>
-      <a href="{{ url_for('manager.products') }}"   {% if 'product' in request.endpoint %}class="active"{% endif %}>Entrepôt</a>
-      <a href="{{ url_for('manager.transfers') }}"  {% if 'transfer' in request.endpoint %}class="active"{% endif %}>Transferts</a>
-      <a href="{{ url_for('suppliers.index') }}"   {% if 'supplier' in request.endpoint %}class="active"{% endif %}>Fournisseurs</a>
-      <a href="{{ url_for('orders.index') }}"   {% if 'order' in request.endpoint %}class="active"{% endif %}>Commandes</a>
-      <a href="{{ url_for('categories.index') }}" {% if 'categor' in request.endpoint %}class="active"{% endif %}>Catégories</a>
-      <a href="{{ url_for('pos.interface') }}" {% if request.endpoint == 'pos.interface' %}class="active"{% endif %}>Caisse Détail</a>
-      {% if current_user.is_authenticated and not current_user.is_super_admin and current_user.tenant and current_user.tenant.vente_engros_active %}
-      <a href="{{ url_for('pos.engros') }}" {% if request.endpoint == 'pos.engros' %}class="active"{% endif %} style="color:var(--success);">🏭 Caisse Gros</a>
-      {% endif %}
-      <a href="{{ url_for('manager.sales') }}"      {% if request.endpoint == 'manager.sales' %}class="active"{% endif %}>Ventes</a>
-      {% if current_user.is_authenticated and not current_user.is_super_admin and current_user.tenant and current_user.tenant.boutique_en_ligne_active %}
-      <a href="{{ url_for('online.dashboard') }}"   {% if 'online' in request.endpoint %}class="active"{% endif %} style="color:#06b6d4;">🌐 En ligne</a>
-      {% endif %}
-      <a href="{{ url_for('manager.losses') }}"     {% if 'loss' in request.endpoint %}class="active"{% endif %}>Casse</a>
-      <a href="{{ url_for('manager.users') }}"      {% if 'user' in request.endpoint %}class="active"{% endif %}>Employés</a>
-      <a href="{{ url_for('manager.settings') }}"   {% if 'settings' in request.endpoint %}class="active"{% endif %}>Paramètres</a>
-    {% else %}
-      <a href="{{ url_for('pos.interface') }}" {% if request.endpoint == 'pos.interface' %}class="active"{% endif %}>Caisse Détail</a>
-      {% if current_user.is_authenticated and not current_user.is_super_admin and current_user.tenant and current_user.tenant.vente_engros_active %}
-      <a href="{{ url_for('pos.engros') }}" {% if request.endpoint == 'pos.engros' %}class="active"{% endif %} style="color:var(--success);">🏭 Caisse Gros</a>
-      {% endif %}
-      <a href="{{ url_for('cashier.stock') }}"     {% if 'cashier.stock' == request.endpoint %}class="active"{% endif %}>Stock Rayon</a>
-      <a href="{{ url_for('cashier.casse') }}"     {% if 'cashier.casse' == request.endpoint %}class="active"{% endif %}>Casse</a>
-      <a href="{{ url_for('cashier.my_history') }}" {% if 'cashier.my_history' == request.endpoint %}class="active"{% endif %}>Mon Historique</a>
-    {% endif %}
+    <button class="menu-trigger" onclick="openNavGrid()">
+      <span class="grid-icon"><span></span><span></span><span></span><span></span></span>
+      Menu
+    </button>
 
-    <a href="{{ url_for('auth.logout') }}" style="color:var(--danger)">Déconnexion</a>
     <button onclick="lockScreen()" title="Verrouiller" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:.85rem;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🔒</button>
   </div>
 </nav>
+
+<!-- ── Écran tactile de navigation (grille plein écran) ── -->
+<div id="navGrid">
+  <div class="navgrid-header">
+    <div class="navgrid-title">▣ NAVIGATION</div>
+    <div class="navgrid-close" onclick="closeNavGrid()">✕</div>
+  </div>
+  <div class="navgrid-body">
+
+    {% if current_user.is_super_admin %}
+      <div class="navgrid-section-label">Administration</div>
+      <div class="navgrid-tiles">
+        <a href="{{ url_for('super_admin.dashboard') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.dashboard' %}active{% endif %}">
+          <span class="tile-icon">📊</span><span class="tile-label">Tableau de bord</span>
+        </a>
+        <a href="{{ url_for('super_admin.settings') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.settings' %}active{% endif %}">
+          <span class="tile-icon">⚙️</span><span class="tile-label">Paramètres</span>
+        </a>
+        <a href="{{ url_for('super_admin.tenants') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.tenants' %}active{% endif %}">
+          <span class="tile-icon">🏢</span><span class="tile-label">Commerçants</span>
+        </a>
+      </div>
+
+    {% elif current_user.is_manager %}
+      <div class="navgrid-section-label">Aperçu</div>
+      <div class="navgrid-tiles">
+        <a href="{{ url_for('manager.dashboard') }}" class="navgrid-tile {% if request.endpoint == 'manager.dashboard' %}active{% endif %}">
+          <span class="tile-icon">📊</span><span class="tile-label">Dashboard</span>
+        </a>
+        <a href="{{ url_for('manager.sales') }}" class="navgrid-tile {% if request.endpoint == 'manager.sales' %}active{% endif %}">
+          <span class="tile-icon">💰</span><span class="tile-label">Ventes</span>
+        </a>
+      </div>
+
+      <div class="navgrid-section-label">Caisse</div>
+      <div class="navgrid-tiles">
+        <a href="{{ url_for('pos.interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.interface' %}active{% endif %}">
+          <span class="tile-icon">🧾</span><span class="tile-label">Caisse Détail</span>
+        </a>
+        {% if current_user.tenant and current_user.tenant.vente_engros_active %}
+        <a href="{{ url_for('pos.engros') }}" class="navgrid-tile tile-success {% if request.endpoint == 'pos.engros' %}active{% endif %}">
+          <span class="tile-icon">🏭</span><span class="tile-label">Caisse Gros</span>
+        </a>
+        {% endif %}
+        {% if current_user.tenant and current_user.tenant.boutique_en_ligne_active %}
+        <a href="{{ url_for('online.dashboard') }}" class="navgrid-tile tile-info {% if 'online' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">🌐</span><span class="tile-label">En ligne</span>
+        </a>
+        {% endif %}
+      </div>
+
+      <div class="navgrid-section-label">Stock &amp; Achats</div>
+      <div class="navgrid-tiles">
+        <a href="{{ url_for('manager.products') }}" class="navgrid-tile {% if 'product' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">📦</span><span class="tile-label">Entrepôt</span>
+        </a>
+        <a href="{{ url_for('manager.transfers') }}" class="navgrid-tile {% if 'transfer' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">🔄</span><span class="tile-label">Transferts</span>
+        </a>
+        <a href="{{ url_for('suppliers.index') }}" class="navgrid-tile {% if 'supplier' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">🚚</span><span class="tile-label">Fournisseurs</span>
+        </a>
+        <a href="{{ url_for('orders.index') }}" class="navgrid-tile {% if 'order' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">📋</span><span class="tile-label">Commandes</span>
+        </a>
+        <a href="{{ url_for('categories.index') }}" class="navgrid-tile {% if 'categor' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">🏷️</span><span class="tile-label">Catégories</span>
+        </a>
+        <a href="{{ url_for('manager.losses') }}" class="navgrid-tile tile-danger {% if 'loss' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">🗑️</span><span class="tile-label">Casse</span>
+        </a>
+      </div>
+
+      <div class="navgrid-section-label">Équipe &amp; Réglages</div>
+      <div class="navgrid-tiles">
+        <a href="{{ url_for('manager.users') }}" class="navgrid-tile {% if 'user' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">👥</span><span class="tile-label">Employés</span>
+        </a>
+        <a href="{{ url_for('manager.settings') }}" class="navgrid-tile {% if 'settings' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">⚙️</span><span class="tile-label">Paramètres</span>
+        </a>
+      </div>
+
+    {% else %}
+      <div class="navgrid-section-label">Caisse</div>
+      <div class="navgrid-tiles">
+        <a href="{{ url_for('pos.interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.interface' %}active{% endif %}">
+          <span class="tile-icon">🧾</span><span class="tile-label">Caisse Détail</span>
+        </a>
+        {% if current_user.tenant and current_user.tenant.vente_engros_active %}
+        <a href="{{ url_for('pos.engros') }}" class="navgrid-tile tile-success {% if request.endpoint == 'pos.engros' %}active{% endif %}">
+          <span class="tile-icon">🏭</span><span class="tile-label">Caisse Gros</span>
+        </a>
+        {% endif %}
+      </div>
+
+      <div class="navgrid-section-label">Mon activité</div>
+      <div class="navgrid-tiles">
+        <a href="{{ url_for('cashier.stock') }}" class="navgrid-tile {% if 'cashier.stock' == request.endpoint %}active{% endif %}">
+          <span class="tile-icon">📦</span><span class="tile-label">Stock Rayon</span>
+        </a>
+        <a href="{{ url_for('cashier.casse') }}" class="navgrid-tile tile-danger {% if 'cashier.casse' == request.endpoint %}active{% endif %}">
+          <span class="tile-icon">🗑️</span><span class="tile-label">Casse</span>
+        </a>
+        <a href="{{ url_for('cashier.my_history') }}" class="navgrid-tile {% if 'cashier.my_history' == request.endpoint %}active{% endif %}">
+          <span class="tile-icon">🕘</span><span class="tile-label">Mon Historique</span>
+        </a>
+      </div>
+    {% endif %}
+
+    <div class="navgrid-section-label">Compte</div>
+    <div class="navgrid-tiles">
+      <a href="{{ url_for('auth.logout') }}" class="navgrid-tile tile-danger">
+        <span class="tile-icon">🚪</span><span class="tile-label">Déconnexion</span>
+      </a>
+    </div>
+
+  </div>
+</div>
 
 
 <!-- ── Modal verrouillage écran ── -->
@@ -353,7 +543,7 @@
 <script>
 (function(){
   var LOCK_KEY = 'screen_locked_{{ current_user.id }}';
-  var HAS_PIN  = {{ 'true' if current_user.pin_hash else 'false' }}; // ce ligne de code erreur
+  var HAS_PIN  = {{ 'true' if current_user.pin_hash else 'false' }};
   var entered  = '';
   var overlay  = document.getElementById('lockOverlay');
   var busy     = false;
@@ -414,14 +604,12 @@
         busy = false;
         document.getElementById('pinLoading').style.display = 'none';
         if (res.ok && res.data.ok) {
-          // Succès → points verts
           document.querySelectorAll('.pin-dot').forEach(function(d) {
             d.style.background   = '#22c55e';
             d.style.borderColor  = '#22c55e';
           });
           setTimeout(hideLock, 350);
         } else {
-          // Erreur → rouge + shake
           document.querySelectorAll('.pin-dot').forEach(function(d) {
             d.style.background  = '#ef4444';
             d.style.borderColor = '#ef4444';
@@ -470,7 +658,22 @@
   });
 
   overlay.addEventListener('click', function(e) { e.stopPropagation(); });
-})(); // ce ligne de code erreur
+})();
+</script>
+
+<script>
+  var navGridOverlay = document.getElementById('navGrid');
+  window.openNavGrid = function() {
+    navGridOverlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+  window.closeNavGrid = function() {
+    navGridOverlay.style.display = 'none';
+    document.body.style.overflow = '';
+  };
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && navGridOverlay.style.display !== 'none') closeNavGrid();
+  });
 </script>
 
 {% endif %}
@@ -502,7 +705,6 @@
   // ── Ping présence + état caisse — actif sur toutes les pages ────────────
   (function() {
     function getCartState() {
-      // Récupérer l'état du panier depuis le contexte POS si disponible
       if (typeof cart === 'undefined') return null;
       const items = Object.values(cart);
       if (!items.length) return {items: [], total: 0, count: 0};
@@ -534,7 +736,7 @@
     }
 
     ping();
-    setInterval(ping, 5000); // Toutes les 5 secondes pour état temps réel
+    setInterval(ping, 5000);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) ping();
     });
