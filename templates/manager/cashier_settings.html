@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Mes Paramètres — SaaS POS{% endblock %}
+{% block content %}
+<div style="max-width:520px;margin:0 auto;">
+  <div class="page-title">⚙ Mes Paramètres</div>
+
+  <!-- ── Profil ── -->
+  <div class="card mb-2">
+    <div class="card-header">// Mon Profil</div>
+    <form method="POST" style="margin-top:.85rem;">
+      <input type="hidden" name="action" value="update_profile">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Prénom</label>
+          <input class="form-control" name="prenom" value="{{ current_user.prenom }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nom</label>
+          <input class="form-control" name="nom" value="{{ current_user.nom }}" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-control" type="email" name="email" value="{{ current_user.email }}" required>
+      </div>
+      <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+    </form>
+  </div>
+
+  <!-- ── Mot de passe ── -->
+  <div class="card mb-2">
+    <div class="card-header">// Changer le mot de passe</div>
+    <form method="POST" style="margin-top:.85rem;">
+      <input type="hidden" name="action" value="change_password">
+      <div class="form-group">
+        <label class="form-label">Ancien mot de passe</label>
+        <input class="form-control" type="password" name="old_password" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nouveau mot de passe</label>
+        <input class="form-control" type="password" name="new_password" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmer le nouveau mot de passe</label>
+        <input class="form-control" type="password" name="confirm_password" required>
+      </div>
+      <button type="submit" class="btn btn-primary">🔐 Changer le mot de passe</button>
+    </form>
+  </div>
+
+  <!-- ── Code PIN ── -->
+  <div class="card mb-2">
+    <div class="card-header">// Code PIN — Verrouillage d'écran</div>
+    <div style="margin-top:.75rem;">
+
+      <!-- État actuel -->
+      <div style="padding:.55rem .85rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:.82rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
+        {% if current_user.pin_hash %}
+        <span style="color:var(--success);">🔒 Code PIN actif</span>
+        {% else %}
+        <span style="color:var(--muted);">⚠ Aucun code PIN défini</span>
+        {% endif %}
+      </div>
+
+      <form method="POST">
+        <input type="hidden" name="action" value="change_pin">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div class="form-group">
+            <label class="form-label">Nouveau code PIN (4 chiffres)</label>
+            <input type="password" name="new_pin" class="form-control"
+                   maxlength="4" pattern="\d{4}" placeholder="••••"
+                   inputmode="numeric" required
+                   style="font-family:var(--mono);font-size:1.2rem;letter-spacing:.4rem;max-width:130px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmer</label>
+            <input type="password" name="confirm_pin" class="form-control"
+                   maxlength="4" pattern="\d{4}" placeholder="••••"
+                   inputmode="numeric" required
+                   style="font-family:var(--mono);font-size:1.2rem;letter-spacing:.4rem;max-width:130px;">
+          </div>
+        </div>
+        {% if current_user.pin_hash %}
+        <div class="form-group">
+          <label class="form-label">Ancien code PIN (requis pour changer)</label>
+          <input type="password" name="old_pin" class="form-control"
+                 maxlength="4" pattern="\d{4}" placeholder="••••"
+                 inputmode="numeric"
+                 style="font-family:var(--mono);font-size:1.2rem;letter-spacing:.4rem;max-width:130px;">
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary btn-sm">🔒 Enregistrer le PIN</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

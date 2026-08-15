@@ -1013,6 +1013,60 @@ def save_employee_pin(uid):
     return redirect(url_for('manager.settings'))
 
 
+
+@manager_bp.route('/cashier/settings', methods=['GET', 'POST'])
+@login_required
+def cashier_settings():
+    """Paramètres du caissier connecté."""
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+
+        # ── Profil ──────────────────────────────────────────────────────
+        if action == 'update_profile':
+            current_user.prenom = request.form.get('prenom', '').strip()
+            current_user.nom    = request.form.get('nom', '').strip()
+            current_user.email  = request.form.get('email', '').strip().lower()
+            db.session.commit()
+            flash('Profil mis à jour.', 'success')
+
+        # ── Mot de passe ─────────────────────────────────────────────────
+        elif action == 'change_password':
+            old_pw  = request.form.get('old_password', '')
+            new_pw  = request.form.get('new_password', '')
+            conf_pw = request.form.get('confirm_password', '')
+            if not bcrypt.check_password_hash(current_user.password_hash, old_pw):
+                flash('Ancien mot de passe incorrect.', 'danger')
+            elif len(new_pw) < 4:
+                flash('Le nouveau mot de passe doit contenir au moins 4 caractères.', 'danger')
+            elif new_pw != conf_pw:
+                flash('Les mots de passe ne correspondent pas.', 'danger')
+            else:
+                current_user.password_hash = bcrypt.generate_password_hash(new_pw).decode('utf-8')
+                db.session.commit()
+                flash('Mot de passe changé avec succès.', 'success')
+
+        # ── Code PIN ─────────────────────────────────────────────────────
+        elif action == 'change_pin':
+            new_pin  = request.form.get('new_pin', '').strip()
+            conf_pin = request.form.get('confirm_pin', '').strip()
+            old_pin  = request.form.get('old_pin', '').strip()
+
+            if not new_pin.isdigit() or len(new_pin) != 4:
+                flash('Le code PIN doit contenir exactement 4 chiffres.', 'danger')
+            elif new_pin != conf_pin:
+                flash('Les codes PIN ne correspondent pas.', 'danger')
+            elif current_user.pin_hash and not current_user.check_pin(old_pin):
+                flash('Ancien code PIN incorrect.', 'danger')
+            else:
+                current_user.set_pin(new_pin)
+                db.session.commit()
+                flash('Code PIN enregistré avec succès.', 'success')
+
+        return redirect(url_for('manager.cashier_settings'))
+
+    return render_template('manager/cashier_settings.html')
+
+
 @manager_bp.route('/api/verify-pin', methods=['POST'])
 @login_required
 def verify_pin():

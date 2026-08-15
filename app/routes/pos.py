@@ -532,3 +532,6 @@ def ping():
     except Exception as e:
         db.session.rollback()
         return {'ok': False, 'error': str(e)}, 500
+
+
+
