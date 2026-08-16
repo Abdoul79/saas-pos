@@ -276,45 +276,104 @@
       </div>
     </div>
   </div>
-
   <!-- ══ RIGHT ══ -->
-  <div class="pos-right">
-    <div class="total-display">
-      <div class="total-label">TOTAL À PAYER</div>
-      <div class="total-value" id="totalDisplay">0 <span style="font-size:.45em;opacity:.6;">FCFA</span></div>
-      <div class="total-sub" id="taxInfo" style="display:none;">
-        <span>HT : <span id="totalHT" class="text-mono">0</span></span>
-        <span>TVA : <span id="totalTVA" class="text-mono">0</span></span>
-      </div>
-      <div class="total-sub" id="totalItems" style="opacity:.5;">panier vide</div>
+   <!-- Remplacez tout le div.pos-right par ceci -->
+<div class="pos-right">
+  <div class="total-display">
+    <div class="total-label">TOTAL À PAYER</div>
+    <div class="total-value" id="totalDisplay">0 <span style="font-size:.45em;opacity:.6;">FCFA</span></div>
+    <div class="total-sub" id="taxInfo" style="display:none;">
+      <span>HT : <span id="totalHT" class="text-mono">0</span></span>
+      <span>TVA : <span id="totalTVA" class="text-mono">0</span></span>
     </div>
-    <div class="payment-section">
-      <div>
-        <div class="pay-method-label">Mode de paiement</div>
-        <div class="method-grid">
-          <button class="method-btn active" onclick="setMethod('especes',this)"><span class="mi">💵</span>Espèces</button>
-          <button class="method-btn" onclick="setMethod('carte',this)"><span class="mi">💳</span>Carte</button>
-          <button class="method-btn" onclick="setMethod('mobile_money',this)"><span class="mi">📱</span>Mobile</button>
-        </div>
+    <div class="total-sub" id="totalItems" style="opacity:.5;">panier vide</div>
+  </div>
+
+  <div class="payment-section">
+    <div>
+      <div class="pay-method-label">Mode de paiement</div>
+      <div class="method-grid">
+        <button class="method-btn active" onclick="setMethod('especes',this)"><span class="mi">💵</span>Espèces</button>
+        <button class="method-btn" onclick="setMethod('carte',this)"><span class="mi">💳</span>Carte</button>
+        <button class="method-btn" onclick="setMethod('mobile_money',this)"><span class="mi">📱</span>Mobile</button>
       </div>
-      <div id="cashSection">
-        <div class="given-label">Montant reçu</div>
-        <div class="given-display" id="givenDisplay">_</div>
-        <div class="numpad" style="margin-top:.4rem;">
-          {% for n in ['7','8','9','4','5','6','1','2','3'] %}
-          <button class="num-btn" onclick="numPress('{{ n }}')">{{ n }}</button>
-          {% endfor %}
-          <button class="num-btn wide" onclick="numPress('0')">0</button>
-          <button class="num-btn clear" onclick="numPress('C')">⌫</button>
-        </div>
-        <div class="change-display" id="changeDisplay" style="display:none;margin-top:.4rem;">
-          <span>Monnaie</span><span id="changeValue" style="font-weight:700;">0 FCFA</span>
-        </div>
+    </div>
+
+    <!-- Espèces -->
+    <div id="cashSection">
+      <div class="given-label">Montant reçu</div>
+      <div class="given-display" id="givenDisplay">_</div>
+      <div class="numpad" style="margin-top:.4rem;">
+        {% for n in ['7','8','9','4','5','6','1','2','3'] %}
+        <button class="num-btn" onclick="numPress('{{ n }}')">{{ n }}</button>
+        {% endfor %}
+        <button class="num-btn wide" onclick="numPress('0')">0</button>
+        <button class="num-btn clear" onclick="numPress('C')">⌫</button>
       </div>
-      <button class="validate-btn" id="validateBtn" onclick="validateSale()" disabled>✓ Valider la vente</button>
+      <div class="change-display" id="changeDisplay" style="display:none;margin-top:.4rem;">
+        <span>Monnaie</span><span id="changeValue" style="font-weight:700;">0 FCFA</span>
+      </div>
+    </div>
+
+    <!-- Mobile Money -->
+    <div id="mobileSection" style="display:none;">
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;">Sélectionner le réseau</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;margin-bottom:.75rem;">
+        <button class="mob-net-btn active" onclick="selectNetwork(this,'orange_money','🟠','Orange Money','#FF6B00')" data-net="orange_money" style="padding:.45rem;border:1.5px solid #FF6B00;border-radius:8px;background:#FF6B0018;color:#FF6B00;font-size:.75rem;font-weight:600;cursor:pointer;">🟠 Orange Money</button>
+        <button class="mob-net-btn" onclick="selectNetwork(this,'mtn_money','🟡','MTN MoMo','#FFCC00')" data-net="mtn_money" style="padding:.45rem;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--muted);font-size:.75rem;font-weight:600;cursor:pointer;">🟡 MTN MoMo</button>
+        <button class="mob-net-btn" onclick="selectNetwork(this,'moov_money','🔵','Moov Money','#0066CC')" data-net="moov_money" style="padding:.45rem;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--muted);font-size:.75rem;font-weight:600;cursor:pointer;">🔵 Moov Money</button>
+        <button class="mob-net-btn" onclick="selectNetwork(this,'wave','🌊','Wave','#1DC8EE')" data-net="wave" style="padding:.45rem;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--muted);font-size:.75rem;font-weight:600;cursor:pointer;">🌊 Wave</button>
+      </div>
+      <button onclick="openQrModal()" class="btn" style="width:100%;padding:.6rem;background:#1DC8EE18;border-color:#1DC8EE44;color:#1DC8EE;font-weight:700;font-size:.85rem;">
+        📱 Générer QR de paiement
+      </button>
+    </div>
+
+    <button class="validate-btn" id="validateBtn" onclick="validateSale()" disabled>✓ Valider la vente</button>
+  </div>
+</div>
+
+<!-- ── Modal QR Code Mobile Money ── -->
+<div id="qrModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.65);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;max-width:360px;width:90%;text-align:center;position:relative;">
+    <button onclick="closeQrModal()" style="position:absolute;top:.75rem;right:.75rem;background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;">✕</button>
+
+    <div id="qrNetIcon" style="font-size:2.2rem;margin-bottom:.35rem;">🌊</div>
+    <div id="qrNetLabel" style="font-size:.88rem;font-weight:700;margin-bottom:.1rem;color:var(--text);">Wave</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.85rem;">Scannez pour payer</div>
+
+    <!-- QR généré dynamiquement -->
+    <div id="qrContainer" style="background:#fff;border-radius:10px;padding:1rem;display:inline-block;margin-bottom:.85rem;position:relative;">
+      <canvas id="qrCanvas" width="180" height="180"></canvas>
+      <!-- Montant overlay au centre -->
+      <div style="position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-weight:800;font-size:.72rem;padding:.15rem .7rem;border-radius:99px;white-space:nowrap;" id="qrAmtBadge"></div>
+    </div>
+
+    <!-- Montant et numéro -->
+    <div style="font-size:1.6rem;font-weight:900;font-family:monospace;color:var(--accent);margin-bottom:.1rem;" id="qrAmount">0 FCFA</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem;">à envoyer au <span id="qrPhone" style="font-weight:700;color:var(--text);font-family:monospace;"></span></div>
+
+    <!-- Étapes -->
+    <div style="background:var(--bg);border-radius:8px;padding:.65rem .85rem;text-align:left;margin-bottom:1rem;font-size:.75rem;color:var(--muted);line-height:1.8;">
+      1️⃣ Client ouvre son app <span id="qrStepNet" style="font-weight:600;color:var(--text);"></span><br>
+      2️⃣ Scanne le QR ou saisit le numéro<br>
+      3️⃣ Envoie <strong id="qrStepAmt" style="color:var(--accent);"></strong> FCFA<br>
+      4️⃣ Montrez la confirmation → validez
+    </div>
+
+    <!-- Timer -->
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.85rem;">
+      ⏱ QR valide <span id="qrTimer" style="font-family:monospace;font-weight:700;color:var(--warning);">05:00</span>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+      <button onclick="refreshQr()" style="padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--muted);font-size:.78rem;cursor:pointer;">🔄 Actualiser</button>
+      <button onclick="confirmMobilePayment()" style="padding:.5rem;border:none;border-radius:8px;background:var(--success);color:#fff;font-weight:700;font-size:.78rem;cursor:pointer;">✓ Paiement reçu</button>
     </div>
   </div>
 </div>
+
 
 <!-- ══ VARIANT PICKER MODAL ══ -->
 <div class="modal-overlay" id="variantModal">
@@ -819,6 +878,148 @@ async function validateSale() {
   }
 }
 
+
+
+//DE ICI
+var currentNetwork  = 'orange_money';
+var currentNetIcon  = '🟠';
+var currentNetLabel = 'Orange Money';
+var currentNetColor = '#FF6B00';
+var qrTimerInterval = null;
+var qrInstance      = null;
+ 
+// Numéro marchand configuré (depuis la variable Python)
+var MERCHANT_PHONE = '{{ current_user.tenant.shop_whatsapp or current_user.tenant.telephone_entreprise or "" }}';
+ 
+function setMethod(method, btn) {
+  document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentMethod = method;
+ 
+  document.getElementById('cashSection').style.display   = method === 'especes' ? 'block' : 'none';
+  document.getElementById('mobileSection').style.display = method === 'mobile_money' ? 'block' : 'none';
+}
+ 
+function selectNetwork(btn, net, icon, label, color) {
+  document.querySelectorAll('.mob-net-btn').forEach(b => {
+    b.style.borderColor = 'var(--border)';
+    b.style.background  = 'var(--surface)';
+    b.style.color       = 'var(--muted)';
+  });
+  btn.style.borderColor = color;
+  btn.style.background  = color + '18';
+  btn.style.color       = color;
+ 
+  currentNetwork  = net;
+  currentNetIcon  = icon;
+  currentNetLabel = label;
+  currentNetColor = color;
+}
+ 
+function openQrModal() {
+  var total = getCurrentTotal();
+  if (!total || total <= 0) {
+    alert('Le panier est vide.');
+    return;
+  }
+  document.getElementById('qrModal').style.display = 'flex';
+  generateQr(total);
+  startQrTimer();
+}
+ 
+function closeQrModal() {
+  document.getElementById('qrModal').style.display = 'none';
+  if (qrTimerInterval) clearInterval(qrTimerInterval);
+}
+ 
+function generateQr(total) {
+  var phone = MERCHANT_PHONE.replace(/\s/g, '').replace('+', '');
+  var ref   = 'POS-' + Date.now().toString().slice(-6);
+ 
+  // Contenu QR selon le réseau
+  var qrContent;
+  if (currentNetwork === 'wave')        qrContent = 'wave://pay?phone='+phone+'&amount='+total+'&note='+ref;
+  else if (currentNetwork === 'orange_money') qrContent = 'orangemoney://pay?to='+phone+'&amount='+total+'&ref='+ref;
+  else if (currentNetwork === 'mtn_money')    qrContent = 'mtnmomo://pay?phone='+phone+'&amount='+total+'&ref='+ref;
+  else                                        qrContent = 'moovmoney://pay?phone='+phone+'&amount='+total+'&ref='+ref;
+ 
+  // Générer QR sur canvas
+  var canvas = document.getElementById('qrCanvas');
+  canvas.width = 180; canvas.height = 180;
+ 
+  if (typeof QRCode !== 'undefined') {
+    // Effacer le canvas
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 180, 180);
+ 
+    var qr = new QRCode(canvas, {
+      text: qrContent,
+      width: 180, height: 180,
+      colorDark: '#1a1a2e',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  } else {
+    // Fallback texte si lib pas chargée
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,180,180);
+    ctx.fillStyle = '#1a1a2e'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('QR non disponible', 90, 85);
+    ctx.fillText('Saisissez le numéro', 90, 105);
+  }
+ 
+  // Mettre à jour le modal
+  document.getElementById('qrNetIcon').textContent  = currentNetIcon;
+  document.getElementById('qrNetLabel').textContent = currentNetLabel;
+  document.getElementById('qrAmount').textContent   = total.toLocaleString('fr-FR') + ' FCFA';
+  document.getElementById('qrAmtBadge').textContent = total.toLocaleString('fr-FR') + ' FCFA';
+  document.getElementById('qrPhone').textContent    = phone || 'Non configuré';
+  document.getElementById('qrStepNet').textContent  = currentNetLabel;
+  document.getElementById('qrStepAmt').textContent  = total.toLocaleString('fr-FR');
+}
+ 
+function refreshQr() {
+  var total = getCurrentTotal();
+  generateQr(total);
+  if (qrTimerInterval) clearInterval(qrTimerInterval);
+  startQrTimer();
+}
+ 
+function startQrTimer() {
+  var secs = 5 * 60; // 5 minutes
+  var el = document.getElementById('qrTimer');
+  if (qrTimerInterval) clearInterval(qrTimerInterval);
+  qrTimerInterval = setInterval(function() {
+    secs--;
+    var m = Math.floor(secs / 60), s = secs % 60;
+    el.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    if (secs <= 60) el.style.color = 'var(--danger)';
+    if (secs <= 0) { clearInterval(qrTimerInterval); el.textContent = 'Expiré'; }
+  }, 1000);
+}
+ 
+function confirmMobilePayment() {
+  // Marquer paiement mobile reçu et valider
+  currentMethod = 'mobile_money';
+  closeQrModal();
+  validateSale();
+}
+ 
+function getCurrentTotal() {
+  var el = document.getElementById('totalDisplay');
+  if (!el) return 0;
+  return parseInt(el.textContent.replace(/\s/g, '').replace('FCFA', '')) || 0;
+}
+
+
+// FIN MOBILE MONEY
+
+
+
+
+
+
 function openTicket() { if (lastSaleId) window.open(`/pos/ticket/${lastSaleId}`, '_blank'); }
 function newSale() {
   closeModal('successModal');
@@ -837,6 +1038,7 @@ function showToast(msg, bg, border, color) {
 }
 
 inp.focus();
+
 </script>
 {% endblock %}
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
