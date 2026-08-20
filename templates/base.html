@@ -402,6 +402,12 @@
         <a href="{{ url_for('manager.sales') }}" class="navgrid-tile {% if request.endpoint == 'manager.sales' %}active{% endif %}">
           <span class="tile-icon">💰</span><span class="tile-label">Ventes</span>
         </a>
+
+        <a href="{{ url_for('manager.accounting') }}" class="navgrid-tile {% if 'accounting' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">📊</span><span class="tile-label">Comptabilité</span>
+        </a>
+
+        
       </div>
 
       <div class="navgrid-section-label">Caisse</div>
@@ -753,3 +759,4 @@
 {% block scripts %}{% endblock %}
 </body>
 </html>
+

@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from flask_mail import Mail
 from flask_bcrypt import Bcrypt
 from config import config
+from datetime import date, datetime
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -36,6 +37,11 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     # Re-lire les variables mail depuis l'env au runtime (Railway injecte après import)
+    @app.context_processor
+    def inject_date():
+           return {'date': date, 'datetime': datetime}
+
+
     import os
     for key in ('MAIL_SERVER','MAIL_PORT','MAIL_USE_TLS','MAIL_USE_SSL',
                 'MAIL_USERNAME','MAIL_PASSWORD','MAIL_DEFAULT_SENDER'):

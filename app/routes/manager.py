@@ -1076,3 +1076,112 @@ def verify_pin():
     if current_user.check_pin(pin):
         return jsonify({'ok': True})
     return jsonify({'ok': False}), 401
+
+
+
+# ── Ajouter dans manager.py ─────────────────────────────────────────────────
+
+from app.models import Expense, ExpenseCategory
+from datetime import date, timedelta
+import calendar
+
+@manager_bp.route('/comptabilite')
+@_manager_access
+def accounting():
+    # Filtres
+    month = request.args.get('month', date.today().strftime('%Y-%m'))
+    type_filter = request.args.get('type', '')
+
+    try:
+        year, mon = int(month.split('-')[0]), int(month.split('-')[1])
+    except Exception:
+        year, mon = date.today().year, date.today().month
+
+    first_day = date(year, mon, 1)
+    last_day  = date(year, mon, calendar.monthrange(year, mon)[1])
+
+    q = Expense.query.filter(
+        Expense.tenant_id == _tid(),
+        Expense.date_dep >= first_day,
+        Expense.date_dep <= last_day,
+    )
+    if type_filter:
+        q = q.filter(Expense.type_dep == type_filter)
+
+    expenses = q.order_by(Expense.date_dep.desc(), Expense.created_at.desc()).all()
+
+    # Totaux
+    total_month  = sum(float(e.montant) for e in expenses)
+    by_type = {}
+    for e in expenses:
+        k = e.type_dep
+        by_type[k] = by_type.get(k, 0) + float(e.montant)
+
+    # Aujourd'hui
+    today_exp = [e for e in expenses if e.date_dep == date.today()]
+    total_today = sum(float(e.montant) for e in today_exp)
+
+    # Employés pour avances/salaires
+    from app.models import User
+    employees = User.query.filter_by(tenant_id=_tid(), is_active=True).order_by(User.prenom).all()
+    categories = ExpenseCategory.query.filter_by(tenant_id=_tid()).all()
+
+    return render_template('manager/accounting.html',
+                           expenses=expenses, employees=employees,
+                           categories=categories,
+                           total_month=total_month, by_type=by_type,
+                           total_today=total_today, today_exp=today_exp,
+                           month=month, year=year, mon=mon,
+                           type_filter=type_filter,
+                           first_day=first_day, last_day=last_day)
+
+
+@manager_bp.route('/comptabilite/ajouter', methods=['POST'])
+@_manager_access
+def add_expense():
+    from app.models import Expense
+    libelle   = request.form.get('libelle', '').strip()
+    montant   = request.form.get('montant', '0')
+    type_dep  = request.form.get('type_dep', 'autre')
+    note      = request.form.get('note', '').strip() or None
+    date_str  = request.form.get('date_dep', date.today().isoformat())
+    user_id   = request.form.get('employee_id') or None
+    cat_id    = request.form.get('category_id') or None
+
+    if not libelle or not montant:
+        flash('Libellé et montant sont obligatoires.', 'danger')
+        return redirect(url_for('manager.accounting'))
+
+    try:
+        montant_f = float(montant)
+        date_dep  = date.fromisoformat(date_str)
+    except ValueError:
+        flash('Montant ou date invalide.', 'danger')
+        return redirect(url_for('manager.accounting'))
+
+    e = Expense(
+        tenant_id   = _tid(),
+        libelle     = libelle,
+        montant     = montant_f,
+        type_dep    = type_dep,
+        note        = note,
+        date_dep    = date_dep,
+        user_id     = int(user_id) if user_id else None,
+        category_id = int(cat_id) if cat_id else None,
+        created_by  = current_user.id,
+    )
+    db.session.add(e)
+    db.session.commit()
+    flash(f'Dépense "{libelle}" de {montant_f:,.0f} FCFA enregistrée.', 'success')
+    return redirect(url_for('manager.accounting', month=date_dep.strftime('%Y-%m')))
+
+
+@manager_bp.route('/comptabilite/<int:eid>/supprimer', methods=['POST'])
+@_manager_access
+def delete_expense(eid):
+    e = Expense.query.filter_by(id=eid, tenant_id=_tid()).first_or_404()
+    month = e.date_dep.strftime('%Y-%m')
+    db.session.delete(e)
+    db.session.commit()
+    flash('Dépense supprimée.', 'success')
+    return redirect(url_for('manager.accounting', month=month))

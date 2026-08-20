@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Comptabilité — SaaS POS{% endblock %}
+{% block head %}
+<style>
+  .acc-grid { display:grid;grid-template-columns:1fr 360px;gap:1.25rem;align-items:start; }
+  .type-colors { facture:'#3b82f6';salaire:'#22c55e';avance:'#f59e0b';loyer:'#8b5cf6';fournitures:'#06b6d4';transport:'#f97316';autre:'#6b7280' }
+
+  /* Stat cards */
+  .acc-stats { display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem;margin-bottom:1.25rem; }
+  .acc-stat { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem .9rem; }
+  .acc-stat-val { font-family:var(--mono);font-size:1.3rem;font-weight:800;margin-bottom:.1rem; }
+  .acc-stat-lbl { font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em; }
+
+  /* Filtres */
+  .type-chips { display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem; }
+  .type-chip { padding:.3rem .75rem;border-radius:99px;font-size:.75rem;font-weight:500;border:1px solid var(--border);color:var(--muted);transition:all .12s;text-decoration:none; }
+  .type-chip:hover { border-color:var(--accent);color:var(--accent); }
+  .type-chip.active { background:var(--accent);color:#000;border-color:var(--accent); }
+
+  /* Tableau */
+  .exp-row { display:grid;grid-template-columns:80px 1fr 120px 100px 90px 40px;gap:.5rem;align-items:center;padding:.55rem .85rem;border-bottom:1px solid var(--border);font-size:.82rem;transition:background .1s; }
+  .exp-row:hover { background:var(--bg); }
+  .exp-row.header { font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--bg);border-radius:8px 8px 0 0;font-weight:700; }
+  .type-badge { display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .5rem;border-radius:5px;font-size:.7rem;font-weight:600; }
+
+  /* Formulaire ajout */
+  .add-form { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem; }
+  .add-form-title { font-family:var(--mono);font-size:.72rem;color:var(--accent);letter-spacing:.08em;margin-bottom:1rem; }
+  .type-select-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;margin-bottom:.75rem; }
+  .type-sel-btn { padding:.4rem .5rem;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--muted);font-size:.72rem;font-weight:600;cursor:pointer;text-align:center;transition:all .12s; }
+  .type-sel-btn.active { border-color:var(--accent);color:var(--accent);background:#f5a62312; }
+
+  /* Répartition mensuelle */
+  .breakdown { display:flex;flex-direction:column;gap:.4rem;margin-top:.75rem; }
+  .bk-row { display:flex;align-items:center;gap:.5rem;font-size:.78rem; }
+  .bk-bar-wrap { flex:1;height:6px;background:var(--border);border-radius:99px;overflow:hidden; }
+  .bk-bar { height:100%;border-radius:99px; }
+  .bk-val { font-family:var(--mono);font-weight:700;min-width:80px;text-align:right;font-size:.75rem; }
+
+  @media(max-width:900px) { .acc-grid{grid-template-columns:1fr} .acc-stats{grid-template-columns:repeat(2,1fr)} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0;">📊 Comptabilité</div>
+  <div class="flex gap-1">
+    <input type="month" value="{{ month }}" onchange="window.location='?month='+this.value"
+           class="form-control" style="width:160px;padding:.35rem .6rem;font-size:.82rem;">
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="acc-stats">
+  <div class="acc-stat">
+    <div class="acc-stat-val" style="color:var(--danger);">{{ "%.0f"|format(total_month) }}</div>
+    <div class="acc-stat-lbl">💸 Dépenses du mois (FCFA)</div>
+  </div>
+  <div class="acc-stat">
+    <div class="acc-stat-val" style="color:var(--warning);">{{ "%.0f"|format(total_today) }}</div>
+    <div class="acc-stat-lbl">📅 Dépenses du jour</div>
+  </div>
+  <div class="acc-stat">
+    <div class="acc-stat-val" style="color:var(--accent);">{{ expenses|length }}</div>
+    <div class="acc-stat-lbl">📋 Transactions</div>
+  </div>
+  <div class="acc-stat">
+    <div class="acc-stat-val" style="color:var(--info);">
+      {{ "%.0f"|format(total_month / expenses|length) if expenses else 0 }}
+    </div>
+    <div class="acc-stat-lbl">⌀ Moyenne / dépense</div>
+  </div>
+</div>
+
+<!-- Répartition par type -->
+{% if by_type %}
+<div class="card" style="margin-bottom:1.25rem;padding:1rem;">
+  <div class="card-header">// Répartition ce mois</div>
+  <div class="breakdown">
+    {% set type_info = {
+      'facture':    ('📄','Factures','#3b82f6'),
+      'salaire':    ('💼','Salaires','#22c55e'),
+      'avance':     ('💸','Avances','#f59e0b'),
+      'loyer':      ('🏢','Loyer','#8b5cf6'),
+      'fournitures':('🛒','Fournitures','#06b6d4'),
+      'transport':  ('🚗','Transport','#f97316'),
+      'autre':      ('💰','Autres','#6b7280'),
+    } %}
+    {% set max_val = by_type.values()|max if by_type else 1 %}
+    {% for typ, amt in by_type|dictsort(by='value', reverse=True) %}
+    {% set ico, lbl, col = type_info.get(typ, ('💰','Autre','#6b7280')) %}
+    <div class="bk-row">
+      <span style="min-width:75px;font-size:.75rem;">{{ ico }} {{ lbl }}</span>
+      <div class="bk-bar-wrap">
+        <div class="bk-bar" style="width:{{ (amt / max_val * 100)|int }}%;background:{{ col }};"></div>
+      </div>
+      <span class="bk-val" style="color:{{ col }};">{{ "%.0f"|format(amt) }} FCFA</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="acc-grid">
+  <!-- Liste dépenses -->
+  <div>
+    <!-- Filtres -->
+    <div class="type-chips">
+      <a href="?month={{ month }}" class="type-chip {% if not type_filter %}active{% endif %}">Tout</a>
+      {% for t, (ico, lbl, col) in [('facture',('📄','Factures','#3b82f6')),('salaire',('💼','Salaires','#22c55e')),('avance',('💸','Avances','#f59e0b')),('loyer',('🏢','Loyer','#8b5cf6')),('fournitures',('🛒','Fournitures','#06b6d4')),('transport',('🚗','Transport','#f97316')),('autre',('💰','Autres','#6b7280'))] %}
+      <a href="?month={{ month }}&type={{ t }}" class="type-chip {% if type_filter == t %}active{% endif %}" style="{% if type_filter == t %}background:{{ col }};border-color:{{ col }};{% endif %}">{{ ico }} {{ lbl }}</a>
+      {% endfor %}
+    </div>
+
+    <!-- Tableau -->
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="exp-row header">
+        <div>Date</div><div>Libellé</div><div>Type</div><div>Employé</div><div>Montant</div><div></div>
+      </div>
+      {% for e in expenses %}
+      {% set ico, lbl, col = e.type_label %}
+      <div class="exp-row">
+        <div style="font-family:var(--mono);font-size:.75rem;color:var(--muted);">{{ e.date_dep.strftime('%d/%m/%Y') }}</div>
+        <div>
+          <div style="font-weight:600;">{{ e.libelle }}</div>
+          {% if e.note %}<div style="font-size:.7rem;color:var(--muted);">{{ e.note[:50] }}{% if e.note|length > 50 %}…{% endif %}</div>{% endif %}
+        </div>
+        <div><span class="type-badge" style="background:{{ col }}18;color:{{ col }};">{{ ico }} {{ lbl }}</span></div>
+        <div style="font-size:.75rem;color:var(--muted);">
+          {% if e.employee %}{{ e.employee.prenom }} {{ e.employee.nom }}{% else %}—{% endif %}
+        </div>
+        <div style="font-family:var(--mono);font-weight:700;color:var(--danger);">{{ e.montant|int }} FCFA</div>
+        <div>
+          <form method="POST" action="{{ url_for('manager.delete_expense', eid=e.id) }}" style="margin:0;"
+                onsubmit="return confirm('Supprimer cette dépense ?')">
+            <button type="submit" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:.2rem .4rem;border-radius:4px;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+          </form>
+        </div>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:2.5rem;color:var(--muted);font-size:.85rem;">Aucune dépense ce mois</div>
+      {% endfor %}
+      {% if expenses %}
+      <div class="exp-row" style="background:var(--bg);font-weight:700;border-top:2px solid var(--border);">
+        <div colspan="4" style="grid-column:1/5;font-size:.78rem;color:var(--muted);">TOTAL</div>
+        <div style="font-family:var(--mono);font-size:1.05rem;color:var(--danger);">{{ "%.0f"|format(total_month) }} FCFA</div>
+        <div></div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Formulaire ajout -->
+  <div class="add-form" style="position:sticky;top:70px;">
+    <div class="add-form-title">// Nouvelle dépense</div>
+    <form method="POST" action="{{ url_for('manager.add_expense') }}">
+
+      <!-- Type -->
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.4rem;">Type</div>
+      <div class="type-select-grid">
+        {% for typ, ico, lbl in [('facture','📄','Facture'),('salaire','💼','Salaire'),('avance','💸','Avance'),('loyer','🏢','Loyer'),('fournitures','🛒','Fournitures'),('transport','🚗','Transport')] %}
+        <label class="type-sel-btn" id="lbl_{{ typ }}" onclick="selectType('{{ typ }}')">
+          <input type="radio" name="type_dep" value="{{ typ }}" style="display:none;" {% if typ=='facture' %}checked{% endif %}>
+          {{ ico }} {{ lbl }}
+        </label>
+        {% endfor %}
+      </div>
+
+      <!-- Employé (pour salaire/avance) -->
+      <div class="form-group" id="employeeGroup" style="display:none;">
+        <label class="form-label">Employé concerné</label>
+        <select name="employee_id" class="form-control" style="font-size:.82rem;">
+          <option value="">— Choisir —</option>
+          {% for u in employees %}
+          <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Libellé *</label>
+        <input name="libelle" class="form-control" required placeholder="Ex: Facture électricité mars" style="font-size:.85rem;">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;">
+        <div class="form-group">
+          <label class="form-label">Montant (FCFA) *</label>
+          <input name="montant" type="number" class="form-control" required min="1" step="100" placeholder="0" style="font-family:var(--mono);font-size:.95rem;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input name="date_dep" type="date" class="form-control" value="{{ date.today().isoformat() }}" style="font-size:.82rem;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Note <span style="color:var(--muted);font-weight:400;">(optionnel)</span></label>
+        <textarea name="note" class="form-control" rows="2" placeholder="Détails supplémentaires…" style="font-size:.82rem;"></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;">➕ Enregistrer la dépense</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var currentType = 'facture';
+function selectType(t) {
+  currentType = t;
+  document.querySelectorAll('.type-sel-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('lbl_'+t).classList.add('active');
+  document.querySelector('input[name="type_dep"][value="'+t+'"]').checked = true;
+  var empGroup = ['salaire','avance'];
+  document.getElementById('employeeGroup').style.display = empGroup.indexOf(t) >= 0 ? 'block' : 'none';
+}
+// Init
+document.getElementById('lbl_facture').classList.add('active');
+</script>
+{% endblock %}

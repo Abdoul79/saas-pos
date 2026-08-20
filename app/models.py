@@ -869,6 +869,9 @@ class ProductFavorite(db.Model):
     customer = db.relationship('OnlineCustomer', backref=db.backref('favorites', lazy='dynamic'))
 
 
+
+
+
 #adress registrements
 class CustomerAddress(db.Model):
     __tablename__ = 'customer_addresses'
@@ -881,3 +884,51 @@ class CustomerAddress(db.Model):
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
     customer = db.relationship('OnlineCustomer', backref=db.backref('addresses', lazy='dynamic', order_by='CustomerAddress.created_at.desc()'))
+
+# ── Ajouter dans models.py depense_categories.py ──────────────────────────────────────────────────
+
+class ExpenseCategory(db.Model):
+    __tablename__ = 'expense_categories'
+    id        = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    nom       = db.Column(db.String(100), nullable=False)
+    icone     = db.Column(db.String(10), default='💰')
+    couleur   = db.Column(db.String(20), default='#6b7280')
+
+    expenses  = db.relationship('Expense', backref='category', lazy='dynamic')
+
+
+class Expense(db.Model):
+    __tablename__ = 'expenses'
+    id          = db.Column(db.Integer, primary_key=True)
+    tenant_id   = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('expense_categories.id'), nullable=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # salarié concerné
+
+    libelle     = db.Column(db.String(200), nullable=False)
+    montant     = db.Column(db.Numeric(12, 2), nullable=False)
+    type_dep    = db.Column(db.String(30), default='autre')
+    # Types: facture, salaire, avance, loyer, fournitures, transport, autre
+
+    note        = db.Column(db.Text, nullable=True)
+    piece_jointe = db.Column(db.String(255), nullable=True)  # nom fichier
+    date_dep    = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    # Relation
+    employee    = db.relationship('User', foreign_keys=[user_id], backref='expenses')
+    creator     = db.relationship('User', foreign_keys=[created_by])
+
+    @property
+    def type_label(self):
+        labels = {
+            'facture':     ('📄', 'Facture',        '#3b82f6'),
+            'salaire':     ('💼', 'Salaire',         '#22c55e'),
+            'avance':      ('💸', 'Avance salaire',  '#f59e0b'),
+            'loyer':       ('🏢', 'Loyer',           '#8b5cf6'),
+            'fournitures': ('🛒', 'Fournitures',     '#06b6d4'),
+            'transport':   ('🚗', 'Transport',       '#f97316'),
+            'autre':       ('💰', 'Autre',           '#6b7280'),
+        }
+        return labels.get(self.type_dep, ('💰', 'Autre', '#6b7280'))
