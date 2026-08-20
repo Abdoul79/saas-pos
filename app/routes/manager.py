@@ -640,22 +640,22 @@ def create_transfer():
 
 
 # ── USERS ──────────────────────────────────────────────────────────────────
-from app.models import User
+from app.models import User, UserRole
 
 @manager_bp.route('/users')
 @_manager_access
 def users():
     users = (
         User.query
-        .filter_by(tenant_id=_tid(), is_manager=False)
+        .filter(User.tenant_id == _tid(), User.role != UserRole.MANAGER)
         .order_by(User.prenom)
         .all()
     )
     return render_template('manager/users.html', users=users)
-    
 
 
 
+#____________________________________________
 @manager_bp.route('/users/create', methods=['GET', 'POST'])
 @_manager_access
 def create_user():

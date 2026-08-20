@@ -5,6 +5,25 @@
   <div class="page-title" style="margin-bottom:0">Gestion des Caissiers</div>
   <a href="{{ url_for('manager.create_user') }}" class="btn btn-primary">+ Nouvel employé</a>
 </div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Employés enregistrés</div>
+    <div class="stat-value">{{ users|length }}</div>
+    <div class="stat-sub">Total sur ce commerce</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Actifs</div>
+    <div class="stat-value text-success">{{ users|selectattr('is_active')|list|length }}</div>
+    <div class="stat-sub">Peuvent se connecter</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Désactivés</div>
+    <div class="stat-value text-danger">{{ users|rejectattr('is_active')|list|length }}</div>
+    <div class="stat-sub">Accès bloqué</div>
+  </div>
+</div>
+
 <div class="card">
   <div class="table-wrap">
     <table>
@@ -14,7 +33,13 @@
         <tr>
           <td><strong>{{ u.full_name }}</strong></td>
           <td class="text-mono" style="font-size:.8rem;">{{ u.email }}</td>
-          <td><span class="badge badge-blue">Caissier</span></td>
+          <td>
+            {% if u.is_manager %}
+              <span class="badge badge-purple">Gérant</span>
+            {% else %}
+              <span class="badge badge-blue">Caissier</span>
+            {% endif %}
+          </td>
           <td>
             {% if u.is_active %}
               <span class="badge badge-green">Actif</span>
@@ -41,3 +66,4 @@
   </div>
 </div>
 {% endblock %}
+
