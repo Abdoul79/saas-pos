@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
 from app.utils.storage import upload_image, delete_image
-from app.models import Product, ProductVariant, UserRole
+from app.models import Product, ProductVariant, UserRole, StockTransfer  
 from app.utils.decorators import role_required, tenant_active_required
 from app.utils.barcode_gen import generate_ean13_number, generate_barcode_b64
 
@@ -144,9 +144,18 @@ def delete(vid):
     v = ProductVariant.query.filter_by(id=vid, tenant_id=_tid()).first_or_404()
     pid = v.product_id
     product = v.product
+
+    # Empêche le crash : vérifie s'il existe des transferts de stock liés à cette variante
+    has_transfers = StockTransfer.query.filter_by(variant_id=vid).first() is not None
+    if has_transfers:
+        flash('Impossible de supprimer cette variante : elle a des transferts de stock associés.', 'danger')
+        return redirect(url_for('variants.index', pid=pid))
+
+    # Compte les variantes restantes AVANT de supprimer, pour éviter le bug d'autoflush
+    remaining = product.variants.filter(ProductVariant.id != vid).count()
+
     db.session.delete(v)
-    # Si plus de variantes, désactiver has_variants
-    if product.variants.count() == 1:  # après suppression = 0
+    if remaining == 0:
         product.has_variants = False
     db.session.commit()
     flash('Variante supprimée.', 'info')
