@@ -892,13 +892,13 @@ var qrInstance      = null;
 // Numéro marchand configuré (depuis la variable Python)
 var MERCHANT_PHONE = '{{ current_user.tenant.shop_whatsapp or current_user.tenant.telephone_entreprise or "" }}';
  
-function setMethod(method, btn) {
+function setMethod(m, btn) {
+  method = m;
   document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  currentMethod = method;
- 
-  document.getElementById('cashSection').style.display   = method === 'especes' ? 'block' : 'none';
-  document.getElementById('mobileSection').style.display = method === 'mobile_money' ? 'block' : 'none';
+  document.getElementById('cashSection').style.display   = m === 'especes'     ? 'block' : 'none';
+  document.getElementById('mobileSection').style.display = m === 'mobile_money' ? 'block' : 'none';
+  updateGiven();
 }
  
 function selectNetwork(btn, net, icon, label, color) {
