@@ -453,6 +453,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const IS_MANAGER = {{ 'true' if is_manager else 'false' }};
 
@@ -1012,13 +1013,7 @@ function getCurrentTotal() {
   return parseInt(el.textContent.replace(/\s/g, '').replace('FCFA', '')) || 0;
 }
 
-
 // FIN MOBILE MONEY
-
-
-
-
-
 
 function openTicket() { if (lastSaleId) window.open(`/pos/ticket/${lastSaleId}`, '_blank'); }
 function newSale() {
@@ -1041,4 +1036,4 @@ inp.focus();
 
 </script>
 {% endblock %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
