@@ -344,7 +344,7 @@
 
     <!-- QR généré dynamiquement -->
     <div id="qrContainer" style="background:#fff;border-radius:10px;padding:1rem;display:inline-block;margin-bottom:.85rem;position:relative;">
-      <canvas id="qrCanvas" width="180" height="180"></canvas>
+      <div id="qrCanvas" style="width:180px;height:180px;"></div>
       <!-- Montant overlay au centre -->
       <div style="position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-weight:800;font-size:.72rem;padding:.15rem .7rem;border-radius:99px;white-space:nowrap;" id="qrAmtBadge"></div>
     </div>
@@ -932,29 +932,22 @@ function closeQrModal() {
   document.getElementById('qrModal').style.display = 'none';
   if (qrTimerInterval) clearInterval(qrTimerInterval);
 }
- 
+
 function generateQr(total) {
   var phone = MERCHANT_PHONE.replace(/\s/g, '').replace('+', '');
   var ref   = 'POS-' + Date.now().toString().slice(-6);
- 
-  // Contenu QR selon le réseau
+
   var qrContent;
   if (currentNetwork === 'wave')        qrContent = 'wave://pay?phone='+phone+'&amount='+total+'&note='+ref;
   else if (currentNetwork === 'orange_money') qrContent = 'orangemoney://pay?to='+phone+'&amount='+total+'&ref='+ref;
   else if (currentNetwork === 'mtn_money')    qrContent = 'mtnmomo://pay?phone='+phone+'&amount='+total+'&ref='+ref;
   else                                        qrContent = 'moovmoney://pay?phone='+phone+'&amount='+total+'&ref='+ref;
- 
-  // Générer QR sur canvas
-  var canvas = document.getElementById('qrCanvas');
-  canvas.width = 180; canvas.height = 180;
- 
+
+  var container = document.getElementById('qrCanvas');
+  container.innerHTML = ''; // vide le QR précédent avant d'en générer un nouveau
+
   if (typeof QRCode !== 'undefined') {
-    // Effacer le canvas
-    var ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 180, 180);
- 
-    var qr = new QRCode(canvas, {
+    qrInstance = new QRCode(container, {
       text: qrContent,
       width: 180, height: 180,
       colorDark: '#1a1a2e',
@@ -962,15 +955,11 @@ function generateQr(total) {
       correctLevel: QRCode.CorrectLevel.M,
     });
   } else {
-    // Fallback texte si lib pas chargée
-    var ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,180,180);
-    ctx.fillStyle = '#1a1a2e'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('QR non disponible', 90, 85);
-    ctx.fillText('Saisissez le numéro', 90, 105);
+    container.innerHTML =
+      '<div style="width:180px;height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#1a1a2e;font-size:11px;font-family:monospace;text-align:center;">' +
+      'QR non disponible<br>Saisissez le numéro</div>';
   }
- 
-  // Mettre à jour le modal
+
   document.getElementById('qrNetIcon').textContent  = currentNetIcon;
   document.getElementById('qrNetLabel').textContent = currentNetLabel;
   document.getElementById('qrAmount').textContent   = total.toLocaleString('fr-FR') + ' FCFA';
@@ -979,7 +968,8 @@ function generateQr(total) {
   document.getElementById('qrStepNet').textContent  = currentNetLabel;
   document.getElementById('qrStepAmt').textContent  = total.toLocaleString('fr-FR');
 }
- 
+
+
 function refreshQr() {
   var total = getCurrentTotal();
   generateQr(total);
