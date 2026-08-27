@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% block title %}Code-Barres — {{ product.designation }}{% endblock %}
 {% block head %}
@@ -36,29 +37,42 @@
     height:40mm;
     box-sizing:border-box;
     border:1px solid #ddd;border-radius:1.5mm;
-    padding:2mm;
+    padding:1.5mm 2mm;
     text-align:center;
     background:#fff;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
+    gap:.4mm;
     overflow:hidden;
   }
   .label-name {
-    font-size:2.6mm;font-weight:700;color:#111;
+    font-size:2.4mm;font-weight:700;color:#111;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     width:100%;
-    margin-bottom:1mm;
+    line-height:1.2;
+    flex-shrink:0;
   }
-  .label-barcode { width:100%; }
-  .label-barcode img { width:46mm;max-width:100%;height:auto;display:block;margin:0 auto; }
+  .label-barcode {
+    width:100%;
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .label-barcode img { max-width:90%;max-height:100%;width:auto;height:auto;display:block;margin:0 auto; }
   .label-code {
-    font-size:2.2mm;color:#555;
-    font-family:monospace;margin-top:.8mm;
+    font-size:1.9mm;color:#555;
+    font-family:monospace;
+    line-height:1.15;
+    flex-shrink:0;
   }
   .label-price {
-    font-size:3.4mm;font-weight:800;color:#f5a623;margin-top:1.2mm;
+    font-size:3mm;font-weight:800;color:#f5a623;
+    line-height:1.1;
+    flex-shrink:0;
   }
 </style>
 {% endblock %}
@@ -117,4 +131,3 @@ function buildSheet() {
 buildSheet();
 </script>
 {% endblock %}
-
