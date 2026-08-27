@@ -3,7 +3,7 @@
 {% block head %}
 <style>
   @page {
-    size: 40mm 58mm;
+    size: 58mm 40mm;
     margin: 0;
   }
 
@@ -32,8 +32,8 @@
   }
 
   .label-item {
-    width:40mm;
-    height:58mm;
+    width:58mm;
+    height:40mm;
     box-sizing:border-box;
     border:1px solid #ddd;border-radius:1.5mm;
     padding:2mm;
@@ -52,7 +52,7 @@
     margin-bottom:1mm;
   }
   .label-barcode { width:100%; }
-  .label-barcode img { width:34mm;max-width:100%;height:auto;display:block;margin:0 auto; }
+  .label-barcode img { width:46mm;max-width:100%;height:auto;display:block;margin:0 auto; }
   .label-code {
     font-size:2.2mm;color:#555;
     font-family:monospace;margin-top:.8mm;
@@ -117,3 +117,4 @@ function buildSheet() {
 buildSheet();
 </script>
 {% endblock %}
+
