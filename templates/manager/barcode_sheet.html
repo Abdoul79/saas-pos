@@ -2,38 +2,63 @@
 {% block title %}Code-Barres — {{ product.designation }}{% endblock %}
 {% block head %}
 <style>
+  @page {
+    size: 40mm 58mm;
+    margin: 0;
+  }
+
   @media print {
     .no-print { display:none !important; }
     body > *:not(main) { display:none !important; }
-    main { padding:0 !important; }
+    main { padding:0 !important;margin:0 !important; }
     .print-area { margin:0;padding:0; }
+    .label-sheet { display:block; }
+    .label-item {
+      border:none;
+      border-radius:0;
+      box-shadow:none;
+      margin:0;
+      page-break-after:always;
+      break-after:page;
+    }
   }
 
   .label-sheet {
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:.5rem;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:.75rem;
     padding:.5rem;
-    max-width:600px;
-    margin:0 auto;
   }
+
   .label-item {
-    border:1px solid #ddd;border-radius:6px;
-    padding:.4rem .5rem;text-align:center;
+    width:40mm;
+    height:58mm;
+    box-sizing:border-box;
+    border:1px solid #ddd;border-radius:1.5mm;
+    padding:2mm;
+    text-align:center;
     background:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
   }
   .label-name {
-    font-size:.68rem;font-weight:700;color:#111;
+    font-size:2.6mm;font-weight:700;color:#111;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    margin-bottom:.15rem;
+    width:100%;
+    margin-bottom:1mm;
   }
-  .label-barcode img { width:100%;height:auto; }
+  .label-barcode { width:100%; }
+  .label-barcode img { width:34mm;max-width:100%;height:auto;display:block;margin:0 auto; }
   .label-code {
-    font-size:.6rem;color:#555;
-    font-family:monospace;margin-top:.1rem;
+    font-size:2.2mm;color:#555;
+    font-family:monospace;margin-top:.8mm;
   }
   .label-price {
-    font-size:.72rem;font-weight:800;color:#f5a623;margin-top:.1rem;
+    font-size:3.4mm;font-weight:800;color:#f5a623;margin-top:1.2mm;
   }
 </style>
 {% endblock %}
@@ -42,7 +67,7 @@
 <!-- Contrôles (pas imprimés) -->
 <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
   <div>
-    <div class="page-title" style="margin-bottom:0;">Planche d'étiquettes</div>
+    <div class="page-title" style="margin-bottom:0;">Étiquettes (40×58mm)</div>
     <div style="font-size:.82rem;color:var(--muted);">{{ product.designation }}</div>
   </div>
   <div style="display:flex;gap:.5rem;align-items:center;">
@@ -81,7 +106,7 @@ function buildSheet() {
       '<div class="label-name" title="'+NAME+'">'+NAME+'</div>' +
       (BC_B64
         ? '<div class="label-barcode"><img src="data:image/png;base64,'+BC_B64+'" alt="barcode"></div>'
-        : '<div style="height:30px;line-height:30px;font-size:.65rem;color:#aaa;">—</div>') +
+        : '<div style="height:8mm;line-height:8mm;font-size:2mm;color:#aaa;">—</div>') +
       '<div class="label-code">'+CODE+'</div>' +
       (SKU ? '<div class="label-code" style="color:#999;">'+SKU+'</div>' : '') +
       '<div class="label-price">'+PRICE+'</div>';
