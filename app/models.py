@@ -591,6 +591,7 @@ class SupplierOrder(db.Model):
     statut               = db.Column(db.String(20),  nullable=False, default=OrderStatus.DRAFT, index=True)
     notes                = db.Column(db.Text,        nullable=True)
     date_livraison_prevue= db.Column(db.Date,        nullable=True)
+    date_reception = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

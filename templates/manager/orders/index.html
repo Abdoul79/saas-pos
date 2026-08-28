@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Commandes Fournisseurs{% endblock %}
 {% block content %}
-
 <div class="flex justify-between items-center mb-3">
   <div class="page-title" style="margin-bottom:0">Commandes Fournisseurs</div>
-  <a href="{{ url_for('orders.create') }}" class="btn btn-primary">+ Nouvelle commande</a>
+  <div class="flex gap-1">
+    <a href="{{ url_for('orders.archive') }}" class="btn btn-secondary">🗄 Archive</a>
+    <a href="{{ url_for('orders.create') }}" class="btn btn-primary">+ Nouvelle commande</a>
+  </div>
 </div>
-
 <!-- Filtres -->
 <div class="card mb-2">
   <form method="GET" class="flex gap-2 items-center" style="flex-wrap:wrap;">
@@ -27,7 +28,6 @@
     <span class="text-muted" style="font-size:.78rem;margin-left:auto;">{{ orders|length }} commande(s)</span>
   </form>
 </div>
-
 <div class="card">
   <div class="table-wrap">
     <table>

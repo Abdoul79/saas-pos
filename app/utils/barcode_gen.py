@@ -14,6 +14,18 @@ except ImportError:
 
 BARCODE_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'static', 'barcodes')
 
+# Options d'écriture optimisées pour l'impression sur petite étiquette (58x40mm) :
+# - module_width plus large : barres plus épaisses, plus faciles à scanner une fois réduites
+# - write_text=False : pas de texte intégré dans l'image (déjà affiché séparément en HTML)
+# - dpi plus élevé : image plus nette, moins de flou après redimensionnement CSS
+BARCODE_WRITER_OPTIONS = {
+    'module_width': 0.4,
+    'module_height': 18.0,
+    'quiet_zone': 3.0,
+    'write_text': False,
+    'dpi': 400,
+}
+
 
 def generate_ean13_number(tenant_id: int) -> str:
     """Generate a unique EAN-13 compatible barcode number.
@@ -52,7 +64,7 @@ def generate_barcode_image(barcode_value: str, product_id: int, fmt='EAN13') -> 
             bc_class = barcode.get_barcode_class('code128')
             bc = bc_class(barcode_value, writer=ImageWriter())
 
-        bc.save(filepath)
+        bc.save(filepath, options=BARCODE_WRITER_OPTIONS)
         return f'/static/barcodes/{filename}.png'
     except Exception as e:
         print(f'Barcode generation error: {e}')
@@ -67,8 +79,9 @@ def generate_barcode_b64(barcode_value: str) -> str:
         buffer = BytesIO()
         bc_class = barcode.get_barcode_class('code128')
         bc = bc_class(barcode_value, writer=ImageWriter())
-        bc.write(buffer)
+        bc.write(buffer, options=BARCODE_WRITER_OPTIONS)
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode('utf-8')
     except Exception:
         return ''
+

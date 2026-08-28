@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Archive Commandes — Fournisseurs{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div>
+    <div class="page-title" style="margin-bottom:0">🗄 Archive des Commandes</div>
+    <div class="text-muted" style="font-size:.8rem;margin-top:.2rem;">
+      Commandes réceptionnées depuis plus d'un mois. Recherchez pour les retrouver.
+    </div>
+  </div>
+  <a href="{{ url_for('orders.index') }}" class="btn btn-secondary">← Retour aux commandes</a>
+</div>
+
+<!-- Recherche obligatoire -->
+<div class="card mb-2">
+  <form method="GET" class="flex gap-2 items-center" style="flex-wrap:wrap;">
+    <input type="text" name="q" value="{{ query or '' }}" class="form-control"
+           placeholder="Nom du fournisseur ou numéro de commande…"
+           style="max-width:340px;" autofocus>
+    <button type="submit" class="btn btn-primary">🔎 Rechercher</button>
+    {% if query %}<a href="{{ url_for('orders.archive') }}" class="btn btn-secondary">✕ Effacer</a>{% endif %}
+  </form>
+</div>
+
+<div class="card">
+  {% if not query %}
+    <div style="text-align:center;padding:3rem;">
+      <div style="font-size:2.5rem;opacity:.25;margin-bottom:.75rem;">🗄</div>
+      <div class="text-muted">Tapez un nom de fournisseur ou un numéro de commande pour rechercher dans l'archive.</div>
+    </div>
+  {% else %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Référence</th><th>Fournisseur</th><th>Statut</th>
+            <th>Articles</th><th>Total HT</th><th>Réceptionnée le</th>
+            <th>Créé le</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          {% set lbl, badge = o.status_label %}
+          <tr>
+            <td>
+              <a href="{{ url_for('orders.detail', oid=o.id) }}"
+                 style="color:var(--accent);text-decoration:none;font-weight:600;font-family:var(--mono);">
+                {{ o.reference or '#' + o.id|string }}
+              </a>
+              {% if o.ref_fournisseur %}
+              <div class="text-muted" style="font-size:.72rem;">Réf. fourn. : {{ o.ref_fournisseur }}</div>
+              {% endif %}
+            </td>
+            <td><strong>{{ o.supplier.nom }}</strong></td>
+            <td><span class="badge {{ badge }}">{{ lbl }}</span></td>
+            <td class="text-mono">{{ o.total_items }}</td>
+            <td class="text-mono text-accent">{{ "%.0f"|format(o.total_amount) }} FCFA</td>
+            <td class="text-muted" style="font-size:.82rem;">
+              {{ o.date_reception.strftime('%d/%m/%Y') if o.date_reception else '—' }}
+            </td>
+            <td class="text-muted" style="font-size:.8rem;">{{ o.created_at.strftime('%d/%m/%Y') }}</td>
+            <td>
+              <a href="{{ url_for('orders.detail', oid=o.id) }}" class="btn btn-secondary btn-sm">Voir</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" style="text-align:center;padding:2.5rem;">
+              <div class="text-muted">Aucune commande archivée ne correspond à « {{ query }} ».</div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

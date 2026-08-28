@@ -1,12 +1,14 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response, current_app
 from flask_login import login_required, current_user
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from app import db
 from app.models import (Supplier, Product, ProductVariant, SupplierOrder,
                          SupplierOrderItem, OrderStatus, UserRole)
 from app.utils.decorators import role_required, tenant_active_required
 
 orders_bp = Blueprint('orders', __name__)
+
+ARCHIVE_AFTER_DAYS = 30
 
 
 def _mgr(f):
@@ -29,6 +31,31 @@ def _next_ref():
     return f'CMD-{year}-{str(count).zfill(4)}'
 
 
+def _archive_cutoff():
+    return datetime.utcnow() - timedelta(days=ARCHIVE_AFTER_DAYS)
+
+
+def _is_archived_filter(query):
+    """Filtre : commande reçue depuis plus de ARCHIVE_AFTER_DAYS jours."""
+    return query.filter(
+        SupplierOrder.statut == OrderStatus.RECEIVED,
+        SupplierOrder.date_reception.isnot(None),
+        SupplierOrder.date_reception <= _archive_cutoff(),
+    )
+
+
+def _is_not_archived_filter(query):
+    """Filtre : exclut les commandes archivées (pour la liste principale)."""
+    cutoff = _archive_cutoff()
+    return query.filter(
+        db.or_(
+            SupplierOrder.statut != OrderStatus.RECEIVED,
+            SupplierOrder.date_reception.is_(None),
+            SupplierOrder.date_reception > cutoff,
+        )
+    )
+
+
 # ── LIST (global + per supplier) ──────────────────────────────────────────
 @orders_bp.route('/')
 @_mgr
@@ -36,6 +63,7 @@ def index():
     statut      = request.args.get('statut', '')
     supplier_id = request.args.get('supplier_id', 0, type=int)
     q = SupplierOrder.query.filter_by(tenant_id=_tid())
+    q = _is_not_archived_filter(q)  # exclut les commandes archivées (>1 mois après réception)
     if statut:
         q = q.filter_by(statut=statut)
     if supplier_id:
@@ -47,6 +75,27 @@ def index():
                            current_statut=statut,
                            current_supplier=supplier_id,
                            OrderStatus=OrderStatus)
+
+
+# ── ARCHIVE (visible uniquement par recherche) ─────────────────────────────
+@orders_bp.route('/archive')
+@_mgr
+def archive():
+    query_str = request.args.get('q', '').strip()
+    orders = []
+    if query_str:
+        q = SupplierOrder.query.filter_by(tenant_id=_tid()).join(Supplier)
+        q = _is_archived_filter(q)
+        like = f'%{query_str}%'
+        q = q.filter(
+            db.or_(
+                Supplier.nom.ilike(like),
+                SupplierOrder.reference.ilike(like),
+            )
+        )
+        orders = q.order_by(SupplierOrder.date_reception.desc()).all()
+    return render_template('manager/orders/archive.html',
+                           orders=orders, query=query_str, OrderStatus=OrderStatus)
 
 
 # ── CREATE ────────────────────────────────────────────────────────────────
@@ -197,6 +246,7 @@ def receive(oid):
         any_received = any(i.quantite_recue > 0 for i in order.items)
         if all_received:
             order.statut = OrderStatus.RECEIVED
+            order.date_reception = datetime.utcnow()  # point de départ du compte à rebours d'archivage
         elif any_received:
             order.statut = OrderStatus.PARTIAL
 
