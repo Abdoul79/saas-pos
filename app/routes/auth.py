@@ -42,9 +42,11 @@ def login():
         if not user.is_active:
             flash('Votre compte utilisateur est désactivé.', 'danger')
             return render_template('auth/login.html')
-        if not user.is_super_admin:
-            if not user.tenant or user.tenant.status != TenantStatus.ACTIVE:
-                flash("Votre espace commerçant est suspendu ou en attente d'activation.", 'warning')
+        # Ignorer le check de statut pour les super admins et activateurs
+        if current_user.is_authenticated and not current_user.is_super_admin and not getattr(current_user, 'is_activateur', False):
+            if current_user.tenant.status != TenantStatus.ACTIVE:
+                flash('Votre espace commerçant est suspendu ou en attente d\'activation.', 'danger')
+                
                 return render_template('auth/login.html')
 
         user.last_login = datetime.utcnow()
