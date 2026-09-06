@@ -1,8 +1,9 @@
 from functools import wraps
-from flask import abort, flash, redirect, url_for
+from flask import abort, flash, redirect, url_for, request
 from flask_login import current_user
 from app.models import UserRole, TenantStatus
 from datetime import date
+
 
 
 def role_required(*roles):
@@ -13,7 +14,8 @@ def role_required(*roles):
             if not current_user.is_authenticated:
                 return redirect(url_for('auth.login'))
             if current_user.role not in roles:
-                abort(403)
+                flash("Vous n'avez pas l'autorisation pour effectuer cette opération. Contactez le super administrateur.", 'danger')
+                return redirect(request.referrer or url_for('auth.login'))
             return f(*args, **kwargs)
         return decorated_function
     return decorator

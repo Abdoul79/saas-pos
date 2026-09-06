@@ -43,10 +43,9 @@ def login():
             flash('Votre compte utilisateur est désactivé.', 'danger')
             return render_template('auth/login.html')
         # Ignorer le check de statut pour les super admins et activateurs
-        if current_user.is_authenticated and not current_user.is_super_admin and not getattr(current_user, 'is_activateur', False):
-            if current_user.tenant.status != TenantStatus.ACTIVE:
-                flash('Votre espace commerçant est suspendu ou en attente d\'activation.', 'danger')
-                
+        if not user.is_super_admin and not user.is_activateur:
+             if not user.tenant or user.tenant.status != TenantStatus.ACTIVE:
+                flash("Votre espace commerçant est suspendu ou en attente d'activation.", 'warning')
                 return render_template('auth/login.html')
 
         user.last_login = datetime.utcnow()
@@ -152,7 +151,7 @@ def _redirect_by_role(user):
     if user.role == UserRole.SUPER_ADMIN:
         return redirect(url_for('super_admin.dashboard'))
     elif user.role == UserRole.ACTIVATEUR:
-        return redirect(url_for('super_admin.activateur_dashboard'))
+        return redirect(url_for('super_admin.dashboard'))
     elif user.role == UserRole.MANAGER:
         return redirect(url_for('manager.dashboard'))
     else:

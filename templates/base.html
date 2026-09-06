@@ -82,6 +82,7 @@
     .badge-admin  { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
     .badge-mgr    { background: #0369a122; color: #38bdf8; border: 1px solid #0369a144; }
     .badge-cashier{ background: #15803d22; color: #4ade80; border: 1px solid #15803d44; }
+    .badge-activ  { background: #d9770622; color: #fbbf24; border: 1px solid #d9770644; }
 
     /* ── ÉCRAN TACTILE DE NAVIGATION (grille plein écran) ── */
     #navGrid {
@@ -356,6 +357,8 @@
   <div class="nav-right">
     {% if current_user.is_super_admin %}
       <span class="nav-badge badge-admin">SUPER ADMIN</span>
+    {% elif current_user.is_activateur %}
+      <span class="nav-badge badge-activ">ACTIVATEUR</span>
     {% elif current_user.is_manager %}
       <span class="nav-badge badge-mgr">GÉRANT</span>
     {% else %}
@@ -387,6 +390,17 @@
         </a>
         <a href="{{ url_for('super_admin.settings') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.settings' %}active{% endif %}">
           <span class="tile-icon">⚙️</span><span class="tile-label">Paramètres</span>
+        </a>
+        <a href="{{ url_for('super_admin.tenants') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.tenants' %}active{% endif %}">
+          <span class="tile-icon">🏢</span><span class="tile-label">Commerçants</span>
+        </a>
+      </div>
+
+    {% elif current_user.is_activateur %}
+      <div class="navgrid-section-label">Activation</div>
+      <div class="navgrid-tiles">
+        <a href="{{ url_for('super_admin.dashboard') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.dashboard' %}active{% endif %}">
+          <span class="tile-icon">✅</span><span class="tile-label">Comptes à activer</span>
         </a>
         <a href="{{ url_for('super_admin.tenants') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.tenants' %}active{% endif %}">
           <span class="tile-icon">🏢</span><span class="tile-label">Commerçants</span>
@@ -759,4 +773,3 @@
 {% block scripts %}{% endblock %}
 </body>
 </html>
-

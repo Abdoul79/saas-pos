@@ -33,19 +33,28 @@ def _admin_or_activateur(f):
 
 
 @super_admin_bp.route('/dashboard')
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut voir le dashboard
 def dashboard():
     from datetime import date
-    pending        = Tenant.query.filter_by(status=TenantStatus.PENDING).order_by(Tenant.created_at.desc()).all()
-    active_tenants = Tenant.query.filter_by(status=TenantStatus.ACTIVE).order_by(Tenant.nom).all()
-    suspended      = Tenant.query.filter_by(status=TenantStatus.SUSPENDED).count()
+    is_activateur = current_user.role == UserRole.ACTIVATEUR
 
-    # Paiements du mois en cours
-    mois_courant   = date.today().strftime('%Y-%m')
-    paiements_mois = {p.tenant_id: p for p in
-                      Paiement.query.filter_by(mois=mois_courant).all()}
-    total_encaisse = sum(float(p.montant) for p in paiements_mois.values()
-                         if p.statut == StatutPaiement.PAYE)
+    if is_activateur:
+        # L'activateur voit tous les commerçants et leur statut
+        pending        = Tenant.query.filter_by(status=TenantStatus.PENDING).order_by(Tenant.created_at.desc()).all()
+        active_tenants = Tenant.query.filter(Tenant.status != TenantStatus.PENDING).order_by(Tenant.nom).all()
+        suspended      = Tenant.query.filter_by(status=TenantStatus.SUSPENDED).count()
+        total_encaisse = 0
+        paiements_mois = {}
+        mois_courant   = date.today().strftime('%Y-%m')
+    else:
+        pending        = Tenant.query.filter_by(status=TenantStatus.PENDING).order_by(Tenant.created_at.desc()).all()
+        active_tenants = Tenant.query.filter_by(status=TenantStatus.ACTIVE).order_by(Tenant.nom).all()
+        suspended      = Tenant.query.filter_by(status=TenantStatus.SUSPENDED).count()
+        mois_courant   = date.today().strftime('%Y-%m')
+        paiements_mois = {p.tenant_id: p for p in
+                          Paiement.query.filter_by(mois=mois_courant).all()}
+        total_encaisse = sum(float(p.montant) for p in paiements_mois.values()
+                             if p.statut == StatutPaiement.PAYE)
 
     return render_template('admin/dashboard.html',
         pending_tenants=pending,
@@ -56,39 +65,41 @@ def dashboard():
         total_encaisse=total_encaisse,
         mois_courant=mois_courant,
         StatutPaiement=StatutPaiement,
+        is_activateur=is_activateur,
     )
 
 
 @super_admin_bp.route('/tenants')
-@_super_admin_only
+@_admin_or_activateur
 def tenants():
+    is_activateur = current_user.role == UserRole.ACTIVATEUR
     status_filter = request.args.get('status', '')
+
     q = Tenant.query
     if status_filter:
         q = q.filter_by(status=status_filter)
-    tenants = q.order_by(Tenant.created_at.desc()).all()
-    return render_template('admin/tenants.html', tenants=tenants, current_filter=status_filter)
+
+    tenants_list = q.order_by(Tenant.created_at.desc()).all()
+    return render_template('admin/tenants.html', tenants=tenants_list,
+                           current_filter=status_filter, is_activateur=is_activateur)
+
 
 
 @super_admin_bp.route('/tenant/<int:tenant_id>/activate', methods=['POST'])
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut activer
 def activate_tenant(tenant_id):
     tenant = Tenant.query.get_or_404(tenant_id)
     days = int(request.form.get('days', 30))
     tenant.status = TenantStatus.ACTIVE
     tenant.licence_expiry = date.today() + timedelta(days=days)
-    # Réactiver tous les utilisateurs du tenant (désactivés lors de la suspension)
     User.query.filter_by(tenant_id=tenant_id).update({'is_active': True})
     db.session.commit()
     flash(f'Compte "{tenant.email}" activé pour {days} jours.', 'success')
     return redirect(url_for('super_admin.dashboard'))
 
 
-
-
-
 @super_admin_bp.route('/tenant/<int:tenant_id>/reject', methods=['POST'])
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut rejeter
 def reject_tenant(tenant_id):
     tenant = Tenant.query.get_or_404(tenant_id)
     tenant.status = TenantStatus.REJECTED
@@ -96,9 +107,8 @@ def reject_tenant(tenant_id):
     flash(f'Demande de "{tenant.email}" rejetée.', 'danger')
     return redirect(url_for('super_admin.dashboard'))
 
-
 @super_admin_bp.route('/tenant/<int:tenant_id>/extend', methods=['POST'])
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut prolonger la licence
 def extend_licence(tenant_id):
     tenant = Tenant.query.get_or_404(tenant_id)
     days = int(request.form.get('days', 30))
@@ -111,7 +121,7 @@ def extend_licence(tenant_id):
 
 # ── PAIEMENTS ABONNEMENTS ─────────────────────────────────────────────────
 @super_admin_bp.route('/paiements')
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut voir les paiements
 def paiements():
     from datetime import date
     mois  = request.args.get('mois', date.today().strftime('%Y-%m'))
@@ -126,7 +136,7 @@ def paiements():
 
 
 @super_admin_bp.route('/tenant/<int:tenant_id>/paiement', methods=['POST'])
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut enregistrer un paiement
 def enregistrer_paiement(tenant_id):
     from datetime import date
     t       = Tenant.query.get_or_404(tenant_id)
@@ -161,7 +171,7 @@ def enregistrer_paiement(tenant_id):
 
 
 @super_admin_bp.route('/tenant/<int:tenant_id>/paiement/<mois>/pdf')
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut générer le reçu PDF
 def paiement_pdf(tenant_id, mois):
     from datetime import date
     from flask import Response, current_app
@@ -185,7 +195,7 @@ def paiement_pdf(tenant_id, mois):
 
 
 @super_admin_bp.route('/tenant/<int:tenant_id>/set-montant', methods=['POST'])
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut fixer le montant mensuel
 def set_montant_mensuel(tenant_id):
     t = Tenant.query.get_or_404(tenant_id)
     montant = request.form.get('montant_mensuel', '').strip()
@@ -197,7 +207,7 @@ def set_montant_mensuel(tenant_id):
 
 
 @super_admin_bp.route('/tenant/<int:tenant_id>/toggle-engros', methods=['POST'])
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut activer/désactiver la vente en gros
 def toggle_engros(tenant_id):
     t = Tenant.query.get_or_404(tenant_id)
     t.vente_engros_active = not t.vente_engros_active
@@ -208,7 +218,7 @@ def toggle_engros(tenant_id):
 
 
 @super_admin_bp.route('/tenant/<int:tenant_id>/toggle-online', methods=['POST'])
-@_super_admin_only
+@_admin_or_activateur                          # ← activateur peut activer/désactiver la boutique en ligne
 def toggle_online(tenant_id):
     t = Tenant.query.get_or_404(tenant_id)
     t.boutique_en_ligne_active = not t.boutique_en_ligne_active
@@ -216,10 +226,11 @@ def toggle_online(tenant_id):
     state = 'activée' if t.boutique_en_ligne_active else 'désactivée'
     flash(f'Boutique en ligne {state} pour {t.prenom} {t.nom}.', 'success')
     return redirect(request.referrer or url_for('super_admin.tenants'))
+# a ici
 
 
 @super_admin_bp.route('/tenant/<int:tenant_id>/detail')
-@_super_admin_only
+@_admin_or_activateur
 def tenant_detail(tenant_id):
     tenant = Tenant.query.get_or_404(tenant_id)
     tx_count = Sale.query.filter_by(tenant_id=tenant_id).count()
@@ -362,15 +373,6 @@ def delete_activateur(uid):
     db.session.delete(u); db.session.commit()
     flash(f'Activateur {u.full_name} supprime.', 'info')
     return redirect(url_for('super_admin.settings'))
-
-
-@super_admin_bp.route('/activateur/dashboard')
-@login_required
-def activateur_dashboard():
-    if current_user.role not in (UserRole.SUPER_ADMIN, UserRole.ACTIVATEUR):
-        return redirect(url_for('auth.login'))
-    pending = Tenant.query.filter_by(status=TenantStatus.PENDING).order_by(Tenant.created_at.desc()).all()
-    return render_template('admin/activateur_dashboard.html', pending_tenants=pending)
 
 
 # ── TEST STORAGE (debug Railway) ─────────────────────────────────────────────
