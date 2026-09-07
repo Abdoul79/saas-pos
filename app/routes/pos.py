@@ -4,6 +4,8 @@ from sqlalchemy import func
 from app import db
 from app.models import Product, ProductVariant, Category, Sale, SaleItem, PaymentMethod, UserRole
 from app.utils.decorators import role_required, tenant_active_required
+from datetime import date as date_cls
+from app.models import Tenant  # ajoute Tenant à l'import existant de app.models si pas déjà présent
 
 pos_bp = Blueprint('pos', __name__)
 
@@ -173,7 +175,8 @@ def validate_sale():
         amount_given=amount_given if amount_given > 0 else None,
         change_given=round(amount_given - total_ttc, 2) if amount_given > 0 else None,
         payment_method=payment_method,
-        sale_type='detail'
+        sale_type='detail',
+        ticket_number=_get_next_ticket_number(_tid()),   # ← ligne ajoutée
     )
     db.session.add(sale)
     db.session.flush()
@@ -294,6 +297,7 @@ def validate_sale_engros():
         amount_given=amount_given,
         change_given=max(0, change),
         sale_type='engros',
+        ticket_number=_get_next_ticket_number(_tid()),   # ← ligne ajoutée
     )
     db.session.add(sale)
     db.session.flush()
@@ -312,6 +316,18 @@ def validate_sale_engros():
         'change'   : float(sale.change_given),
         'sale_type': 'engros',
     })
+
+def _get_next_ticket_number(tenant_id):
+    """Numéro de ticket qui repart à 1 chaque jour, par tenant.
+    Verrouille la ligne Tenant (with_for_update) pour éviter les doublons
+    si deux ventes sont validées au même instant."""
+    tenant_row = Tenant.query.filter_by(id=tenant_id).with_for_update().first()
+    today = date_cls.today()
+    if tenant_row.last_ticket_date != today:
+        tenant_row.last_ticket_number = 0
+        tenant_row.last_ticket_date = today
+    tenant_row.last_ticket_number += 1
+    return tenant_row.last_ticket_number
 
 
 # ── Réapprovisionnement rapide depuis la caisse (manager seulement) ─────────
@@ -431,7 +447,7 @@ def ticket(sale_id):
         import qrcode, base64
         from io import BytesIO
         qr_data = (
-            f"TICKET #{sale.id}\n"
+            f"TICKET #{sale.ticket_number or sale.id}\n"
             f"{tenant.nom_boutique or tenant.activite}\n"
             f"{sale.created_at.strftime('%d/%m/%Y %H:%M')}\n"
             f"TOTAL: {float(sale.total_amount):.0f} FCFA\n"

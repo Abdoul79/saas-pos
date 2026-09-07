@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Ticket #{{ sale.id }}</title>
+  <title>Ticket #{{ sale.ticket_number or sale.id }}</title>
   <style>
     * { box-sizing:border-box; margin:0; padding:0; }
     body {
@@ -110,7 +110,7 @@
   <!-- Titre ticket -->
   <div class="center bold" style="font-size:1.05em;letter-spacing:.05em;">TICKET DE CAISSE</div>
   <div class="center info" style="margin-top:.2rem;">
-    #{{ sale.id }} &nbsp;·&nbsp; {{ sale.created_at.strftime('%d/%m/%Y %H:%M:%S') }}
+    #{{ sale.ticket_number or sale.id }} &nbsp;·&nbsp; {{ sale.created_at.strftime('%d/%m/%Y %H:%M:%S') }}
   </div>
 
   <!-- Caissier avec initiales -->

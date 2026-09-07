@@ -100,6 +100,9 @@ class Tenant(db.Model):
     cinetpay_apikey  = db.Column(db.String(255), nullable=True)
     cinetpay_site_id = db.Column(db.String(100), nullable=True)
     shop_whatsapp = db.Column(db.String(30), nullable=True)
+    #last ticket number and date for sales
+    last_ticket_number = db.Column(db.Integer, default=0, nullable=False)
+    last_ticket_date   = db.Column(db.Date, nullable=True)
 
 
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
@@ -521,6 +524,8 @@ class Sale(db.Model):
     tenant  = db.relationship('Tenant', back_populates='sales')
     cashier = db.relationship('User', back_populates='sales')
     items   = db.relationship('SaleItem', back_populates='sale', cascade='all, delete-orphan')
+    #last ticket number for this sale (used for printing receipts)
+    ticket_number = db.Column(db.Integer, nullable=True)
 
     def __repr__(self): return f'<Sale #{self.id}>'
 
