@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Rapport Ventes {% if filter_date %}— {{ filter_date.strftime('%d/%m/%Y') }}{% endif %}</title>
+  <title>Rapport Ventes {% if period == 'month' and filter_month %}— {{ filter_month }}{% elif filter_date %}— {{ filter_date.strftime('%d/%m/%Y') }}{% endif %}</title>
   <style>
     * { box-sizing:border-box; margin:0; padding:0; }
     body { font-family:'Helvetica Neue',Arial,sans-serif; font-size:9.5pt; color:#1a1a2e; background:#fff; }
@@ -87,16 +87,25 @@
       <div class="sub">{{ tenant.adresse }}{% if tenant.ville %}, {{ tenant.ville }}{% endif %}</div>
       {% if tenant.telephone_entreprise %}<div class="sub">{{ tenant.telephone_entreprise }}</div>{% endif %}
     </div>
-    <div class="doc-meta">
-      <div class="doc-type">Rapport des Ventes</div>
-      {% if filter_date %}
-      <div class="doc-sub">Journée du <strong>{{ filter_date.strftime('%d/%m/%Y') }}</strong></div>
-      {% else %}
-      <div class="doc-sub">Toutes les ventes</div>
-      {% endif %}
-      <div class="doc-sub">Généré le {{ today.strftime('%d/%m/%Y') }} par {{ generated_by }}</div>
+
+      <div class="doc-meta">
+        <div class="doc-type">Rapport des Ventes</div>
+        {% if period == 'month' and filter_month %}
+        <div class="doc-sub">Mois de <strong>{{ filter_month }}</strong></div>
+        {% elif filter_date %}
+        <div class="doc-sub">Journée du <strong>{{ filter_date.strftime('%d/%m/%Y') }}</strong></div>
+        {% else %}
+        <div class="doc-sub">Toutes les ventes</div>
+        {% endif %}
+        <div class="doc-sub">Généré le {{ today.strftime('%d/%m/%Y') }} par {{ generated_by }}</div>
     </div>
   </div>
+  
+   {% if period == 'month' and filter_month %}
+     <div style="background:#7c3aed10;border:1px solid #7c3aed33;border-radius:6px;padding:6px 12px;margin-bottom:12px;font-size:8pt;color:#4a148c;font-weight:700;">
+       🗓️ Rapport mensuel consolidé — {{ filter_month }}
+    </div>
+   {% endif %}
 
   <!-- Stats globales -->
   <div class="stats-bar">

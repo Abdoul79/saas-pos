@@ -843,23 +843,42 @@ def sales():
                            online_pending=online_pending,
                            OnlineOrderStatus=OnlineOrderStatus)
 
-
 @manager_bp.route('/sales/pdf')
 @_manager_access
 def sales_pdf():
     from app.models import PaymentMethod
     from collections import OrderedDict, defaultdict
+    from datetime import date as date_today
+    import calendar
+
+    period     = request.args.get('period', 'day')
     date_str   = request.args.get('date', '')
+    month_str  = request.args.get('month', date_today.today().strftime('%Y-%m'))
     cashier_id = request.args.get('cashier_id', 0, type=int)
 
     q = Sale.query.filter_by(tenant_id=_tid())
-    filter_date = None
-    if date_str:
+    filter_date  = None
+    filter_month = None
+
+    if period == 'month':
         try:
-            filter_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            q = q.filter(func.date(Sale.created_at) == filter_date)
-        except ValueError:
-            pass
+            year, mon = int(month_str.split('-')[0]), int(month_str.split('-')[1])
+            first_day = date_today(year, mon, 1)
+            last_day  = date_today(year, mon, calendar.monthrange(year, mon)[1])
+            q = q.filter(func.date(Sale.created_at) >= first_day,
+                         func.date(Sale.created_at) <= last_day)
+            filter_month = month_str
+        except (ValueError, IndexError):
+            period = 'day'
+
+    if period != 'month':
+        if date_str:
+            try:
+                filter_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                q = q.filter(func.date(Sale.created_at) == filter_date)
+            except ValueError:
+                pass
+
     if cashier_id:
         q = q.filter_by(cashier_id=cashier_id)
 
@@ -875,7 +894,6 @@ def sales_pdf():
         by_method[m]['count'] += 1
         by_method[m]['total'] += float(s.total_amount)
 
-    # Grouper par caissier
     sales_by_cashier = OrderedDict()
     for s in all_sales:
         cid = s.cashier_id or 0
@@ -885,7 +903,6 @@ def sales_pdf():
         sales_by_cashier[cid]['total']    += float(s.total_amount or 0)
         sales_by_cashier[cid]['nb_items'] += sum(i.quantity for i in s.items)
 
-    # Top produits
     product_counts = defaultdict(lambda: {'designation': '', 'qty': 0, 'total': 0.0})
     for s in all_sales:
         for item in s.items:
@@ -895,7 +912,6 @@ def sales_pdf():
             product_counts[key]['total'] += float(item.subtotal or 0)
     top_products = sorted(product_counts.values(), key=lambda x: x['qty'], reverse=True)[:8]
 
-    # Détail vs Gros
     total_detail = sum(float(s.total_amount) for s in all_sales if getattr(s,'sale_type','detail') != 'engros')
     total_engros = sum(float(s.total_amount) for s in all_sales if getattr(s,'sale_type','detail') == 'engros')
     nb_detail    = sum(1 for s in all_sales if getattr(s,'sale_type','detail') != 'engros')
@@ -905,8 +921,11 @@ def sales_pdf():
                                sales=all_sales,
                                sales_by_cashier=sales_by_cashier,
                                top_products=top_products,
+                               period=period,
                                filter_date=filter_date,
+                               filter_month=filter_month,
                                date_filter=date_str,
+                               month_filter=month_str,
                                total_ttc=total_ttc,
                                total_ht=total_ht,
                                total_tva=total_tva,
@@ -924,12 +943,16 @@ def sales_pdf():
         from weasyprint import HTML
         from flask import Response, current_app
         pdf = HTML(string=html_str, base_url=current_app.root_path).write_pdf()
-        fname = f"ventes_{date_str or 'global'}.pdf"
+        fname = f"ventes_{month_str if period == 'month' else (date_str or 'global')}.pdf"
         return Response(pdf, mimetype='application/pdf',
                         headers={'Content-Disposition': f'attachment; filename="{fname}"'})
     except Exception as e:
         flash(f'Erreur PDF : {e}', 'danger')
-        return redirect(url_for('manager.sales', date=date_str))
+        return redirect(url_for('manager.sales', period=period, date=date_str, month=month_str))
+
+
+
+
 
 
 # ── LOSSES ─────────────────────────────────────────────────────────────────
