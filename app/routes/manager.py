@@ -1,7 +1,7 @@
 import os, uuid
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from sqlalchemy import func, desc
 from werkzeug.utils import secure_filename
 from app import db
@@ -103,6 +103,28 @@ def dashboard():
             'stock_magasin'   : p.total_stock_magasin   if p else 0,
             'stock_entrepot'  : p.total_stock_entrepot  if p else 0,
         })
+    #comparer les vents du mois
+    month_start = today.replace(day=1)
+    ca_month    = db.session.query(func.sum(Sale.total_amount)).filter(
+        Sale.tenant_id == _tid(), Sale.created_at >= month_start
+    ).scalar() or 0
+
+    # ── CA du mois dernier (pour comparaison) ────────────────────────────
+    last_month_end   = month_start - timedelta(days=1)   # dernier jour du mois précédent
+    last_month_start = last_month_end.replace(day=1)     # premier jour du mois précédent
+    ca_last_month = db.session.query(func.sum(Sale.total_amount)).filter(
+        Sale.tenant_id == _tid(),
+        Sale.created_at >= last_month_start,
+        Sale.created_at < month_start
+    ).scalar() or 0
+    ca_last_month = float(ca_last_month)
+
+    if ca_last_month > 0:
+        ca_evolution_pct = round((float(ca_month) - ca_last_month) / ca_last_month * 100, 1)
+    elif float(ca_month) > 0:
+        ca_evolution_pct = 100.0   # rien le mois dernier, du CA ce mois-ci
+    else:
+        ca_evolution_pct = None    # rien à comparer sur les deux mois
 
     active_cashiers = User.query.filter_by(
         tenant_id=_tid(), role=UserRole.CASHIER, is_active=True).all()
@@ -141,7 +163,8 @@ def dashboard():
 
     return render_template('manager/dashboard.html',
         tenant=tenant, ca_today=ca_today, tx_today=tx_today,
-        ca_month=float(ca_month), top_products=top_products,
+        ca_month=float(ca_month), ca_last_month=ca_last_month, ca_evolution_pct=ca_evolution_pct,
+        top_products=top_products,
         active_cashiers=active_cashiers, low_stock=low_stock,
         saas_telephone=saas_telephone,
         saas_email=saas_email,
@@ -693,19 +716,36 @@ def toggle_user(user_id):
 def sales():
     from app.models import PaymentMethod
     from datetime import date as date_today
-    page     = request.args.get('page', 1, type=int)
-    # Par défaut : aujourd'hui
-    date_str = request.args.get('date', date_today.today().strftime('%Y-%m-%d'))
+    import calendar
+    page       = request.args.get('page', 1, type=int)
+    period     = request.args.get('period', 'day')   # 'day' ou 'month'
+    date_str   = request.args.get('date', date_today.today().strftime('%Y-%m-%d'))
+    month_str  = request.args.get('month', date_today.today().strftime('%Y-%m'))
     cashier_id = request.args.get('cashier_id', 0, type=int)
 
     q = Sale.query.filter_by(tenant_id=_tid())
-    filter_date = None
-    if date_str:
+    filter_date  = None
+    filter_month = None
+
+    if period == 'month':
         try:
-            filter_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            q = q.filter(func.date(Sale.created_at) == filter_date)
-        except ValueError:
-            pass
+            year, mon = int(month_str.split('-')[0]), int(month_str.split('-')[1])
+            first_day = date_today(year, mon, 1)
+            last_day  = date_today(year, mon, calendar.monthrange(year, mon)[1])
+            q = q.filter(func.date(Sale.created_at) >= first_day,
+                         func.date(Sale.created_at) <= last_day)
+            filter_month = month_str
+        except (ValueError, IndexError):
+            period = 'day'
+
+    if period != 'month':
+        if date_str:
+            try:
+                filter_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                q = q.filter(func.date(Sale.created_at) == filter_date)
+            except ValueError:
+                pass
+
     if cashier_id:
         q = q.filter_by(cashier_id=cashier_id)
 
@@ -721,7 +761,6 @@ def sales():
         by_method[m]['count'] += 1
         by_method[m]['total'] += float(s.total_amount)
 
-    # Top produits vendus aujourd'hui
     from collections import defaultdict
     product_counts = defaultdict(lambda: {'designation': '', 'qty': 0, 'total': 0.0})
     for s in all_sales:
@@ -735,7 +774,6 @@ def sales():
     sales_page = q.order_by(Sale.created_at.desc()).paginate(page=page, per_page=50)
     cashiers   = User.query.filter_by(tenant_id=_tid(), role=UserRole.CASHIER).all()
 
-    # Grouper par caissier + séparer detail/engros
     from collections import OrderedDict
     sales_by_cashier = OrderedDict()
     total_detail = total_engros = 0.0
@@ -767,10 +805,13 @@ def sales():
             total_detail += float(s.total_amount or 0)
             nb_detail    += 1
 
-    # Commandes en ligne du jour
     from app.models import OnlineOrder, OnlineOrderStatus
     online_q = OnlineOrder.query.filter_by(tenant_id=_tid())
-    if date_str:
+    if period == 'month' and filter_month:
+        online_q = online_q.filter(func.strftime('%Y-%m', OnlineOrder.created_at) == filter_month) \
+            if db.engine.dialect.name == 'sqlite' else \
+            online_q.filter(func.to_char(OnlineOrder.created_at, 'YYYY-MM') == filter_month)
+    elif date_str:
         online_q = online_q.filter(func.date(OnlineOrder.created_at) == date_str)
     online_orders = online_q.order_by(OnlineOrder.created_at.desc()).all()
     online_total  = sum(float(o.total_amount) for o in online_orders if o.status != OnlineOrderStatus.CANCELLED)
@@ -780,8 +821,11 @@ def sales():
                            sales=sales_page,
                            sales_by_cashier=sales_by_cashier,
                            top_products=top_products,
+                           period=period,
                            date_filter=date_str,
+                           month_filter=month_str,
                            filter_date=filter_date,
+                           filter_month=filter_month,
                            total_ttc=total_ttc,
                            total_ht=total_ht,
                            total_tva=total_tva,

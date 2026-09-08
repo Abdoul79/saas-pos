@@ -42,21 +42,42 @@
 {% block content %}
 <div class="flex justify-between items-center mb-3">
   <div class="page-title" style="margin-bottom:0">
-    Ventes du jour
-    {% if filter_date %}
+    Journal des ventes
+    {% if period == 'month' and filter_month %}
+    <span style="font-size:.75rem;color:var(--muted);font-weight:400;margin-left:.5rem;">
+      {{ filter_month }}
+    </span>
+    {% elif filter_date %}
     <span style="font-size:.75rem;color:var(--muted);font-weight:400;margin-left:.5rem;">
       {{ filter_date.strftime('%d/%m/%Y') }}
     </span>
     {% endif %}
   </div>
-  <a href="{{ url_for('manager.sales_pdf') }}?date={{ date_filter }}&cashier_id={{ current_cashier }}"
+  <a href="{{ url_for('manager.sales_pdf') }}?date={{ date_filter }}&month={{ month_filter }}&period={{ period }}&cashier_id={{ current_cashier }}"
      class="btn btn-secondary btn-sm">📄 PDF</a>
 </div>
 
 <!-- Filtres -->
 <div class="card mb-2">
   <form method="GET" class="flex gap-2 items-center" style="flex-wrap:wrap;">
-    <input type="date" name="date" class="form-control" value="{{ date_filter }}" style="width:170px;">
+    <div class="flex gap-1" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.2rem;">
+      <label style="cursor:pointer;">
+        <input type="radio" name="period" value="day" {% if period != 'month' %}checked{% endif %}
+               onchange="togglePeriod(this)" style="display:none;">
+        <span class="btn btn-sm {% if period != 'month' %}btn-primary{% else %}btn-secondary{% endif %}" id="periodDayBtn">📅 Jour</span>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="period" value="month" {% if period == 'month' %}checked{% endif %}
+               onchange="togglePeriod(this)" style="display:none;">
+        <span class="btn btn-sm {% if period == 'month' %}btn-primary{% else %}btn-secondary{% endif %}" id="periodMonthBtn">🗓️ Mois</span>
+      </label>
+    </div>
+
+    <input type="date" name="date" id="dateInput" class="form-control" value="{{ date_filter }}"
+           style="width:170px;{% if period == 'month' %}display:none;{% endif %}">
+    <input type="month" name="month" id="monthInput" class="form-control" value="{{ month_filter }}"
+           style="width:150px;{% if period != 'month' %}display:none;{% endif %}">
+
     <select name="cashier_id" class="form-control" style="max-width:180px;">
       <option value="">Tous les caissiers</option>
       {% for c in cashiers %}
@@ -67,6 +88,7 @@
     <a href="{{ url_for('manager.sales') }}" class="btn btn-secondary btn-sm">📅 Aujourd'hui</a>
   </form>
 </div>
+
 
 <!-- Stats globales -->
 <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:.75rem;">
@@ -292,5 +314,15 @@
   Aucune vente aujourd'hui.
 </div>
 {% endif %}
+
+<script>
+function togglePeriod(radio) {
+  const isMonth = radio.value === 'month';
+  document.getElementById('dateInput').style.display   = isMonth ? 'none' : '';
+  document.getElementById('monthInput').style.display  = isMonth ? '' : 'none';
+  document.getElementById('periodDayBtn').className    = 'btn btn-sm ' + (isMonth ? 'btn-secondary' : 'btn-primary');
+  document.getElementById('periodMonthBtn').className  = 'btn btn-sm ' + (isMonth ? 'btn-primary' : 'btn-secondary');
+}
+</script>
 
 {% endblock %}

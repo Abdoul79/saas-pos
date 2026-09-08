@@ -45,10 +45,23 @@
     <div class="stat-value text-accent">{{ "%.0f"|format(ca_today) }} <small style="font-size:.7em;">FCFA</small></div>
     <div class="stat-sub">{{ tx_today }} transaction(s)</div>
   </div>
-  <div class="stat-card">
+
+    <div class="stat-card">
     <div class="stat-label">CA Ce Mois</div>
     <div class="stat-value">{{ "%.0f"|format(ca_month) }} <small style="font-size:.7em;">FCFA</small></div>
+    {% if ca_evolution_pct is not none %}
+    <div class="stat-sub" style="display:flex;align-items:center;gap:.35rem;">
+      <span class="badge {% if ca_evolution_pct > 0 %}badge-green{% elif ca_evolution_pct < 0 %}badge-red{% else %}badge-blue{% endif %}" style="font-size:.68rem;">
+        {% if ca_evolution_pct > 0 %}▲{% elif ca_evolution_pct < 0 %}▼{% else %}—{% endif %}
+        {{ "%.1f"|format(ca_evolution_pct|abs) }}%
+      </span>
+      <span style="color:var(--muted);font-size:.7rem;">vs mois dernier</span>
+    </div>
+    {% else %}
+    <div class="stat-sub" style="color:var(--muted);">Pas de données mois dernier</div>
+    {% endif %}
   </div>
+
   <div class="stat-card">
     <div class="stat-label">Caissiers Actifs</div>
     <div class="stat-value" style="color:var(--success);">{{ active_cashiers|length }}</div>
