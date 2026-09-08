@@ -126,6 +126,7 @@ def dashboard():
     else:
         ca_evolution_pct = None    # rien à comparer sur les deux mois
 
+
     active_cashiers = User.query.filter_by(
         tenant_id=_tid(), role=UserRole.CASHIER, is_active=True).all()
 
@@ -951,7 +952,77 @@ def sales_pdf():
         return redirect(url_for('manager.sales', period=period, date=date_str, month=month_str))
 
 
+# ── STATISTIQUES CA — GRAPHIQUE ANNUEL ────────────────────────────────────
+@manager_bp.route('/statistiques')
+@_manager_access
+def stats_ca():
+    import calendar as _cal
+    today = date.today()
+    year  = request.args.get('year', today.year, type=int)
 
+    year_start = date(year, 1, 1)
+    year_end   = date(year, 12, 31)
+
+    monthly_raw = db.session.query(
+        func.extract('month', Sale.created_at).label('mon'),
+        func.sum(Sale.total_amount).label('total'),
+        func.count(Sale.id).label('nb')
+    ).filter(
+        Sale.tenant_id == _tid(),
+        Sale.created_at >= year_start,
+        Sale.created_at <= datetime.combine(year_end, datetime.max.time())
+    ).group_by('mon').all()
+
+    monthly_totals = {int(row.mon): {'total': float(row.total), 'nb': row.nb} for row in monthly_raw}
+    mois_labels = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+
+    ca_by_month = [
+        {
+            'label'      : mois_labels[m - 1],
+            'label_short': mois_labels[m - 1][:3],
+            'total'      : monthly_totals.get(m, {}).get('total', 0.0),
+            'nb'         : monthly_totals.get(m, {}).get('nb', 0),
+            'is_current' : (m == today.month and year == today.year),
+        }
+        for m in range(1, 13)
+    ]
+
+    total_year = sum(m['total'] for m in ca_by_month)
+    nb_year    = sum(m['nb'] for m in ca_by_month)
+
+    # Année précédente pour comparaison
+    prev_total = db.session.query(func.sum(Sale.total_amount)).filter(
+        Sale.tenant_id == _tid(),
+        Sale.created_at >= date(year - 1, 1, 1),
+        Sale.created_at <= datetime.combine(date(year - 1, 12, 31), datetime.max.time())
+    ).scalar() or 0
+    prev_total = float(prev_total)
+
+    if prev_total > 0:
+        year_evolution_pct = round((total_year - prev_total) / prev_total * 100, 1)
+    elif total_year > 0:
+        year_evolution_pct = 100.0
+    else:
+        year_evolution_pct = None
+
+    # Années disponibles pour le sélecteur (années où il y a eu au moins une vente)
+    years_raw = db.session.query(
+        func.extract('year', Sale.created_at).label('yr')
+    ).filter(Sale.tenant_id == _tid()).distinct().all()
+    available_years = sorted({int(row.yr) for row in years_raw}, reverse=True)
+    if today.year not in available_years:
+        available_years.insert(0, today.year)
+
+    return render_template('manager/stats_ca.html',
+        ca_by_month=ca_by_month,
+        total_year=total_year,
+        nb_year=nb_year,
+        prev_total=prev_total,
+        year_evolution_pct=year_evolution_pct,
+        current_year=year,
+        today_year=today.year,
+        available_years=available_years)
 
 
 

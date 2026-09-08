@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Statistiques CA — SaaS POS{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Chiffre d'affaires par mois</div>
+  <form method="GET" class="flex gap-1 items-center">
+    <select name="year" class="form-control" style="width:110px;" onchange="this.form.submit()">
+      {% for y in available_years %}
+      <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<!-- ── Stats résumé année ── -->
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+  <div class="stat-card">
+    <div class="stat-label">CA Total {{ current_year }}</div>
+    <div class="stat-value text-accent">{{ "%.0f"|format(total_year) }} <small style="font-size:.6em;">FCFA</small></div>
+    <div class="stat-sub">{{ nb_year }} transaction(s)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">CA {{ current_year - 1 }} (année précédente)</div>
+    <div class="stat-value" style="color:var(--muted);">{{ "%.0f"|format(prev_total) }} <small style="font-size:.6em;">FCFA</small></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Évolution vs {{ current_year - 1 }}</div>
+    {% if year_evolution_pct is not none %}
+    <div class="stat-value" style="color:{% if year_evolution_pct > 0 %}var(--success){% elif year_evolution_pct < 0 %}var(--danger){% else %}var(--muted){% endif %};">
+      {% if year_evolution_pct > 0 %}▲{% elif year_evolution_pct < 0 %}▼{% else %}—{% endif %}
+      {{ "%.1f"|format(year_evolution_pct|abs) }}%
+    </div>
+    {% else %}
+    <div class="stat-value" style="color:var(--muted);font-size:1rem;">—</div>
+    <div class="stat-sub">Pas de données {{ current_year - 1 }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Graphique mensuel ── -->
+<div class="card">
+  <div class="card-header">// Chiffre d'affaires — {{ current_year }}</div>
+
+  {% set max_ca = ca_by_month|map(attribute='total')|max %}
+  {% set max_ca = max_ca if max_ca > 0 else 1 %}
+
+  <div style="display:flex;align-items:flex-end;gap:10px;height:260px;padding:1rem .5rem 0;">
+    {% for m in ca_by_month %}
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;">
+      <div style="font-family:var(--mono);font-size:.72rem;color:{% if m.is_current %}var(--accent){% else %}var(--text){% endif %};font-weight:{% if m.is_current %}700{% else %}500{% endif %};white-space:nowrap;">
+        {% if m.total > 0 %}{{ "%.0f"|format(m.total / 1000) }}k{% else %}—{% endif %}
+      </div>
+      <div title="{{ m.label }} : {{ '%.0f'|format(m.total) }} FCFA · {{ m.nb }} vente(s)"
+           style="width:100%;background:{% if m.is_current %}var(--accent){% else %}#f5a62344{% endif %};border-radius:6px 6px 0 0;height:{{ ((m.total / max_ca) * 200)|int if m.total > 0 else 0 }}px;min-height:{% if m.total > 0 %}4{% else %}0{% endif %}px;transition:height .3s,background .15s;cursor:default;"
+           onmouseover="this.style.background='var(--accent)'"
+           onmouseout="this.style.background='{% if m.is_current %}var(--accent){% else %}#f5a62344{% endif %}'">
+      </div>
+      <div style="font-size:.75rem;color:{% if m.is_current %}var(--accent){% else %}var(--muted){% endif %};font-weight:{% if m.is_current %}700{% else %}400{% endif %};">
+        {{ m.label_short }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── Détail par mois (tableau) ── -->
+<div class="card mt-2" style="margin-top:1rem;">
+  <div class="card-header">// Détail mensuel</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Mois</th><th style="text-align:right;">CA (FCFA)</th><th style="text-align:right;">Transactions</th><th style="text-align:right;">Ticket moyen</th></tr>
+      </thead>
+      <tbody>
+        {% for m in ca_by_month %}
+        {% set prev = loop.previtem if not loop.first else none %}
+        <tr {% if m.is_current %}style="background:#f5a62310;"{% endif %}>
+          <td style="{% if m.is_current %}color:var(--accent);font-weight:700;{% endif %}">
+            {% if prev is not none %}
+              {% if m.total > prev.total %}
+              <span style="color:var(--success);margin-right:.35rem;" title="En hausse vs {{ prev.label }}">▲</span>
+              {% elif m.total < prev.total %}
+              <span style="color:var(--danger);margin-right:.35rem;" title="En baisse vs {{ prev.label }}">▼</span>
+              {% else %}
+              <span style="color:var(--muted);margin-right:.35rem;" title="Stable vs {{ prev.label }}">—</span>
+              {% endif %}
+            {% endif %}
+            {{ m.label }}
+          </td>
+          <td class="text-mono" style="text-align:right;">{{ "%.0f"|format(m.total) }}</td>
+          <td class="text-mono" style="text-align:right;">{{ m.nb }}</td>
+          <td class="text-mono" style="text-align:right;color:var(--muted);">
+            {% if m.nb > 0 %}{{ "%.0f"|format(m.total / m.nb) }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

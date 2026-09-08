@@ -417,6 +417,10 @@
           <span class="tile-icon">💰</span><span class="tile-label">Ventes</span>
         </a>
 
+        <a href="{{ url_for('manager.stats_ca') }}" class="navgrid-tile {% if request.endpoint == 'manager.stats_ca' %}active{% endif %}">
+          <span class="tile-icon">📈</span><span class="tile-label">Graphique CA</span>
+        </a>
+
         <a href="{{ url_for('manager.accounting') }}" class="navgrid-tile {% if 'accounting' in request.endpoint %}active{% endif %}">
           <span class="tile-icon">📊</span><span class="tile-label">Comptabilité</span>
         </a>
