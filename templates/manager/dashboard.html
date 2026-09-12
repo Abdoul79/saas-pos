@@ -38,17 +38,24 @@
 </div>
 {% endif %}
 
+
+
+
 <!-- ── Stats ── -->
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-label">CA Aujourd'hui</div>
-    <div class="stat-value text-accent">{{ "%.0f"|format(ca_today) }} <small style="font-size:.7em;">FCFA</small></div>
+    <div class="stat-label">CA Aujourd'hui <span style="opacity:.5;font-size:.7rem;">👁</span></div>
+    <div class="stat-value text-accent toggle-amount" data-real="{{ '%.0f'|format(ca_today) }}" onclick="toggleAmount(this)" style="cursor:pointer;user-select:none;">
+      {{ "%.0f"|format(ca_today) }} <small style="font-size:.7em;">FCFA</small>
+    </div>
     <div class="stat-sub">{{ tx_today }} transaction(s)</div>
   </div>
 
     <div class="stat-card">
-    <div class="stat-label">CA Ce Mois</div>
-    <div class="stat-value">{{ "%.0f"|format(ca_month) }} <small style="font-size:.7em;">FCFA</small></div>
+    <div class="stat-label">CA Ce Mois <span style="opacity:.5;font-size:.7rem;">👁</span></div>
+    <div class="stat-value toggle-amount" data-real="{{ '%.0f'|format(ca_month) }}" onclick="toggleAmount(this)" style="cursor:pointer;user-select:none;">
+      {{ "%.0f"|format(ca_month) }} <small style="font-size:.7em;">FCFA</small>
+    </div>
     {% if ca_evolution_pct is not none %}
     <div class="stat-sub" style="display:flex;align-items:center;gap:.35rem;">
       <span class="badge {% if ca_evolution_pct > 0 %}badge-green{% elif ca_evolution_pct < 0 %}badge-red{% else %}badge-blue{% endif %}" style="font-size:.68rem;">
@@ -61,6 +68,9 @@
     <div class="stat-sub" style="color:var(--muted);">Pas de données mois dernier</div>
     {% endif %}
   </div>
+
+
+
 
   <div class="stat-card">
     <div class="stat-label">Caissiers Actifs</div>
@@ -263,6 +273,18 @@ function convert() {
 
 loadRates();
 setInterval(loadRates, 10 * 60 * 1000);
+
+function toggleAmount(el) {
+  const real = el.dataset.real;
+  const isHidden = el.dataset.hidden === '1';
+  if (isHidden) {
+    el.innerHTML = real + ' <small style="font-size:.7em;">FCFA</small>';
+    el.dataset.hidden = '0';
+  } else {
+    el.innerHTML = '••••••• <small style="font-size:.7em;">FCFA</small>';
+    el.dataset.hidden = '1';
+  }
+}
 
 // ── Présence caissiers en temps réel ─────────────────────────────────────
 async function refreshPresence() {
