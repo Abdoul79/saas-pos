@@ -172,7 +172,69 @@
         <button type="submit" class="btn btn-primary">+ Créer l'activateur</button>
       </form>
     </div>
+
   </div>
+
+    <!-- ── 5. Médias page de connexion ── -->
+  <div class="card">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>// 5. Médias — Page de connexion
+        <span class="text-muted" style="font-weight:400;font-size:.74rem;">— images/vidéos affichées en carrousel sur l'écran de connexion</span>
+      </span>
+      <span class="badge badge-blue" style="font-size:.72rem;">{{ login_media|length }}</span>
+    </div>
+
+    {% if login_media %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.75rem;margin:1rem 0;">
+      {% for m in login_media %}
+      <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg);{% if not m.is_active %}opacity:.4;{% endif %}">
+        <div style="aspect-ratio:16/10;background:#000;">
+          {% if m.media_type == 'video' %}
+          <video src="{{ m.url }}" muted style="width:100%;height:100%;object-fit:cover;display:block;"></video>
+          {% else %}
+          <img src="{{ m.url }}" style="width:100%;height:100%;object-fit:cover;display:block;">
+          {% endif %}
+        </div>
+        <div style="padding:.5rem;display:flex;justify-content:space-between;align-items:center;">
+          <span class="badge {% if m.media_type == 'video' %}badge-purple{% else %}badge-blue{% endif %}" style="font-size:.65rem;">
+            {% if m.media_type == 'video' %}🎬 Vidéo{% else %}🖼 Image{% endif %}
+          </span>
+          <div class="flex gap-1">
+            <form method="POST" action="{{ url_for('super_admin.toggle_login_media', mid=m.id) }}">
+              <button type="submit" class="btn btn-sm btn-secondary" style="padding:.15rem .4rem;font-size:.65rem;" title="{% if m.is_active %}Désactiver{% else %}Activer{% endif %}">
+                {% if m.is_active %}👁{% else %}🚫{% endif %}
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('super_admin.delete_login_media', mid=m.id) }}">
+              <button type="submit" class="btn btn-danger btn-sm" style="padding:.15rem .4rem;font-size:.65rem;"
+                      onclick="return confirm('Supprimer ce média ?')">✕</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted" style="padding:1rem;font-size:.84rem;">Aucun média ajouté pour l'instant.</div>
+    {% endif %}
+
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+      <form method="POST" action="{{ url_for('super_admin.add_login_media') }}" enctype="multipart/form-data" class="flex gap-2 items-center" style="flex-wrap:wrap;">
+        <select name="media_type" class="form-control" style="max-width:130px;">
+          <option value="image">🖼 Image</option>
+          <option value="video">🎬 Vidéo</option>
+        </select>
+        <input type="file" name="media_file" accept="image/*,video/*" required class="form-control" style="max-width:280px;">
+        <button type="submit" class="btn btn-primary btn-sm">+ Ajouter</button>
+      </form>
+      <div class="text-muted" style="font-size:.72rem;margin-top:.5rem;">
+        Formats image : PNG, JPG, WEBP. Formats vidéo : MP4 recommandé (lu en boucle, sans son, sur la page de connexion).
+      </div>
+    </div>
+  </div>
+
+
+
 
 </div>
 {% endblock %}
