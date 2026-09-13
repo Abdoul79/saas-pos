@@ -938,3 +938,20 @@ class Expense(db.Model):
             'autre':       ('💰', 'Autre',           '#6b7280'),
         }
         return labels.get(self.type_dep, ('💰', 'Autre', '#6b7280'))
+
+
+
+class LoginMedia(db.Model):
+    __tablename__ = 'login_media'
+    id         = db.Column(db.Integer, primary_key=True)
+    media_type = db.Column(db.String(10), nullable=False)   # 'image' ou 'video'
+    filename   = db.Column(db.String(255), nullable=False)  # URL Supabase ou chemin local
+    order_num  = db.Column(db.Integer, default=0)
+    is_active  = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def url(self):
+        if self.filename.startswith('http') or self.filename.startswith('/static/'):
+            return self.filename
+        return f'/static/uploads/login_media/{self.filename}'

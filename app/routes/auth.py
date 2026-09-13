@@ -31,6 +31,9 @@ def login():
     if current_user.is_authenticated:
         return _redirect_by_role(current_user)
 
+    from app.models import LoginMedia
+    login_media = LoginMedia.query.filter_by(is_active=True).order_by(LoginMedia.order_num).all()
+
     if request.method == 'POST':
         email    = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
@@ -38,15 +41,15 @@ def login():
 
         if not user or not user.check_password(password):
             flash('Email ou mot de passe incorrect.', 'danger')
-            return render_template('auth/login.html')
+            return render_template('auth/login.html' , login_media=login_media)
         if not user.is_active:
             flash('Votre compte utilisateur est désactivé.', 'danger')
-            return render_template('auth/login.html')
+            return render_template('auth/login.html', login_media=login_media)
         # Ignorer le check de statut pour les super admins et activateurs
         if not user.is_super_admin and not user.is_activateur:
              if not user.tenant or user.tenant.status != TenantStatus.ACTIVE:
                 flash("Votre espace commerçant est suspendu ou en attente d'activation.", 'warning')
-                return render_template('auth/login.html')
+                return render_template('auth/login.html', login_media=login_media)
 
         user.last_login = datetime.utcnow()
         db.session.commit()
@@ -54,7 +57,7 @@ def login():
         flash(f'Bienvenue, {user.full_name} !', 'success')
         return _redirect_by_role(user)
 
-    return render_template('auth/login.html')
+    return render_template('auth/login.html', login_media=login_media)
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])

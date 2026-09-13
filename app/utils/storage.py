@@ -8,19 +8,33 @@ from flask import current_app
 from werkzeug.utils import secure_filename
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'webm', 'mov'}
+
+MIME_TYPES = {
+    'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+    'gif': 'image/gif', 'webp': 'image/webp',
+    'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
+}
 
 
-def _allowed(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def _allowed(filename, allow_video=False):
+    if '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    if ext in ALLOWED_EXTENSIONS:
+        return True
+    if allow_video and ext in ALLOWED_VIDEO_EXTENSIONS:
+        return True
+    return False
 
 
-def upload_image(file, folder='products'):
+def upload_image(file, folder='products', allow_video=False):
     """
-    Upload une image.
+    Upload une image (ou une vidéo si allow_video=True).
     - Si SUPABASE_URL est défini → Supabase Storage → retourne URL publique
     - Sinon → sauvegarde locale → retourne chemin relatif
     """
-    if not file or not _allowed(file.filename):
+    if not file or not _allowed(file.filename, allow_video=allow_video):
         return None
 
     ext      = file.filename.rsplit('.', 1)[1].lower()
@@ -39,7 +53,7 @@ def upload_image(file, folder='products'):
             if not file_data:
                 print("Supabase upload error: fichier vide (stream déjà lu)")
                 return None
-            content_type = f"image/{ext}" if ext != 'jpg' else 'image/jpeg'
+            content_type = MIME_TYPES.get(ext, 'application/octet-stream')
             upload_url   = f"{supabase_url}/storage/v1/object/{bucket}/{filename}"
             headers = {
                 'Authorization': f'Bearer {supabase_key}',
@@ -68,7 +82,7 @@ def upload_image(file, folder='products'):
 
 
 def delete_image(url_or_path):
-    """Supprimer une image de Supabase ou localement."""
+    """Supprimer une image ou vidéo de Supabase ou localement."""
     if not url_or_path:
         return
     supabase_url = current_app.config.get('SUPABASE_URL', '')

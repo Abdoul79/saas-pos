@@ -3,8 +3,10 @@ from flask_login import login_required, current_user
 from datetime import date, timedelta
 from sqlalchemy import func
 from app import db
-from app.models import Tenant, TenantStatus, User, UserRole, Sale, Paiement, StatutPaiement, Config
+from app.models import Tenant, TenantStatus, User, UserRole, Sale, Paiement, StatutPaiement, Config, LoginMedia
 from app.utils.decorators import role_required
+
+from app.utils.storage import upload_image, delete_image
 
 super_admin_bp = Blueprint('super_admin', __name__)
 
@@ -343,7 +345,8 @@ def settings():
     cfg = {k: Config.get(k, '') for k in
            ('saas_adresse', 'saas_telephone', 'saas_email', 'saas_ville', 'montant_mensuel_defaut')}
     activateurs = User.query.filter_by(role=UserRole.ACTIVATEUR).all()
-    return render_template('admin/settings.html', cfg=cfg, activateurs=activateurs)
+    login_media = LoginMedia.query.order_by(LoginMedia.order_num).all()
+    return render_template('admin/settings.html', cfg=cfg, activateurs=activateurs, login_media=login_media)
 
 
 @super_admin_bp.route('/activateurs/create', methods=['POST'])
@@ -373,6 +376,51 @@ def delete_activateur(uid):
     db.session.delete(u); db.session.commit()
     flash(f'Activateur {u.full_name} supprime.', 'info')
     return redirect(url_for('super_admin.settings'))
+
+
+#add media to login page
+@super_admin_bp.route('/settings/login-media/add', methods=['POST'])
+@_super_admin_only
+def add_login_media():
+    media_type = request.form.get('media_type', 'image')
+    file = request.files.get('media_file')
+    if not file or not file.filename:
+        flash('Aucun fichier sélectionné.', 'danger')
+        return redirect(url_for('super_admin.settings'))
+    url = upload_image(file, folder='login_media', allow_video=True)
+    if not url:
+        flash("Erreur lors de l'upload du fichier (format non supporté ou fichier invalide).", 'danger')
+        return redirect(url_for('super_admin.settings'))
+    max_order = db.session.query(db.func.max(LoginMedia.order_num)).scalar() or 0
+    m = LoginMedia(media_type=media_type, filename=url, order_num=max_order + 1)
+    db.session.add(m)
+    db.session.commit()
+    flash('Média ajouté à la page de connexion.', 'success')
+    return redirect(url_for('super_admin.settings'))
+
+
+@super_admin_bp.route('/settings/login-media/<int:mid>/toggle', methods=['POST'])
+@_super_admin_only
+def toggle_login_media(mid):
+    m = LoginMedia.query.get_or_404(mid)
+    m.is_active = not m.is_active
+    db.session.commit()
+    return redirect(url_for('super_admin.settings'))
+
+
+@super_admin_bp.route('/settings/login-media/<int:mid>/delete', methods=['POST'])
+@_super_admin_only
+def delete_login_media(mid):
+    m = LoginMedia.query.get_or_404(mid)
+    try:
+        delete_image(m.filename)
+    except Exception:
+        pass
+    db.session.delete(m)
+    db.session.commit()
+    flash('Média supprimé.', 'info')
+    return redirect(url_for('super_admin.settings'))
+
 
 
 # ── TEST STORAGE (debug Railway) ─────────────────────────────────────────────

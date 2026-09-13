@@ -8,7 +8,11 @@
   <style>
     :root { --bg:#0d0f14; --surface:#161a22; --border:#252b38; --text:#e8eaf0; --muted:#7a8099; --accent:#f5a623; --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; display: flex; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--sans);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
     .alerts { position: fixed; top: 1rem; right: 1rem; z-index: 999; }
     .alert { padding: .75rem 1.25rem; border-radius: 8px; font-size: .85rem; margin-bottom: .5rem; }
     .alert-danger  { background: #dc262622; border: 1px solid #dc262644; color: #f87171; }
@@ -16,22 +20,44 @@
     .alert-info    { background: #0284c722; border: 1px solid #0284c744; color: #38bdf8; }
     .alert-success { background: #16a34a22; border: 1px solid #16a34a44; color: #4ade80; }
 
+    /* ── Bandeau SaaSPOS pleine largeur ── */
+    .brand-header {
+      width: 100%;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 3rem;
+      display: flex; align-items: center;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .brand-header::before {
+      content: '▣';
+      position: absolute; top: -2.5rem; left: -1.5rem;
+      font-size: 8rem; color: var(--border);
+      font-family: var(--mono); line-height: 1; pointer-events: none;
+    }
+    .brand {
+      font-family: var(--mono); font-size: 1.7rem; color: var(--accent);
+      letter-spacing: .04em; position: relative;
+    }
+    .brand span { color: var(--muted); }
+
+    /* ── Corps : deux panneaux côte à côte ── */
+    .body-split {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
     .side-panel {
       width: 42%;
       background: var(--surface);
       border-right: 1px solid var(--border);
       display: flex; flex-direction: column; justify-content: center;
-      padding: 4rem;
+      padding: 3rem 4rem;
       position: relative; overflow: hidden;
     }
-    .side-panel::before {
-      content: '▣';
-      position: absolute; top: -4rem; left: -3rem;
-      font-size: 18rem; color: var(--border);
-      font-family: var(--mono); line-height: 1; pointer-events: none;
-    }
-    .brand { font-family: var(--mono); font-size: 1.4rem; color: var(--accent); margin-bottom: 2rem; position: relative; }
-    .brand span { color: var(--muted); }
     .tagline { font-size: 2rem; font-weight: 600; line-height: 1.3; margin-bottom: 1rem; position: relative; }
     .tagline em { font-style: normal; color: var(--accent); }
     .sub { color: var(--muted); font-size: .9rem; line-height: 1.6; position: relative; }
@@ -64,6 +90,38 @@
     .link-row { text-align: center; margin-top: 1.5rem; font-size: .82rem; color: var(--muted); }
     .link-row a { color: var(--accent); text-decoration: none; }
     .link-row a:hover { text-decoration: underline; }
+
+    /* ── Carrousel médias page de connexion ── */
+    .media-carousel {
+      margin-top: 2.5rem;
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      aspect-ratio: 16 / 10;
+      max-height: 260px;
+    }
+    .media-slide {
+      position: absolute; inset: 0;
+      opacity: 0;
+      transition: opacity .6s ease;
+      pointer-events: none;
+    }
+    .media-slide.active { opacity: 1; pointer-events: auto; }
+    .media-slide img, .media-slide video {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .media-dots {
+      position: absolute; bottom: .5rem; left: 50%; transform: translateX(-50%);
+      display: flex; gap: .35rem; z-index: 2;
+    }
+    .media-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,.35);
+      transition: background .2s;
+    }
+    .media-dot.active { background: var(--accent); }
   </style>
 </head>
 <body>
@@ -75,39 +133,89 @@
     {% endwith %}
   </div>
 
-  <div class="side-panel">
+  <!-- ── Bandeau SaaSPOS pleine largeur ── -->
+  <div class="brand-header">
     <div class="brand">▣ SaaS<span>POS</span></div>
-    <h1 class="tagline">Gérez vos ventes avec <em>précision</em>.</h1>
-    <p class="sub">Plateforme multi-commerçants pour la gestion des points de vente, stocks, et équipes.</p>
-    <div class="features">
-      <div class="feature">Gestion Entrepôt ↔ Rayon isolée</div>
-      <div class="feature">Contrôle des accès par rôle (RBAC)</div>
-      <div class="feature">Interface caisse tactile ultra-rapide</div>
-      <div class="feature">Suivi des ventes & fiches de casse</div>
-    </div>
   </div>
 
-  <div class="form-panel">
-    <div class="form-box">
-      <p class="form-title">// Connexion à votre espace</p>
-      <form method="POST" action="{{ url_for('auth.login') }}">
-        <div class="form-group">
-          <label class="form-label" for="email">Adresse email</label>
-          <input class="form-control" type="email" id="email" name="email" required autofocus placeholder="vous@commerce.com">
+  <!-- ── Corps : les deux panneaux, séparés juste sous le bandeau ── -->
+  <div class="body-split">
+
+    <div class="side-panel">
+      <h1 class="tagline">Gérez vos ventes avec <em>précision</em>.</h1>
+      <p class="sub">Plateforme multi-commerçants pour la gestion des points de vente, stocks, et équipes.</p>
+
+      <div class="features">
+        <div class="feature">Gestion Entrepôt ↔ Rayon isolée</div>
+        <div class="feature">Contrôle des accès par rôle (RBAC)</div>
+        <div class="feature">Interface caisse tactile ultra-rapide</div>
+        <div class="feature">Suivi des ventes & fiches de casse</div>
+      </div>
+
+      {% if login_media %}
+      <div class="media-carousel" id="mediaCarousel">
+        {% for m in login_media %}
+        <div class="media-slide {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}">
+          {% if m.media_type == 'video' %}
+          <video src="{{ m.url }}" autoplay muted loop playsinline></video>
+          {% else %}
+          <img src="{{ m.url }}" alt="">
+          {% endif %}
         </div>
-        <div class="form-group">
-          <label class="form-label" for="password">Mot de passe</label>
-          <input class="form-control" type="password" id="password" name="password" required placeholder="••••••••">
+        {% endfor %}
+        {% if login_media|length > 1 %}
+        <div class="media-dots">
+          {% for m in login_media %}
+          <div class="media-dot {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}"></div>
+          {% endfor %}
         </div>
-        <div style="text-align:right;margin-bottom:.5rem;">
-          <a href="{{ url_for('auth.forgot_password') }}" style="font-size:.78rem;color:var(--muted);text-decoration:none;">Mot de passe oublié ?</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="form-panel">
+      <div class="form-box">
+        <p class="form-title">// Connexion à votre espace</p>
+        <form method="POST" action="{{ url_for('auth.login') }}">
+          <div class="form-group">
+            <label class="form-label" for="email">Adresse email</label>
+            <input class="form-control" type="email" id="email" name="email" required autofocus placeholder="vous@commerce.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Mot de passe</label>
+            <input class="form-control" type="password" id="password" name="password" required placeholder="••••••••">
+          </div>
+          <div style="text-align:right;margin-bottom:.5rem;">
+            <a href="{{ url_for('auth.forgot_password') }}" style="font-size:.78rem;color:var(--muted);text-decoration:none;">Mot de passe oublié ?</a>
+          </div>
+          <button type="submit" class="btn-primary">Accéder à l'espace →</button>
+        </form>
+        <div class="link-row">
+          Nouveau commerçant ? <a href="{{ url_for('auth.register') }}">Demander l'accès</a>
         </div>
-        <button type="submit" class="btn-primary">Accéder à l'espace →</button>
-      </form>
-      <div class="link-row">
-        Nouveau commerçant ? <a href="{{ url_for('auth.register') }}">Demander l'accès</a>
       </div>
     </div>
+
   </div>
+
+  {% if login_media|length > 1 %}
+  <script>
+    (function() {
+      const slides = document.querySelectorAll('.media-slide');
+      const dots   = document.querySelectorAll('.media-dot');
+      let current  = 0;
+      setInterval(() => {
+        slides[current].classList.remove('active');
+        dots[current] && dots[current].classList.remove('active');
+        current = (current + 1) % slides.length;
+        slides[current].classList.add('active');
+        dots[current] && dots[current].classList.add('active');
+      }, 5000);
+    })();
+  </script>
+  {% endif %}
+
 </body>
 </html>
+
