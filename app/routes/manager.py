@@ -10,6 +10,7 @@ from app.models import (User, UserRole, Product, Category, Supplier, StockTransf
                          Sale, SaleItem, LossFiche, LossFicheItem)
 from app.utils.decorators import role_required, tenant_active_required
 from app.utils.barcode_gen import generate_ean13_number, generate_barcode_b64
+from flask_login import login_required, current_user, logout_user
 
 manager_bp = Blueprint('manager', __name__)
 
@@ -1203,6 +1204,70 @@ def cashier_settings():
         return redirect(url_for('manager.cashier_settings'))
 
     return render_template('manager/cashier_settings.html')
+
+
+# ── SUPPRESSION DE COMPTE (auto-service) ──────────────────────────────────
+@manager_bp.route('/settings/delete-account', methods=['POST'])
+@_manager_access
+def delete_own_account():
+    from sqlalchemy import text
+
+    password     = request.form.get('password', '')
+    confirm_text = request.form.get('confirm_text', '').strip()
+
+    if not current_user.check_password(password):
+        flash('Mot de passe incorrect. Suppression annulée.', 'danger')
+        return redirect(url_for('manager.settings'))
+
+    if confirm_text != 'SUPPRIMER':
+        flash('Vous devez taper SUPPRIMER en majuscules pour confirmer.', 'danger')
+        return redirect(url_for('manager.settings'))
+
+    tenant = current_user.tenant
+    tid    = tenant.id
+    name   = f'{tenant.prenom} {tenant.nom}'
+
+    try:
+        with db.engine.begin() as conn:
+            # 1. Nullifier les refs produits dans sale_items
+            conn.execute(text(
+                "UPDATE sale_items SET product_id=NULL, variant_id=NULL "
+                "WHERE product_id IN (SELECT id FROM products WHERE tenant_id=:tid)"
+            ), {'tid': tid})
+
+            # 2. Supprimer les sale_items liés aux ventes du tenant
+            conn.execute(text(
+                "DELETE FROM sale_items "
+                "WHERE sale_id IN (SELECT id FROM sales WHERE tenant_id=:tid)"
+            ), {'tid': tid})
+
+            # 3. Supprimer chaque table avec savepoint (isole les erreurs)
+            for table in ['loss_fiche_items', 'loss_fiches',
+                          'supplier_order_items', 'supplier_orders',
+                          'stock_transfers', 'sales',
+                          'product_variants', 'products',
+                          'paiements', 'categories', 'suppliers', 'users']:
+                try:
+                    conn.execute(text(f"SAVEPOINT sp_{table}"))
+                    conn.execute(text(
+                        f"DELETE FROM {table} WHERE tenant_id=:tid"
+                    ), {'tid': tid})
+                except Exception as e:
+                    conn.execute(text(f"ROLLBACK TO SAVEPOINT sp_{table}"))
+                    print(f"[delete_own_account] skip {table}: {e}")
+
+            # 4. Supprimer le tenant
+            conn.execute(text("DELETE FROM tenants WHERE id=:tid"), {'tid': tid})
+
+        logout_user()
+        flash(f'Le compte "{name}" et toutes ses données ont été supprimés définitivement.', 'info')
+        return redirect(url_for('auth.login'))
+
+    except Exception as e:
+        flash(f'Erreur lors de la suppression : {str(e)[:150]}', 'danger')
+        return redirect(url_for('manager.settings'))
+
+
 
 
 @manager_bp.route('/api/verify-pin', methods=['POST'])
