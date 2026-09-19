@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from app import db
@@ -6,7 +6,8 @@ from app.models import Product, ProductVariant, Category, Sale, SaleItem, Paymen
 from app.utils.decorators import role_required, tenant_active_required
 from datetime import date as date_cls
 from app.models import Tenant  # ajoute Tenant à l'import existant de app.models si pas déjà présent
-
+from app.models import ClientCredit, CreditPayment, User
+#from app.models import ClientCredit, CreditPayment
 pos_bp = Blueprint('pos', __name__)
 
 
@@ -429,8 +430,95 @@ def facture_engros(sale_id):
                            num_facture=num_facture,
                            qr_b64=qr_b64)
 
+# ── CRÉDITS — vue caisse (gérant : tout / caissier : ses propres crédits) ──
+@pos_bp.route('/credits')
+@_any_staff
+def pos_credits():
+    is_manager_view = current_user.is_manager or current_user.is_super_admin
 
-# ── Ticket ─────────────────────────────────────────────────────────────────
+    q = ClientCredit.query.filter_by(tenant_id=_tid())
+    if not is_manager_view:
+        q = q.filter_by(created_by=current_user.id)
+
+    all_credits = q.order_by(ClientCredit.date_echeance.asc()).all()
+
+    # Mise à jour auto du statut "en_retard"
+    for c in all_credits:
+        if not c.is_solde and c.jours_avant_echeance < 0 and c.statut != 'en_retard':
+            c.statut = 'en_retard'
+    db.session.commit()
+
+    total_du    = sum(c.montant_restant for c in all_credits if not c.is_solde)
+    nb_en_cours = sum(1 for c in all_credits if not c.is_solde)
+    nb_retard   = sum(1 for c in all_credits if not c.is_solde and c.jours_avant_echeance < 0)
+
+    # Nom du créateur de chaque crédit (utile côté gérant)
+    users_map = {u.id: u.full_name for u in User.query.filter_by(tenant_id=_tid()).all()}
+    if current_user.id not in users_map:
+        users_map[current_user.id] = current_user.full_name
+
+    return render_template('pos/credits_list.html',
+        credits=all_credits, total_du=total_du,
+        nb_en_cours=nb_en_cours, nb_retard=nb_retard,
+        is_manager_view=is_manager_view, users_map=users_map)
+
+
+@pos_bp.route('/credits/<int:credit_id>/payment', methods=['POST'])
+@_any_staff
+def pos_add_credit_payment(credit_id):
+    credit = ClientCredit.query.filter_by(id=credit_id, tenant_id=_tid()).first_or_404()
+
+    is_manager_view = current_user.is_manager or current_user.is_super_admin
+    if not is_manager_view and credit.created_by != current_user.id:
+        flash("Vous ne pouvez encaisser que les crédits que vous avez vous-même accordés.", 'danger')
+        return redirect(url_for('pos.pos_credits'))
+
+    montant_raw = request.form.get('montant', '0')
+    note        = request.form.get('note', '').strip() or None
+    try:
+        montant_f = float(montant_raw)
+    except ValueError:
+        flash('Montant invalide.', 'danger')
+        return redirect(url_for('pos.pos_credits'))
+
+    if montant_f <= 0:
+        flash('Le montant doit être positif.', 'danger')
+        return redirect(url_for('pos.pos_credits'))
+    if montant_f > credit.montant_restant:
+        flash(f'Le montant dépasse le solde restant ({credit.montant_restant:,.0f} FCFA).', 'danger')
+        return redirect(url_for('pos.pos_credits'))
+
+    db.session.add(CreditPayment(
+        credit_id=credit.id, montant=montant_f, note=note, created_by=current_user.id
+    ))
+    if credit.montant_restant - montant_f <= 0:
+        credit.statut = 'paye'
+    db.session.commit()
+
+    flash(f'Paiement de {montant_f:,.0f} FCFA encaissé pour {credit.client_nom}.', 'success')
+    return redirect(url_for('pos.pos_credits'))
+
+#delette credits par le gerant apres solde
+@pos_bp.route('/credits/<int:credit_id>/delete', methods=['POST'])
+@_any_staff
+def pos_delete_credit(credit_id):
+    credit = ClientCredit.query.filter_by(id=credit_id, tenant_id=_tid()).first_or_404()
+
+    is_manager_view = current_user.is_manager or current_user.is_super_admin
+    if not is_manager_view:
+        flash("Seul le gérant peut supprimer un crédit.", 'danger')
+        return redirect(url_for('pos.pos_credits'))
+
+    if not credit.is_solde:
+        flash("Ce crédit n'est pas encore soldé — impossible de le supprimer.", 'danger')
+        return redirect(url_for('pos.pos_credits'))
+
+    name = credit.client_nom
+    db.session.delete(credit)
+    db.session.commit()
+    flash(f'Crédit soldé de {name} supprimé.', 'info')
+    return redirect(url_for('pos.pos_credits'))
+
 @pos_bp.route('/ticket/<int:sale_id>')
 @_any_staff
 def ticket(sale_id):
@@ -441,6 +529,11 @@ def ticket(sale_id):
     initiales = (cashier.prenom[:1] + cashier.nom[:1]).upper() if cashier else '??'
     def mask_name(n): return n[0] + '*' * (len(n) - 1) if n else ''
     cashier_masked = f"{mask_name(cashier.prenom)} {mask_name(cashier.nom)}" if cashier else ''
+
+    # ── Infos crédit si vente à crédit ──────────────────────────────────────
+    credit_info = None
+    if sale.sale_type == 'credit':
+        credit_info = ClientCredit.query.filter_by(sale_id=sale.id).first()
 
     qr_b64 = None
     try:
@@ -470,6 +563,7 @@ def ticket(sale_id):
                            tenant=tenant,
                            initiales=initiales,
                            cashier_masked=cashier_masked,
+                           credit_info=credit_info,
                            qr_b64=qr_b64)
 
 
@@ -549,5 +643,151 @@ def ping():
         db.session.rollback()
         return {'ok': False, 'error': str(e)}, 500
 
+# ── Caisse Crédit ────────────────────────────────────────────────────────────
+@pos_bp.route('/credit')
+@_any_staff
+def credit_interface():
+    all_products = Product.query.filter_by(tenant_id=_tid()).order_by(Product.designation).all()
+    catalog    = [p for p in all_products if p.total_stock_magasin > 0]
+    categories = Category.query.filter_by(tenant_id=_tid()).order_by(Category.ordre, Category.nom).all()
 
+    return render_template('pos/credit.html',
+        catalog=catalog,
+        categories=categories,
+        is_manager=current_user.is_manager or current_user.is_super_admin)
+
+@pos_bp.route('/api/sale/credit', methods=['POST'])
+@_any_staff
+def validate_sale_credit():
+    data = request.get_json()
+    if not data or not data.get('items'):
+        return jsonify({'error': 'Panier vide.'}), 400
+
+    client_nom        = (data.get('client_nom') or '').strip()
+    client_telephone  = (data.get('client_telephone') or '').strip() or None
+    date_echeance_raw = data.get('date_echeance', '')
+    acompte           = float(data.get('acompte', 0) or 0)
+
+    if not client_nom:
+        return jsonify({'error': 'Le nom du client est obligatoire.'}), 400
+    if not date_echeance_raw:
+        return jsonify({'error': "La date d'échéance est obligatoire."}), 400
+    try:
+        date_echeance = date_cls.fromisoformat(date_echeance_raw)
+    except ValueError:
+        return jsonify({'error': "Date d'échéance invalide."}), 400
+
+    items_data     = data['items']
+    sale_items_obj = []
+    total_ttc = total_ht = total_tva = 0.0
+    stock_updates = []
+
+    for item in items_data:
+        variant_id = item.get('variant_id')
+        product_id = item['product_id']
+        qty        = int(item['quantity'])
+        if qty <= 0:
+            return jsonify({'error': 'Quantité invalide.'}), 400
+
+        if variant_id:
+            v = (ProductVariant.query
+                 .join(Product, Product.id == ProductVariant.product_id)
+                 .filter(ProductVariant.id == int(variant_id), Product.tenant_id == _tid())
+                 .with_for_update().first())
+            if not v:
+                return jsonify({'error': f'Variante ID {variant_id} introuvable.'}), 404
+            if v.stock_magasin < qty:
+                return jsonify({'error': (
+                    f'Stock insuffisant pour « {v.product.designation} / {v.nom} ». '
+                    f'Dispo en rayon : {v.stock_magasin}'
+                )}), 409
+            real_product_id = v.product_id
+            unit_ttc = float(v.prix_vente_ttc)
+            unit_ht  = float(v.prix_vente_ht)
+            tva_rate = float(v.taux_tva)
+            label    = f'{v.product.designation} — {v.nom}'
+            subtotal = round(unit_ttc * qty, 2)
+            total_ttc += subtotal; total_ht += round(unit_ht * qty, 2)
+            total_tva += round((unit_ttc - unit_ht) * qty, 2)
+            sale_items_obj.append(SaleItem(
+                product_id=real_product_id, variant_id=int(variant_id),
+                designation=label, prix_vente=unit_ttc, taux_tva=tva_rate,
+                quantity=qty, subtotal=subtotal))
+            stock_updates.append((v, qty))
+        else:
+            p = Product.query.filter_by(id=product_id, tenant_id=_tid()).with_for_update().first()
+            if not p:
+                return jsonify({'error': f'Produit ID {product_id} introuvable.'}), 404
+            if p.stock_magasin < qty:
+                return jsonify({'error': f'Stock insuffisant pour « {p.designation} ». Dispo : {p.stock_magasin}'}), 409
+            unit_ttc = float(p.prix_vente_ttc)
+            unit_ht  = float(p.prix_vente_ht)
+            tva_rate = float(p.taux_tva)
+            subtotal = round(unit_ttc * qty, 2)
+            total_ttc += subtotal; total_ht += round(unit_ht * qty, 2)
+            total_tva += round((unit_ttc - unit_ht) * qty, 2)
+            sale_items_obj.append(SaleItem(product_id=p.id, designation=p.designation,
+                                           prix_vente=unit_ttc, taux_tva=tva_rate,
+                                           quantity=qty, subtotal=subtotal))
+            stock_updates.append((p, qty))
+
+    total_ttc = round(total_ttc, 2)
+    total_ht  = round(total_ht,  2)
+    total_tva = round(total_tva, 2)
+
+    if acompte < 0 or acompte > total_ttc:
+        return jsonify({'error': "Montant de l'acompte invalide."}), 400
+
+    # ── Créer la vente (marquée comme crédit) ──────────────────────────────
+    sale = Sale(
+        tenant_id=_tid(), cashier_id=current_user.id,
+        total_ht=total_ht, total_tva=total_tva, total_amount=total_ttc,
+        amount_given=acompte if acompte > 0 else None,
+        change_given=None,
+        payment_method='credit',
+        sale_type='credit',
+        ticket_number=_get_next_ticket_number(_tid()),
+    )
+    db.session.add(sale)
+    db.session.flush()
+
+    for si in sale_items_obj:
+        si.sale_id = sale.id
+        db.session.add(si)
+
+    for obj, qty in stock_updates:
+        obj.stock_magasin -= qty
+
+    # ── Créer le crédit client lié à cette vente ───────────────────────────
+    credit = ClientCredit(
+        tenant_id=_tid(), client_nom=client_nom, client_telephone=client_telephone,
+        montant_total=total_ttc, date_echeance=date_echeance,
+        sale_id=sale.id, created_by=current_user.id,
+        notes=f'Vente à crédit — Ticket #{sale.ticket_number}'
+    )
+    db.session.add(credit)
+    db.session.flush()
+
+    if acompte > 0:
+        db.session.add(CreditPayment(
+            credit_id=credit.id, montant=acompte,
+            note='Acompte versé à la vente', created_by=current_user.id
+        ))
+        if acompte >= total_ttc:
+            credit.statut = 'paye'
+
+    db.session.commit()
+
+    return jsonify({
+        'success'  : True,
+        'sale_id'  : sale.id,
+        'credit_id': credit.id,
+        'total'    : total_ttc,
+        'total_ht' : total_ht,
+        'total_tva': total_tva,
+        'acompte'  : acompte,
+        'reste'    : round(total_ttc - acompte, 2),
+        'client_nom': client_nom,
+        'date_echeance': date_echeance.strftime('%d/%m/%Y'),
+    })
 

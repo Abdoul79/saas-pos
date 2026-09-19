@@ -709,6 +709,66 @@ class Paiement(db.Model):
     def __repr__(self):
         return f'<Paiement {self.mois} [{self.statut}]>'
 
+class ClientCredit(db.Model):
+    __tablename__ = 'client_credits'
+    id               = db.Column(db.Integer, primary_key=True)
+    tenant_id        = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    client_nom       = db.Column(db.String(150), nullable=False)
+    client_telephone = db.Column(db.String(30))
+    montant_total    = db.Column(db.Numeric(12, 2), nullable=False)
+    date_creation    = db.Column(db.Date, default=date.today)
+    date_echeance    = db.Column(db.Date, nullable=False, index=True)
+    statut           = db.Column(db.String(20), default='en_cours')  # en_cours, paye, en_retard
+    notes            = db.Column(db.Text)
+    sale_id          = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=True)
+    created_by       = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at       = db.Column(db.DateTime, default=datetime.utcnow)
+
+    payments = db.relationship('CreditPayment', backref='credit', lazy='dynamic',
+                                cascade='all, delete-orphan')
+
+    @property
+    def montant_paye(self):
+        return float(sum(float(p.montant) for p in self.payments))
+
+    @property
+    def montant_total_f(self):
+        return float(self.montant_total)
+
+    @property
+    def montant_restant(self):
+        return float(self.montant_total) - self.montant_paye
+
+    @property
+    def is_solde(self):
+        return self.montant_restant <= 0
+
+    @property
+    def jours_avant_echeance(self):
+        return (self.date_echeance - date.today()).days
+
+    @property
+    def statut_display(self):
+        if self.is_solde:
+            return ('Soldé', 'badge-green')
+        j = self.jours_avant_echeance
+        if j < 0:
+            return ('En retard', 'badge-red')
+        elif j <= 3:
+            return ('Échéance proche', 'badge-orange')
+        else:
+            return ('En cours', 'badge-blue')
+
+
+class CreditPayment(db.Model):
+    __tablename__ = 'credit_payments'
+    id            = db.Column(db.Integer, primary_key=True)
+    credit_id     = db.Column(db.Integer, db.ForeignKey('client_credits.id'), nullable=False)
+    montant       = db.Column(db.Numeric(12, 2), nullable=False)
+    date_paiement = db.Column(db.Date, default=date.today)
+    note          = db.Column(db.String(255))
+    created_by    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
 # ─────────────────────────────────────────
 # CONFIG GLOBALE (paramètres SaaS)

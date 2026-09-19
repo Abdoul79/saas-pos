@@ -9,8 +9,11 @@ from app.utils.storage import upload_image, delete_image
 from app.models import (User, UserRole, Product, Category, Supplier, StockTransfer,
                          Sale, SaleItem, LossFiche, LossFicheItem)
 from app.utils.decorators import role_required, tenant_active_required
+from app.models import ClientCredit, CreditPayment
 from app.utils.barcode_gen import generate_ean13_number, generate_barcode_b64
 from flask_login import login_required, current_user, logout_user
+
+
 
 manager_bp = Blueprint('manager', __name__)
 
@@ -137,12 +140,12 @@ def dashboard():
     for p in all_products:
         sm = p.total_stock_magasin
         se = p.total_stock_entrepot
-        if sm <= 5:
+        if sm <= 2:
             # Pour les variantes, lister les variantes en rupture
             variants_low = []
             if p.has_variants:
                 for v in p.variants:
-                    if v.stock_magasin <= 5 and v.is_active:
+                    if v.stock_magasin <= 2 and v.is_active:
                         variants_low.append({
                             'nom'           : v.attributs_display or v.nom,
                             'stock_magasin' : v.stock_magasin,
@@ -163,6 +166,18 @@ def dashboard():
     saas_email     = Config.get('saas_email', '')
     montant_mensuel= tenant.montant_mensuel or Config.get('montant_mensuel_defaut', '')
 
+        # ── Crédits clients — échéances proches ou en retard ──────────────────
+    from app.models import ClientCredit
+    all_credits = ClientCredit.query.filter_by(tenant_id=_tid()).all()
+    credits_alertes = []
+    for c in all_credits:
+        if c.is_solde:
+            continue
+        j = c.jours_avant_echeance
+        if j <= 3:  # en retard ou échéance dans 3 jours ou moins
+            credits_alertes.append(c)
+    credits_alertes.sort(key=lambda c: c.jours_avant_echeance)
+
     return render_template('manager/dashboard.html',
         tenant=tenant, ca_today=ca_today, tx_today=tx_today,
         ca_month=float(ca_month), ca_last_month=ca_last_month, ca_evolution_pct=ca_evolution_pct,
@@ -170,7 +185,8 @@ def dashboard():
         active_cashiers=active_cashiers, low_stock=low_stock,
         saas_telephone=saas_telephone,
         saas_email=saas_email,
-        montant_mensuel=montant_mensuel)
+        montant_mensuel=montant_mensuel,
+        credits_alertes=credits_alertes)
 
 
 # ── API : prochain SKU ────────────────────────────────────────────────────
@@ -1035,6 +1051,129 @@ def losses():
                             .order_by(LossFiche.created_at.desc()).all()
     return render_template('manager/losses.html', fiches=fiches)
 
+
+# ── CRÉDITS CLIENTS ─────────────────────────────────────────────────────────
+@manager_bp.route('/credits')
+@_manager_access
+def credits():
+    status_filter = request.args.get('status', '')
+    q = ClientCredit.query.filter_by(tenant_id=_tid())
+
+    all_credits = q.order_by(ClientCredit.date_echeance.asc()).all()
+
+    # Mettre à jour le statut "en_retard" automatiquement
+    for c in all_credits:
+        if not c.is_solde and c.jours_avant_echeance < 0 and c.statut != 'en_retard':
+            c.statut = 'en_retard'
+    db.session.commit()
+
+    if status_filter == 'en_cours':
+        all_credits = [c for c in all_credits if not c.is_solde]
+    elif status_filter == 'paye':
+        all_credits = [c for c in all_credits if c.is_solde]
+    elif status_filter == 'retard':
+        all_credits = [c for c in all_credits if not c.is_solde and c.jours_avant_echeance < 0]
+
+    total_du       = sum(c.montant_restant for c in all_credits if not c.is_solde)
+    nb_en_cours    = sum(1 for c in all_credits if not c.is_solde)
+    nb_retard      = sum(1 for c in all_credits if not c.is_solde and c.jours_avant_echeance < 0)
+    nb_proche      = sum(1 for c in all_credits if not c.is_solde and 0 <= c.jours_avant_echeance <= 3)
+
+    return render_template('manager/credits.html',
+        credits=all_credits, status_filter=status_filter,
+        total_du=total_du, nb_en_cours=nb_en_cours,
+        nb_retard=nb_retard, nb_proche=nb_proche)
+
+
+@manager_bp.route('/credits/create', methods=['POST'])
+@_manager_access
+def create_credit():
+    client_nom       = request.form.get('client_nom', '').strip()
+    client_telephone = request.form.get('client_telephone', '').strip() or None
+    montant_total    = request.form.get('montant_total', '0')
+    date_echeance    = request.form.get('date_echeance', '')
+    notes            = request.form.get('notes', '').strip() or None
+    acompte_raw      = request.form.get('acompte', '').strip()
+
+    if not client_nom or not montant_total or not date_echeance:
+        flash('Nom du client, montant et date d\'échéance sont obligatoires.', 'danger')
+        return redirect(url_for('manager.credits'))
+
+    try:
+        montant_f  = float(montant_total)
+        echeance_d = date.fromisoformat(date_echeance)
+    except ValueError:
+        flash('Montant ou date invalide.', 'danger')
+        return redirect(url_for('manager.credits'))
+
+    credit = ClientCredit(
+        tenant_id=_tid(), client_nom=client_nom, client_telephone=client_telephone,
+        montant_total=montant_f, date_echeance=echeance_d, notes=notes,
+        created_by=current_user.id
+    )
+    db.session.add(credit)
+    db.session.flush()
+
+    # Acompte initial optionnel
+    if acompte_raw:
+        try:
+            acompte_f = float(acompte_raw)
+            if acompte_f > 0:
+                db.session.add(CreditPayment(
+                    credit_id=credit.id, montant=acompte_f,
+                    note='Acompte initial', created_by=current_user.id
+                ))
+        except ValueError:
+            pass
+
+    db.session.commit()
+    flash(f'Crédit de {montant_f:,.0f} FCFA enregistré pour {client_nom}.', 'success')
+    return redirect(url_for('manager.credits'))
+
+
+@manager_bp.route('/credits/<int:credit_id>/payment', methods=['POST'])
+@_manager_access
+def add_credit_payment(credit_id):
+    credit = ClientCredit.query.filter_by(id=credit_id, tenant_id=_tid()).first_or_404()
+    montant_raw = request.form.get('montant', '0')
+    note        = request.form.get('note', '').strip() or None
+
+    try:
+        montant_f = float(montant_raw)
+    except ValueError:
+        flash('Montant invalide.', 'danger')
+        return redirect(url_for('manager.credits'))
+
+    if montant_f <= 0:
+        flash('Le montant doit être positif.', 'danger')
+        return redirect(url_for('manager.credits'))
+
+    if montant_f > credit.montant_restant:
+        flash(f'Le montant dépasse le solde restant ({credit.montant_restant:,.0f} FCFA).', 'danger')
+        return redirect(url_for('manager.credits'))
+
+    db.session.add(CreditPayment(
+        credit_id=credit.id, montant=montant_f, note=note, created_by=current_user.id
+    ))
+
+    new_restant = credit.montant_restant - montant_f
+    if new_restant <= 0:
+        credit.statut = 'paye'
+    db.session.commit()
+
+    flash(f'Paiement de {montant_f:,.0f} FCFA enregistré pour {credit.client_nom}.', 'success')
+    return redirect(url_for('manager.credits'))
+
+
+@manager_bp.route('/credits/<int:credit_id>/delete', methods=['POST'])
+@_manager_access
+def delete_credit(credit_id):
+    credit = ClientCredit.query.filter_by(id=credit_id, tenant_id=_tid()).first_or_404()
+    name = credit.client_nom
+    db.session.delete(credit)
+    db.session.commit()
+    flash(f'Crédit de {name} supprimé.', 'info')
+    return redirect(url_for('manager.credits'))
 
 # ── SETTINGS ───────────────────────────────────────────────────────────────
 @manager_bp.route('/settings', methods=['GET', 'POST'])

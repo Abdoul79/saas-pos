@@ -161,12 +161,30 @@
   {% endif %}
 
   <div class="line"></div>
+    <!-- ── VENTE À CRÉDIT ── -->
+  {% if credit_info %}
+  <div class="line"></div>
+  <div class="center bold" style="font-size:1.05em;letter-spacing:.05em;color:#000;background:#eee;padding:.3rem;border-radius:4px;">
+    ⚠ FACTURE À CRÉDIT
+  </div>
+  <div class="info" style="margin-top:.3rem;">
+    <div class="row"><span>Client</span><span class="bold">{{ credit_info.client_nom }}</span></div>
+    {% if credit_info.client_telephone %}
+    <div class="row"><span>Téléphone</span><span>{{ credit_info.client_telephone }}</span></div>
+    {% endif %}
+    <div class="row"><span>Montant total</span><span>{{ "%.0f"|format(credit_info.montant_total) }} FCFA</span></div>
+    <div class="row"><span>Acompte versé</span><span>{{ "%.0f"|format(credit_info.montant_paye) }} FCFA</span></div>
+    <div class="row bold" style="margin-top:.15rem;"><span>RESTE À PAYER</span><span>{{ "%.0f"|format(credit_info.montant_restant) }} FCFA</span></div>
+    <div class="row" style="margin-top:.15rem;"><span>Échéance</span><span class="bold">{{ credit_info.date_echeance.strftime('%d/%m/%Y') }}</span></div>
+  </div>
+  {% endif %}
 
   <!-- Mode de paiement -->
   <div class="center bold">
     Règlement :
     {% if sale.payment_method == 'especes' %}Espèces
     {% elif sale.payment_method == 'carte' %}Carte bancaire
+    {% elif sale.payment_method == 'credit' %}Crédit
     {% else %}Mobile Money{% endif %}
   </div>
 
