@@ -10,9 +10,25 @@
     <div style="font-weight:600;font-size:1rem;margin-bottom:.25rem;">
       {{ variant.product.designation }}
     </div>
+
+    {% if variant.attributs %}
+    <div class="text-muted" style="font-size:.85rem;margin-bottom:.4rem;display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;">
+      {% for k, v in variant.attributs.items() %}
+      <span><b style="color:var(--text);">{{ k }}:</b> {{ v }}</span>
+      {% endfor %}
+    </div>
+    {% elif variant.nom %}
+    <div class="text-muted" style="font-size:.85rem;margin-bottom:.4rem;">
+      {{ variant.nom }}
+    </div>
+    {% endif %}
+
     <div class="text-muted" style="font-size:.85rem;margin-bottom:1rem;">
-      {{ variant.attributs_display or variant.nom }}
-      {% if variant.sku %} · <span class="text-mono">{{ variant.sku }}</span>{% endif %}
+      {% if variant.sku %}<span class="text-mono">{{ variant.sku }}</span>{% endif %}
+      {% if variant.sku and variant.prix_vente_ttc %} · {% endif %}
+      {% if variant.prix_vente_ttc %}
+        <b style="color:var(--text);">{{ "%.0f"|format(variant.prix_vente_ttc) }} FCFA</b>
+      {% endif %}
     </div>
 
     {% if bc_b64 %}

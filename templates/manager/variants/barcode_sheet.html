@@ -101,6 +101,20 @@
       flex-shrink:0;
     }
 
+        .label-card .attrs-line {
+      font-size:1.9mm; color:#444; text-align:center;
+      line-height:1.15;
+      width:100%;
+      display:flex; flex-wrap:wrap; justify-content:center; gap:.6mm 1.2mm;
+      flex-shrink:0;
+    }
+    .label-card .attrs-line span {
+      white-space:nowrap;
+    }
+    .label-card .attrs-line b {
+      font-weight:700; color:#000;
+    }
+
     /* ── Print ── */
     @page { size:58mm 40mm; margin:0; }
     @media print {
@@ -146,15 +160,23 @@
   </div>
 
   <!-- Prévisualisation -->
-  <div class="sheet-preview" id="sheetPreview">
+   <div class="sheet-preview" id="sheetPreview">
     {% if items %}
       {% for item in items %}
         {% for i in range(copies) %}
         <div class="label-card">
           <div class="prod-name">{{ item.variant.product.designation }}</div>
-          <div class="var-name">
-            {{ item.variant.attributs_display or item.variant.nom }}
+
+          {% if item.variant.attributs %}
+          <div class="attrs-line">
+            {% for k, v in item.variant.attributs.items() %}
+            <span><b>{{ k }}:</b> {{ v }}</span>
+            {% endfor %}
           </div>
+          {% elif item.variant.nom %}
+          <div class="var-name">{{ item.variant.nom }}</div>
+          {% endif %}
+
           {% if item.bc_b64 %}
           <div class="barcode-wrap">
             <img src="data:image/png;base64,{{ item.bc_b64 }}" alt="{{ item.variant.barcode }}">

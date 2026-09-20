@@ -54,7 +54,7 @@
 <div style="display:flex;flex-direction:column;gap:.75rem;">
   {% for c in credits %}
   {% set statut_label, statut_badge = c.statut_display %}
-  {% set pct = ((c.montant_paye / (c.montant_total|float)) * 100)|int if c.montant_total > 0 else 0 %}
+  {% set pct = ((c.montant_paye / c.montant_total_f) * 100)|int if c.montant_total_f > 0 else 0 %}
   <div class="card">
     <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:.5rem;">
       <div>
@@ -69,11 +69,11 @@
     <div class="grid-3" style="margin-top:.85rem;gap:.75rem;">
       <div>
         <div class="text-muted" style="font-size:.7rem;">MONTANT TOTAL</div>
-        <div class="text-mono" style="font-weight:700;">{{ "%.0f"|format(c.montant_total|float) }} FCFA</div>
+        <div class="text-mono" style="font-weight:700;">{{ "%.0f"|format(c.montant_total_f) }} FCFA</div>
       </div>
       <div>
         <div class="text-muted" style="font-size:.7rem;">PAYÉ</div>
-        <div class="text-mono" style="font-weight:700;color:var(--success);">{{ "%.0f"|format(c.montant_paye|float) }} FCFA</div>
+        <div class="text-mono" style="font-weight:700;color:var(--success);">{{ "%.0f"|format(c.montant_paye) }} FCFA</div>
       </div>
       <div>
         <div class="text-muted" style="font-size:.7rem;">RESTANT</div>
@@ -90,34 +90,35 @@
       {% if c.notes %}<span style="font-style:italic;">{{ c.notes }}</span>{% endif %}
     </div>
 
-    {% if c.payments.count() > 0 %}
+    <!-- ── Historique des paiements (date + heure) ── -->
+    {% set pay_list = c.payments.order_by('created_at').all() %}
+    {% if pay_list %}
     <div style="margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border);">
-      <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;">Historique des paiements</div>
-      {% for p in c.payments.order_by('date_paiement').all() %}
+      <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;">
+        Historique des paiements ({{ pay_list|length }})
+      </div>
+      {% for p in pay_list %}
       <div class="flex justify-between" style="font-size:.76rem;padding:.15rem 0;">
-        <span class="text-muted">{{ p.date_paiement.strftime('%d/%m/%Y') }}{% if p.note %} — {{ p.note }}{% endif %}</span>
+        <span class="text-muted">{{ p.created_at.strftime('%d/%m/%Y à %H:%M') }}{% if p.note %} — {{ p.note }}{% endif %}</span>
         <span class="text-mono" style="color:var(--success);">+{{ "%.0f"|format(p.montant) }} FCFA</span>
       </div>
       {% endfor %}
     </div>
     {% endif %}
 
-    {% if not c.is_solde %}
     <div class="flex gap-2" style="margin-top:.75rem;">
-      <button class="btn btn-success btn-sm" onclick="openPaymentModal({{ c.id }}, '{{ c.client_nom }}', {{ c.montant_restant }})">
+      {% if not c.is_solde %}
+      <button class="btn btn-success btn-sm" data-open-payment
+              data-credit-id="{{ c.id }}"
+              data-client-nom="{{ c.client_nom }}"
+              data-montant-restant="{{ c.montant_restant|round(0)|int }}">
         💰 Enregistrer un paiement
       </button>
+      {% endif %}
       <form method="POST" action="{{ url_for('manager.delete_credit', credit_id=c.id) }}" style="margin-left:auto;">
         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce crédit ?')">✕ Supprimer</button>
       </form>
     </div>
-    {% else %}
-    <div class="flex" style="margin-top:.75rem;">
-      <form method="POST" action="{{ url_for('manager.delete_credit', credit_id=c.id) }}" style="margin-left:auto;">
-        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce crédit ?')">✕ Supprimer</button>
-      </form>
-    </div>
-    {% endif %}
   </div>
   {% endfor %}
 </div>
@@ -173,7 +174,7 @@
     <form method="POST" id="paymentForm">
       <div class="form-group">
         <label class="form-label">Montant reçu (FCFA) *</label>
-        <input class="form-control text-mono" type="number" name="montant" id="paymentAmount" required min="1" step="100">
+        <input class="form-control text-mono" type="number" name="montant" id="paymentAmount" required min="1" step="1">
         <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;" id="paymentMaxHint"></div>
       </div>
       <div class="form-group">
@@ -200,6 +201,18 @@ function openPaymentModal(creditId, clientName, montantRestant) {
   document.getElementById('paymentMaxHint').textContent = `Solde restant : ${montantRestant.toLocaleString('fr-FR')} FCFA`;
   document.getElementById('paymentModal').classList.add('open');
 }
+
+// data-attributes plutôt qu'un onclick inline : un nom de client avec apostrophe
+// (ex: N'Guessan) casserait sinon la chaîne JS générée par Jinja.
+document.querySelectorAll('[data-open-payment]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    openPaymentModal(
+      btn.dataset.creditId,
+      btn.dataset.clientNom,
+      parseFloat(btn.dataset.montantRestant)
+    );
+  });
+});
 
 document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });

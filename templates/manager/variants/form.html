@@ -23,6 +23,7 @@
   .img-drop:hover { border-color:var(--accent); background:#f5a62308; }
   .img-drop input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
   .img-preview { width:100%; max-height:160px; object-fit:contain; border-radius:6px; margin-bottom:.5rem; }
+  .hidden { display:none !important; }
 </style>
 {% endblock %}
 
@@ -72,15 +73,17 @@
         </div>
 
         <!-- Onglets catégories -->
+                  <!-- Onglets catégories -->
+        {% set cats = [
+          ('Taille',   '👗', ['XS','S','M','L','XL','XXL','XXXL']),
+          ('Pointure', '👟', ['32','33','34','35','36','37','38','39','40','41','42','43','44','45','46']),
+          ('Couleur',  '🎨', ['Noir','Blanc','Rouge','Bleu','Vert','Jaune','Orange','Rose','Gris','Marron','Beige','Violet']),
+          ('Mètre',    '📏', ['0.25m','0.5m','0.75m','1m','1.5m','2m','2.5m','3m','4m','5m','10m']),
+          ('Gramme/Kg','⚖️', ['5g','10g','25g','50g','100g','200g','250g','500g','1kg','2kg','5kg','10kg']),
+          ('Ml/Litre', '🧴', ['5ml','10ml','20ml','50ml','100ml','200ml','250ml','500ml','1L','1.5L','2L','5L']),
+        ] %}
+
         <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem;" id="catTabs">
-          {% set cats = [
-            ('Taille',   '👗', ['XS','S','M','L','XL','XXL','XXXL']),
-            ('Pointure', '👟', ['32','33','34','35','36','37','38','39','40','41','42','43','44','45','46']),
-            ('Couleur',  '🎨', ['Noir','Blanc','Rouge','Bleu','Vert','Jaune','Orange','Rose','Gris','Marron','Beige','Violet']),
-            ('Mètre',    '📏', ['0.25m','0.5m','0.75m','1m','1.5m','2m','2.5m','3m','4m','5m','10m']),
-            ('Gramme/Kg','⚖️', ['5g','10g','25g','50g','100g','200g','250g','500g','1kg','2kg','5kg','10kg']),
-            ('Ml/Litre', '🧴', ['5ml','10ml','20ml','50ml','100ml','200ml','250ml','500ml','1L','1.5L','2L','5L']),
-          ] %}
           {% for cat_name, cat_icon, _ in cats %}
           <button type="button"
                   class="cat-tab {% if loop.first %}active{% endif %}"
@@ -89,6 +92,9 @@
             {{ cat_icon }} {{ cat_name }}
           </button>
           {% endfor %}
+          <button type="button" class="cat-tab" data-cat="custom" onclick="switchCat('custom', this)">
+            ➕ Personnalisé
+          </button>
         </div>
 
         <!-- Valeurs de la catégorie sélectionnée -->
@@ -97,13 +103,34 @@
              style="display:flex;gap:.35rem;flex-wrap:wrap;">
           {% for val in values %}
           <button type="button" class="tva-preset"
-                  onclick="addAttrValue('{{ cat_name }}','{{ val }}')">
-            {{ val }}
-          </button>
+                  onclick="addAttrValue('{{ cat_name }}','{{ val }}')">{{ val }}</button>
           {% endfor %}
         </div>
         {% endfor %}
+
+                <!-- Attribut personnalisé -->
+        <div class="cat-values hidden" data-cat="custom"
+             style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;">
+          <select id="customCatKey" class="form-control" style="max-width:160px;"
+                  onchange="toggleCustomKey()">
+            {% for cat_name, cat_icon, _ in cats %}
+            <option value="{{ cat_name }}">{{ cat_icon }} {{ cat_name }}</option>
+            {% endfor %}
+            <option value="__autre__">✏️ Autre…</option>
+          </select>
+
+          <input type="text" id="customCatKeyOther" class="form-control hidden"
+                 placeholder="Nom (ex: Motif)" style="max-width:150px;">
+
+          <input type="text" id="customCatVal" class="form-control"
+                 placeholder="Valeur" style="max-width:150px;">
+
+          <button type="button" class="btn btn-primary btn-sm" onclick="addCustomAttrValue()">
+            + Ajouter
+          </button>
+        </div>
       </div>
+
 
       <div class="form-group" style="margin-top:1rem;">
         <label class="form-label">Nom affiché (auto-généré si vide)</label>
@@ -261,6 +288,40 @@ function addAttrValue(key, val) {
     <button type="button" class="btn btn-danger btn-sm" onclick="removeAttr(this)">✕</button>`;
   document.getElementById('attrsContainer').appendChild(div);
 }
+
+function toggleCustomKey() {
+  const sel   = document.getElementById('customCatKey');
+  const other = document.getElementById('customCatKeyOther');
+  const isOther = sel.value === '__autre__';
+  other.classList.toggle('hidden', !isOther);
+  if (isOther) other.focus();
+  else document.getElementById('customCatVal').focus();
+}
+
+function addCustomAttrValue() {
+  const sel      = document.getElementById('customCatKey');
+  const otherIn  = document.getElementById('customCatKeyOther');
+  const valInput = document.getElementById('customCatVal');
+
+  const key = sel.value === '__autre__' ? otherIn.value.trim() : sel.value;
+  const val = valInput.value.trim();
+
+  if (!key) { otherIn.focus(); return; }
+  if (!val) { valInput.focus(); return; }
+
+  addAttrValue(key, val);
+  valInput.value = '';
+  if (sel.value === '__autre__') otherIn.value = '';
+  valInput.focus();
+}
+
+// Valider avec Entrée depuis les champs texte
+['customCatKeyOther', 'customCatVal'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addCustomAttrValue(); }
+  });
+});
 
 // ── Calculateur TVA ────────────────────────────────────────────────────────
 const prixHT = document.getElementById('prixHT');
