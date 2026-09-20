@@ -44,7 +44,7 @@
     <span style="font-size:.8rem;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.05em;">
       {{ credits_alertes|length }} échéance(s) de crédit à surveiller
     </span>
-    <a href="{{ url_for('manager.credits') }}" style="margin-left:auto;font-size:.75rem;color:var(--accent);text-decoration:none;">Voir tout →</a>
+    <a href="{{ url_for('pos.pos_credits') }}" style="margin-left:auto;font-size:.75rem;color:var(--accent);text-decoration:none;">Voir tout →</a>
   </div>
   <div style="display:flex;flex-direction:column;gap:.3rem;">
     {% for c in credits_alertes[:5] %}
