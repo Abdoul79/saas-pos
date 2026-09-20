@@ -1312,14 +1312,14 @@ def cashier_settings():
             old_pw  = request.form.get('old_password', '')
             new_pw  = request.form.get('new_password', '')
             conf_pw = request.form.get('confirm_password', '')
-            if not bcrypt.check_password_hash(current_user.password_hash, old_pw):
+            if not current_user.check_password(old_pw):
                 flash('Ancien mot de passe incorrect.', 'danger')
             elif len(new_pw) < 4:
                 flash('Le nouveau mot de passe doit contenir au moins 4 caractères.', 'danger')
             elif new_pw != conf_pw:
                 flash('Les mots de passe ne correspondent pas.', 'danger')
             else:
-                current_user.password_hash = bcrypt.generate_password_hash(new_pw).decode('utf-8')
+                current_user.set_password(new_pw)
                 db.session.commit()
                 flash('Mot de passe changé avec succès.', 'success')
 
