@@ -377,14 +377,18 @@ async function refreshPresence() {
           const diff = Math.round((Date.now() - new Date(c.last_seen + 'Z')) / 60000);
           if (diff < 1) status.textContent = 'Vu à l\'instant';
           else if (diff < 60) status.textContent = `Vu il y a ${diff} min`;
-          else {
-            const h = Math.floor(diff / 60);
-            const m = diff % 60;
-            status.textContent = m > 0 ? `Vu il y a ${h}h${m}min` : `Vu il y a ${h}h`;
+          else if (diff < 1440) {
+             const h = Math.floor(diff / 60);
+             const m = diff % 60;
+             status.textContent = m > 0 ? `Vu il y a ${h}h${m}min` : `Vu il y a ${h}h`;
+          } else {
+            const j = Math.floor(diff / 1440);
+            const h = Math.floor((diff % 1440) / 60);
+            status.textContent = h > 0 ? `Vu il y a ${j}j${h}h` : `Vu il y a ${j}j`;
           }
-        } else {
-          status.textContent = 'Hors ligne';
-        }
+       } else {
+           status.textContent = 'Hors ligne';
+         }
         status.style.color = 'var(--muted)';
       }
     });
