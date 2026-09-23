@@ -503,6 +503,38 @@ class StockTransfer(db.Model):
     manager = db.relationship('User')
 
 
+# __________customer___________
+class Customer(db.Model):
+    __tablename__ = 'customers'
+    id         = db.Column(db.Integer, primary_key=True)
+    tenant_id  = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    nom        = db.Column(db.String(150), nullable=False)
+    telephone  = db.Column(db.String(30))
+    email      = db.Column(db.String(150))
+    notes      = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sales = db.relationship('Sale', back_populates='customer', lazy='dynamic')
+
+    @property
+    def total_achats(self):
+        return float(sum(float(s.total_amount) for s in self.sales))
+
+    @property
+    def nb_achats(self):
+        return self.sales.count()
+
+    @property
+    def total_economise(self):
+        return float(sum(float(s.discount_amount or 0) for s in self.sales))
+
+    @property
+    def dernier_achat(self):
+        last = self.sales.order_by(Sale.created_at.desc()).first()
+        return last.created_at if last else None
+
+    def __repr__(self): return f'<Customer {self.nom}>'
 # ─────────────────────────────────────────
 # SALE
 # ─────────────────────────────────────────
@@ -512,18 +544,26 @@ class Sale(db.Model):
     id             = db.Column(db.Integer, primary_key=True)
     tenant_id      = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
     cashier_id     = db.Column(db.Integer, db.ForeignKey('users.id'),   nullable=False)
+    customer_id    = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=True)
     total_ht       = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     total_tva      = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     total_amount   = db.Column(db.Numeric(12, 2), nullable=False)
     amount_given   = db.Column(db.Numeric(12, 2), nullable=True)
     change_given   = db.Column(db.Numeric(12, 2), nullable=True)
     payment_method = db.Column(db.String(20), nullable=False, default=PaymentMethod.CASH)
-    sale_type      = db.Column(db.String(10), nullable=False, default='detail')  # detail | engros
+    sale_type      = db.Column(db.String(10), nullable=False, default='detail')  # detail | engros | credit | fidelite
     created_at     = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
-    tenant  = db.relationship('Tenant', back_populates='sales')
-    cashier = db.relationship('User', back_populates='sales')
-    items   = db.relationship('SaleItem', back_populates='sale', cascade='all, delete-orphan')
+    # ── Remise (caisse fidélité) ────────────────────────────────────────────
+    discount_type             = db.Column(db.String(10), nullable=True)    # 'percent' ou 'amount'
+    discount_value             = db.Column(db.Numeric(12, 2), nullable=True, default=0)
+    discount_amount            = db.Column(db.Numeric(12, 2), nullable=True, default=0)
+    subtotal_before_discount   = db.Column(db.Numeric(12, 2), nullable=True)
+
+    tenant   = db.relationship('Tenant', back_populates='sales')
+    cashier  = db.relationship('User', back_populates='sales')
+    customer = db.relationship('Customer', back_populates='sales')
+    items    = db.relationship('SaleItem', back_populates='sale', cascade='all, delete-orphan')
     #last ticket number for this sale (used for printing receipts)
     ticket_number = db.Column(db.Integer, nullable=True)
 

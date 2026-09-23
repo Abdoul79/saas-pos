@@ -5,8 +5,9 @@ from app import db
 from app.models import Product, ProductVariant, Category, Sale, SaleItem, PaymentMethod, UserRole
 from app.utils.decorators import role_required, tenant_active_required
 from datetime import date as date_cls
-from app.models import Tenant  # ajoute Tenant à l'import existant de app.models si pas déjà présent
-from app.models import ClientCredit, CreditPayment, User
+#from app.models import   # ajoute Tenant à l'import existant de app.models si pas déjà présent
+from app.models import ClientCredit, CreditPayment, User, Tenant, Customer
+
 #from app.models import ClientCredit, CreditPayment
 pos_bp = Blueprint('pos', __name__)
 
@@ -219,6 +220,210 @@ def engros():
         catalog=catalog,
         categories=categories,
         is_manager=current_user.is_manager or current_user.is_super_admin)
+
+
+
+# ── CAISSE FIDÉLITÉ ──────────────────────────────────────────────────────────
+@pos_bp.route('/fidelite')
+@_any_staff
+def fidelite_interface():
+    all_products = Product.query.filter_by(tenant_id=_tid()).order_by(Product.designation).all()
+    catalog    = [p for p in all_products if p.total_stock_magasin > 0]
+    categories = Category.query.filter_by(tenant_id=_tid()).order_by(Category.ordre, Category.nom).all()
+
+    return render_template('pos/fidelite.html',
+        catalog=catalog,
+        categories=categories,
+        is_manager=current_user.is_manager or current_user.is_super_admin)
+
+
+@pos_bp.route('/api/customers/search')
+@_any_staff
+def search_customers():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
+    customers = Customer.query.filter(
+        Customer.tenant_id == _tid()
+    ).filter(
+        db.or_(
+            Customer.nom.ilike(f'%{q}%'),
+            Customer.telephone.ilike(f'%{q}%')
+        )
+    ).limit(10).all()
+    return jsonify([{
+        'id': c.id, 'nom': c.nom, 'telephone': c.telephone or '',
+        'nb_achats': c.nb_achats, 'total_achats': c.total_achats,
+    } for c in customers])
+
+
+@pos_bp.route('/api/customers/create', methods=['POST'])
+@_any_staff
+def create_customer_quick():
+    data = request.get_json()
+    nom       = (data.get('nom') or '').strip()
+    telephone = (data.get('telephone') or '').strip() or None
+
+    if not nom:
+        return jsonify({'error': 'Le nom du client est obligatoire.'}), 400
+
+    customer = Customer(
+        tenant_id=_tid(), nom=nom, telephone=telephone, created_by=current_user.id
+    )
+    db.session.add(customer)
+    db.session.commit()
+
+    return jsonify({
+        'id': customer.id, 'nom': customer.nom, 'telephone': customer.telephone or '',
+        'nb_achats': 0, 'total_achats': 0,
+    })
+
+
+@pos_bp.route('/api/sale/fidelite', methods=['POST'])
+@_any_staff
+def validate_sale_fidelite():
+    data = request.get_json()
+    if not data or not data.get('items'):
+        return jsonify({'error': 'Panier vide.'}), 400
+
+    customer_id    = data.get('customer_id')
+    payment_method = data.get('payment_method', PaymentMethod.CASH)
+    amount_given   = float(data.get('amount_given', 0))
+    discount_type  = data.get('discount_type')       # 'percent', 'amount', ou None
+    discount_value = float(data.get('discount_value', 0) or 0)
+
+    if discount_type not in (None, '', 'percent', 'amount'):
+        return jsonify({'error': 'Type de remise invalide.'}), 400
+
+    customer = None
+    if customer_id:
+        customer = Customer.query.filter_by(id=customer_id, tenant_id=_tid()).first()
+        if not customer:
+            return jsonify({'error': 'Client introuvable.'}), 404
+
+    items_data     = data['items']
+    sale_items_obj = []
+    total_ttc = total_ht = total_tva = 0.0
+    stock_updates = []
+
+    for item in items_data:
+        variant_id = item.get('variant_id')
+        product_id = item['product_id']
+        qty        = int(item['quantity'])
+        if qty <= 0:
+            return jsonify({'error': 'Quantité invalide.'}), 400
+
+        if variant_id:
+            v = (ProductVariant.query
+                 .join(Product, Product.id == ProductVariant.product_id)
+                 .filter(ProductVariant.id == int(variant_id), Product.tenant_id == _tid())
+                 .with_for_update().first())
+            if not v:
+                return jsonify({'error': f'Variante ID {variant_id} introuvable.'}), 404
+            if v.stock_magasin < qty:
+                return jsonify({'error': (
+                    f'Stock insuffisant pour « {v.product.designation} / {v.nom} ». '
+                    f'Dispo en rayon : {v.stock_magasin}'
+                )}), 409
+            real_product_id = v.product_id
+            unit_ttc = float(v.prix_vente_ttc)
+            unit_ht  = float(v.prix_vente_ht)
+            tva_rate = float(v.taux_tva)
+            label    = f'{v.product.designation} — {v.nom}'
+            subtotal = round(unit_ttc * qty, 2)
+            total_ttc += subtotal; total_ht += round(unit_ht * qty, 2)
+            total_tva += round((unit_ttc - unit_ht) * qty, 2)
+            sale_items_obj.append(SaleItem(
+                product_id=real_product_id, variant_id=int(variant_id),
+                designation=label, prix_vente=unit_ttc, taux_tva=tva_rate,
+                quantity=qty, subtotal=subtotal))
+            stock_updates.append((v, qty))
+        else:
+            p = Product.query.filter_by(id=product_id, tenant_id=_tid()).with_for_update().first()
+            if not p:
+                return jsonify({'error': f'Produit ID {product_id} introuvable.'}), 404
+            if p.stock_magasin < qty:
+                return jsonify({'error': f'Stock insuffisant pour « {p.designation} ». Dispo : {p.stock_magasin}'}), 409
+            unit_ttc = float(p.prix_vente_ttc)
+            unit_ht  = float(p.prix_vente_ht)
+            tva_rate = float(p.taux_tva)
+            subtotal = round(unit_ttc * qty, 2)
+            total_ttc += subtotal; total_ht += round(unit_ht * qty, 2)
+            total_tva += round((unit_ttc - unit_ht) * qty, 2)
+            sale_items_obj.append(SaleItem(product_id=p.id, designation=p.designation,
+                                           prix_vente=unit_ttc, taux_tva=tva_rate,
+                                           quantity=qty, subtotal=subtotal))
+            stock_updates.append((p, qty))
+
+    subtotal_before = round(total_ttc, 2)
+
+    # ── Calcul de la remise ─────────────────────────────────────────────────
+    discount_amount = 0.0
+    if discount_type == 'percent':
+        if discount_value < 0 or discount_value > 100:
+            return jsonify({'error': 'Pourcentage de remise invalide (0-100).'}), 400
+        discount_amount = round(subtotal_before * discount_value / 100, 2)
+    elif discount_type == 'amount':
+        if discount_value < 0:
+            return jsonify({'error': 'Montant de remise invalide.'}), 400
+        if discount_value > subtotal_before:
+            return jsonify({'error': 'La remise ne peut pas dépasser le total du panier.'}), 400
+        discount_amount = round(discount_value, 2)
+
+    final_total = round(subtotal_before - discount_amount, 2)
+
+    if payment_method == PaymentMethod.CASH and amount_given < final_total:
+        return jsonify({'error': 'Montant donné insuffisant.'}), 400
+
+    sale = Sale(
+        tenant_id=_tid(), cashier_id=current_user.id, customer_id=customer.id if customer else None,
+        total_ht=total_ht, total_tva=total_tva, total_amount=final_total,
+        subtotal_before_discount=subtotal_before,
+        discount_type=discount_type or None,
+        discount_value=discount_value if discount_type else 0,
+        discount_amount=discount_amount,
+        amount_given=amount_given if amount_given > 0 else None,
+        change_given=round(amount_given - final_total, 2) if amount_given > 0 else None,
+        payment_method=payment_method,
+        sale_type='fidelite',
+        ticket_number=_get_next_ticket_number(_tid()),
+    )
+    db.session.add(sale)
+    db.session.flush()
+
+    for si in sale_items_obj:
+        si.sale_id = sale.id
+        db.session.add(si)
+
+    for obj, qty in stock_updates:
+        obj.stock_magasin -= qty
+
+    db.session.commit()
+
+    return jsonify({
+        'success'  : True,
+        'sale_id'  : sale.id,
+        'subtotal' : subtotal_before,
+        'discount' : discount_amount,
+        'total'    : final_total,
+        'change'   : sale.change_given,
+        'customer' : customer.nom if customer else None,
+    })
+
+
+@pos_bp.route('/customers/<int:customer_id>')
+@_any_staff
+def customer_detail(customer_id):
+    customer = Customer.query.filter_by(id=customer_id, tenant_id=_tid()).first_or_404()
+    sales = customer.sales.order_by(Sale.created_at.desc()).all()
+    return render_template('pos/customer_detail.html', customer=customer, sales=sales)
+
+
+@pos_bp.route('/customers')
+@_any_staff
+def customers_list():
+    customers = Customer.query.filter_by(tenant_id=_tid()).order_by(Customer.nom).all()
+    return render_template('pos/customers_list.html', customers=customers)
 
 
 @pos_bp.route('/api/sale/engros', methods=['POST'])

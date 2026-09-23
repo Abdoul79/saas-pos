@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.nom }} — Client Fidèle{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">{{ customer.nom }}</div>
+  <a href="{{ url_for('pos.customers_list') }}" class="btn btn-secondary btn-sm">← Tous les clients</a>
+</div>
+
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+  <div class="stat-card">
+    <div class="stat-label">Téléphone</div>
+    <div class="stat-value" style="font-size:1.1rem;">{{ customer.telephone or '—' }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Nombre d'achats</div>
+    <div class="stat-value text-accent">{{ customer.nb_achats }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total dépensé</div>
+    <div class="stat-value">{{ "%.0f"|format(customer.total_achats) }} <small style="font-size:.5em;">FCFA</small></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Économisé (remises)</div>
+    <div class="stat-value" style="color:var(--success);">{{ "%.0f"|format(customer.total_economise) }} <small style="font-size:.5em;">FCFA</small></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">// Historique des achats</div>
+  {% if sales %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Ticket</th><th style="text-align:right;">Sous-total</th><th style="text-align:right;">Remise</th><th style="text-align:right;">Total</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for s in sales %}
+        <tr>
+          <td class="text-mono" style="font-size:.8rem;">{{ s.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="text-mono" style="font-size:.8rem;">#{{ s.ticket_number or s.id }}</td>
+          <td class="text-mono" style="text-align:right;">{{ "%.0f"|format(s.subtotal_before_discount or s.total_amount) }}</td>
+          <td class="text-mono" style="text-align:right;color:{% if s.discount_amount and s.discount_amount > 0 %}var(--success){% else %}var(--muted){% endif %};">
+            {% if s.discount_amount and s.discount_amount > 0 %}-{{ "%.0f"|format(s.discount_amount) }}{% else %}—{% endif %}
+          </td>
+          <td class="text-mono" style="text-align:right;font-weight:700;">{{ "%.0f"|format(s.total_amount) }} FCFA</td>
+          <td><a href="{{ url_for('pos.ticket', sale_id=s.id) }}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:.8rem;">🖨 Ticket</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-muted" style="text-align:center;padding:2rem;">Aucun achat enregistré pour ce client.</div>
+  {% endif %}
+</div>
+{% endblock %}

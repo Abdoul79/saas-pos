@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Clients Fidèles — SaaS POS{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+  <div class="page-title" style="margin-bottom:0">Clients Fidèles</div>
+  <a href="{{ url_for('pos.fidelite_interface') }}" class="btn btn-secondary btn-sm">← Caisse Fidélité</a>
+</div>
+
+{% if customers %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Client</th><th>Téléphone</th><th style="text-align:center;">Achats</th><th style="text-align:right;">Total dépensé</th><th style="text-align:right;">Économisé (remises)</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td><strong>{{ c.nom }}</strong></td>
+          <td class="text-mono" style="font-size:.82rem;">{{ c.telephone or '—' }}</td>
+          <td style="text-align:center;"><span class="badge badge-purple">{{ c.nb_achats }}</span></td>
+          <td class="text-mono" style="text-align:right;">{{ "%.0f"|format(c.total_achats) }} FCFA</td>
+          <td class="text-mono" style="text-align:right;color:var(--success);">{{ "%.0f"|format(c.total_economise) }} FCFA</td>
+          <td><a href="{{ url_for('pos.customer_detail', customer_id=c.id) }}" class="btn btn-secondary btn-sm">Voir →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:3rem;color:var(--muted);">Aucun client fidèle enregistré pour le moment.</div>
+{% endif %}
+{% endblock %}

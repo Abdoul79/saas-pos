@@ -12,6 +12,8 @@ from app.utils.decorators import role_required, tenant_active_required
 from app.models import ClientCredit, CreditPayment
 from app.utils.barcode_gen import generate_ean13_number, generate_barcode_b64
 from flask_login import login_required, current_user, logout_user
+# ── Crédits — calendrier des échéances (mois courant) ──────────────────
+    
 
 
 
