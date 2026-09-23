@@ -503,6 +503,10 @@
         </a>
         {% endif %}
 
+        <a href="{{ url_for('pos.fidelite_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.fidelite_interface' %}active{% endif %}" style="border-color:#a78bfa44;">
+          <span class="tile-icon">⭐</span><span class="tile-label">Caisse Fidélité</span>
+        </a>
+
         <a href="{{ url_for('pos.credit_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.credit_interface' %}active{% endif %}" style="border-color:#eab30844;">
           <span class="tile-icon">💳</span><span class="tile-label">Vente à Crédit</span>
         </a>
