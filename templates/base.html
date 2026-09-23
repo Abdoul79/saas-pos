@@ -436,7 +436,7 @@
         
       </div>
 
-            <div class="navgrid-section-label">Caisse</div>
+      <div class="navgrid-section-label">Caisse</div>
       <div class="navgrid-tiles">
         <a href="{{ url_for('pos.interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.interface' %}active{% endif %}">
           <span class="tile-icon">🧾</span><span class="tile-label">Caisse Détail</span>
@@ -448,6 +448,9 @@
         {% endif %}
         <a href="{{ url_for('pos.credit_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.credit_interface' %}active{% endif %}" style="border-color:#eab30844;">
           <span class="tile-icon">💳</span><span class="tile-label">Vente à Crédit</span>
+        </a>
+        <a href="{{ url_for('pos.fidelite_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.fidelite_interface' %}active{% endif %}" style="border-color:#a78bfa44;">
+          <span class="tile-icon">⭐</span><span class="tile-label">Caisse Fidélité</span>
         </a>
         {% if current_user.tenant and current_user.tenant.boutique_en_ligne_active %}
         <a href="{{ url_for('online.dashboard') }}" class="navgrid-tile tile-info {% if 'online' in request.endpoint %}active{% endif %}">
