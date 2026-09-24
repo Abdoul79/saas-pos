@@ -33,8 +33,13 @@ def _build_db_url():
     """Construit l'URL de la base — appelé à l'import du module."""
     url = os.environ.get('DATABASE_URL', '').strip()
     if url:
-        return url.replace('postgres://', 'postgresql://', 1)
-    return None
+        url = url.replace('postgres://', 'postgresql://', 1)
+        # Forcer le dialecte psycopg2 (déjà dans requirements.txt) plutôt que
+        # psycopg v3, qui refuse les casts implicites date <-> varchar utilisés
+        # ailleurs dans le code (ex: func.date(...) == une_chaîne).
+        if url.startswith('postgresql://'):
+            url = url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+        return url
 
 
 class DevelopmentConfig(Config):
