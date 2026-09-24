@@ -33,6 +33,11 @@
   .tp-bar  { height:3px;border-radius:99px;background:var(--border);margin-top:.35rem; }
   .tp-bar-fill { height:3px;border-radius:99px; }
 
+  /*ventes a credit */
+  .type-badge-credit   { background:#eab30815;border:1px solid #eab30844;color:#eab308;font-size:.62rem;padding:.1rem .4rem;border-radius:4px;font-weight:700;font-family:monospace; }
+  .type-badge-fidelite { background:#a78bfa15;border:1px solid #a78bfa44;color:#a78bfa;font-size:.62rem;padding:.1rem .4rem;border-radius:4px;font-weight:700;font-family:monospace; }
+    .sale-meta { display:grid;grid-template-columns:70px 90px 60px 1fr 130px;gap:.5rem;align-items:start;padding:.55rem 1.1rem; }
+
   /* Résumé type split */
   .type-split { display:flex;gap:.6rem;margin-bottom:1rem; }
   .type-split-card { flex:1;border-radius:10px;padding:.7rem 1rem;border:1px solid; }
@@ -125,9 +130,9 @@
   </div>
 </div>
 
-<!-- ── Résumé Détail vs Gros ── -->
-{% if nb_detail or nb_engros %}
-<div class="type-split" style="margin-bottom:1rem;">
+<!-- ── Résumé par type de vente ── -->
+{% if nb_detail or nb_engros or nb_credit or nb_fidelite %}
+<div class="type-split" style="margin-bottom:1rem;flex-wrap:wrap;">
   <div class="type-split-card" style="background:#3b82f610;border-color:#3b82f633;">
     <div style="font-size:.68rem;color:#60a5fa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;font-weight:700;">🛒 Ventes au Détail</div>
     <div style="font-family:monospace;font-size:1.2rem;font-weight:800;color:#60a5fa;">{{ "%.0f"|format(total_detail) }} <span style="font-size:.6rem;opacity:.6;">FCFA</span></div>
@@ -138,6 +143,20 @@
     <div style="font-size:.68rem;color:#4ade80;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;font-weight:700;">🏭 Ventes en Gros</div>
     <div style="font-family:monospace;font-size:1.2rem;font-weight:800;color:#4ade80;">{{ "%.0f"|format(total_engros) }} <span style="font-size:.6rem;opacity:.6;">FCFA</span></div>
     <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem;">{{ nb_engros }} transaction(s)</div>
+  </div>
+  {% endif %}
+  {% if nb_credit %}
+  <div class="type-split-card" style="background:#eab30810;border-color:#eab30833;">
+    <div style="font-size:.68rem;color:#eab308;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;font-weight:700;">💳 Ventes à Crédit</div>
+    <div style="font-family:monospace;font-size:1.2rem;font-weight:800;color:#eab308;">{{ "%.0f"|format(total_credit) }} <span style="font-size:.6rem;opacity:.6;">FCFA</span></div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem;">{{ nb_credit }} transaction(s)</div>
+  </div>
+  {% endif %}
+  {% if nb_fidelite %}
+  <div class="type-split-card" style="background:#a78bfa10;border-color:#a78bfa33;">
+    <div style="font-size:.68rem;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;font-weight:700;">⭐ Ventes Fidélité</div>
+    <div style="font-family:monospace;font-size:1.2rem;font-weight:800;color:#a78bfa;">{{ "%.0f"|format(total_fidelite) }} <span style="font-size:.6rem;opacity:.6;">FCFA</span></div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem;">{{ nb_fidelite }} transaction(s)</div>
   </div>
   {% endif %}
 </div>
@@ -252,17 +271,22 @@
 
     <div class="cashier-body">
       {% for s in data.sales %}
-      {% set is_engros = s.sale_type == 'engros' %}
-      <div class="sale-row" style="{% if is_engros %}border-left:3px solid #22c55e44;{% else %}border-left:3px solid #3b82f644;{% endif %}">
+      {% set stype = s.sale_type %}
+      {% set credit = credits_by_sale.get(s.id) %}
+      <div class="sale-row" style="{% if stype == 'engros' %}border-left:3px solid #22c55e44;{% elif stype == 'credit' %}border-left:3px solid #eab30844;{% elif stype == 'fidelite' %}border-left:3px solid #a78bfa44;{% else %}border-left:3px solid #3b82f644;{% endif %}">
         <div class="sale-meta">
           <div>
             <div class="sale-id">#{{ s.id }}</div>
             <div class="sale-time">{{ s.created_at.strftime('%H:%M') }}</div>
           </div>
-          <!-- Type détail/gros -->
+          <!-- Type de vente -->
           <div>
-            {% if is_engros %}
+            {% if stype == 'engros' %}
             <span class="type-badge-engros">🏭 Gros</span>
+            {% elif stype == 'credit' %}
+            <span class="type-badge-credit">💳 Crédit</span>
+            {% elif stype == 'fidelite' %}
+            <span class="type-badge-fidelite">⭐ Fidélité</span>
             {% else %}
             <span class="type-badge-detail">🛒 Détail</span>
             {% endif %}
@@ -273,18 +297,34 @@
             {% elif s.payment_method == 'carte' %}<span class="badge badge-blue" style="font-size:.62rem;">💳</span>
             {% else %}<span class="badge badge-purple" style="font-size:.62rem;">📱</span>{% endif %}
           </div>
-          <!-- Produits -->
-          <div class="sale-products">
-            {% for item in s.items %}
-            <div class="prod-tag">
-              <span class="prod-qty" style="color:{{ color }};">{{ item.quantity }}×</span>
-              <span>{{ item.designation or 'Article supprimé' }}</span>
-              <span class="prod-price">{{ "%.0f"|format(item.subtotal) }}</span>
+          <!-- Produits + infos client crédit -->
+          <div>
+            <div class="sale-products">
+              {% for item in s.items %}
+              <div class="prod-tag">
+                <span class="prod-qty" style="color:{{ color }};">{{ item.quantity }}×</span>
+                <span>{{ item.designation or 'Article supprimé' }}</span>
+                <span class="prod-price">{{ "%.0f"|format(item.subtotal) }}</span>
+              </div>
+              {% endfor %}
             </div>
-            {% endfor %}
+            {% if stype == 'credit' and credit %}
+            <div style="margin-top:.35rem;font-size:.75rem;display:flex;gap:.75rem;flex-wrap:wrap;">
+              <span style="color:var(--text);"><strong>👤 {{ credit.client_nom }}</strong></span>
+              <span style="color:var(--success);">Payé : <strong>{{ "%.0f"|format(credit.montant_paye) }}</strong> FCFA</span>
+              <span style="color:{% if credit.montant_restant > 0 %}#f87171{% else %}var(--success){% endif %};">Restant : <strong>{{ "%.0f"|format(credit.montant_restant) }}</strong> FCFA</span>
+            </div>
+            {% elif stype == 'fidelite' and s.customer %}
+            <div style="margin-top:.35rem;font-size:.75rem;">
+              <span style="color:var(--text);"><strong>👤 {{ s.customer.nom }}</strong></span>
+              {% if s.discount_amount and s.discount_amount > 0 %}
+              <span style="color:var(--success);margin-left:.5rem;">Remise : -{{ "%.0f"|format(s.discount_amount) }} FCFA</span>
+              {% endif %}
+            </div>
+            {% endif %}
           </div>
           <!-- Total -->
-          <div class="sale-amount" style="color:{% if is_engros %}#4ade80{% else %}#60a5fa{% endif %};">
+          <div class="sale-amount" style="color:{% if stype == 'engros' %}#4ade80{% elif stype == 'credit' %}#eab308{% elif stype == 'fidelite' %}#a78bfa{% else %}#60a5fa{% endif %};">
             {{ "%.0f"|format(s.total_amount) }} FCFA
             {% if s.change_given and s.change_given > 0 %}
             <div style="font-size:.67rem;color:var(--muted);font-weight:400;">Rendu : {{ "%.0f"|format(s.change_given) }}</div>
@@ -295,13 +335,19 @@
       {% endfor %}
     </div>
 
-    <div class="cashier-footer" style="background:{{ color }}0d;border-top-color:{{ color }}22;">
-      <div style="display:flex;gap:1rem;align-items:center;">
+      <div class="cashier-footer" style="background:{{ color }}0d;border-top-color:{{ color }}22;">
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
         {% if data.nb_detail %}
-        <span style="color:#60a5fa;font-size:.75rem;">🛒 Détail : {{ data.nb_detail }} vente(s) · <strong style="font-family:monospace;">{{ "%.0f"|format(data.total_detail) }} FCFA</strong></span>
+        <span style="color:#60a5fa;font-size:.75rem;">🛒 Détail : {{ data.nb_detail }} · <strong style="font-family:monospace;">{{ "%.0f"|format(data.total_detail) }} FCFA</strong></span>
         {% endif %}
         {% if data.nb_engros %}
-        <span style="color:#4ade80;font-size:.75rem;">🏭 Gros : {{ data.nb_engros }} vente(s) · <strong style="font-family:monospace;">{{ "%.0f"|format(data.total_engros) }} FCFA</strong></span>
+        <span style="color:#4ade80;font-size:.75rem;">🏭 Gros : {{ data.nb_engros }} · <strong style="font-family:monospace;">{{ "%.0f"|format(data.total_engros) }} FCFA</strong></span>
+        {% endif %}
+        {% if data.nb_credit %}
+        <span style="color:#eab308;font-size:.75rem;">💳 Crédit : {{ data.nb_credit }} · <strong style="font-family:monospace;">{{ "%.0f"|format(data.total_credit) }} FCFA</strong></span>
+        {% endif %}
+        {% if data.nb_fidelite %}
+        <span style="color:#a78bfa;font-size:.75rem;">⭐ Fidélité : {{ data.nb_fidelite }} · <strong style="font-family:monospace;">{{ "%.0f"|format(data.total_fidelite) }} FCFA</strong></span>
         {% endif %}
       </div>
       <strong style="font-family:monospace;color:{{ color }};">TOTAL = {{ "%.0f"|format(data.total) }} FCFA</strong>

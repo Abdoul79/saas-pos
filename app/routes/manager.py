@@ -796,29 +796,52 @@ def sales():
 
     from collections import OrderedDict
     sales_by_cashier = OrderedDict()
-    total_detail = total_engros = 0.0
-    nb_detail    = nb_engros    = 0
+    total_detail = total_engros = total_credit = total_fidelite = 0.0
+    nb_detail    = nb_engros    = nb_credit    = nb_fidelite    = 0
+
+    # Crédits liés aux ventes affichées (pour afficher client + solde)
+    credits_by_sale = {
+        c.sale_id: c for c in ClientCredit.query.filter_by(tenant_id=_tid())
+                                                 .filter(ClientCredit.sale_id.isnot(None)).all()
+    }
+
     for s in all_sales:
         cid = s.cashier_id or 0
         if cid not in sales_by_cashier:
             sales_by_cashier[cid] = {
-                'cashier'    : s.cashier,
-                'sales'      : [],
-                'total'      : 0.0,
-                'nb_items'   : 0,
-                'total_detail': 0.0,
-                'total_engros': 0.0,
-                'nb_detail'   : 0,
-                'nb_engros'   : 0,
+                'cashier'      : s.cashier,
+                'sales'        : [],
+                'total'        : 0.0,
+                'nb_items'     : 0,
+                'total_detail' : 0.0,
+                'total_engros' : 0.0,
+                'total_credit' : 0.0,
+                'total_fidelite': 0.0,
+                'nb_detail'    : 0,
+                'nb_engros'    : 0,
+                'nb_credit'    : 0,
+                'nb_fidelite'  : 0,
             }
         sales_by_cashier[cid]['sales'].append(s)
         sales_by_cashier[cid]['total']    += float(s.total_amount or 0)
         sales_by_cashier[cid]['nb_items'] += sum(i.quantity for i in s.items)
-        if getattr(s, 'sale_type', 'detail') == 'engros':
+
+        stype = getattr(s, 'sale_type', 'detail')
+        if stype == 'engros':
             sales_by_cashier[cid]['total_engros'] += float(s.total_amount or 0)
             sales_by_cashier[cid]['nb_engros']    += 1
             total_engros += float(s.total_amount or 0)
             nb_engros    += 1
+        elif stype == 'credit':
+            sales_by_cashier[cid]['total_credit'] += float(s.total_amount or 0)
+            sales_by_cashier[cid]['nb_credit']    += 1
+            total_credit += float(s.total_amount or 0)
+            nb_credit    += 1
+        elif stype == 'fidelite':
+            sales_by_cashier[cid]['total_fidelite'] += float(s.total_amount or 0)
+            sales_by_cashier[cid]['nb_fidelite']    += 1
+            total_fidelite += float(s.total_amount or 0)
+            nb_fidelite    += 1
         else:
             sales_by_cashier[cid]['total_detail'] += float(s.total_amount or 0)
             sales_by_cashier[cid]['nb_detail']    += 1
@@ -861,6 +884,11 @@ def sales():
                            online_orders=online_orders,
                            online_total=online_total,
                            online_pending=online_pending,
+                           total_credit=total_credit,
+                           total_fidelite=total_fidelite,
+                           nb_credit=nb_credit,
+                           nb_fidelite=nb_fidelite,
+                           credits_by_sale=credits_by_sale,
                            OnlineOrderStatus=OnlineOrderStatus)
 
 @manager_bp.route('/sales/pdf')
