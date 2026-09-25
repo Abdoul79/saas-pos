@@ -55,13 +55,24 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Commerçant</th><th>Email</th><th>Activité</th><th>Ville</th><th>Date</th><th>Actions</th></tr>
+        <tr><th>Commerçant</th><th>Email</th><th>Téléphone</th><th>Activité</th><th>Ville</th><th>Date</th><th>Actions</th></tr>
       </thead>
       <tbody>
         {% for t in pending_tenants %}
         <tr>
           <td><strong>{{ t.prenom }} {{ t.nom }}</strong></td>
           <td class="text-mono" style="font-size:.8rem;">{{ t.email }}</td>
+          <td class="text-mono" style="font-size:.78rem;">
+            {% if t.telephone_personnel %}
+            <div>👤 <a href="tel:{{ t.telephone_personnel }}" style="color:var(--text);text-decoration:none;">{{ t.telephone_personnel }}</a></div>
+            {% endif %}
+            {% if t.telephone_entreprise %}
+            <div style="color:var(--muted);">🏢 <a href="tel:{{ t.telephone_entreprise }}" style="color:var(--muted);text-decoration:none;">{{ t.telephone_entreprise }}</a></div>
+            {% endif %}
+            {% if not t.telephone_personnel and not t.telephone_entreprise %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
           <td>{{ t.activite }}</td>
           <td>{{ t.ville }}</td>
           <td class="text-muted">{{ t.created_at.strftime('%d/%m/%Y') }}</td>
