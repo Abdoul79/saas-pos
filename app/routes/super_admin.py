@@ -506,6 +506,17 @@ def ferme_etiquette():
     except ValueError:
         date_prod = date_cls.today()
 
+    # ── Champs optionnels par étiquette ────────────────────────────────────
+    poids_str = request.args.get('poids', '').strip()
+    exp_str   = request.args.get('date_expiration', '').strip()
+
+    date_expiration = None
+    if exp_str:
+        try:
+            date_expiration = datetime.strptime(exp_str, '%Y-%m-%d').date()
+        except ValueError:
+            date_expiration = None
+
     cfg = {k: Config.get(k, '') for k in FERME_CONFIG_KEYS}
     products_list = [t.strip() for t in cfg['ferme_types'].split(',') if t.strip()]
 
@@ -520,4 +531,6 @@ def ferme_etiquette():
         'reference_code': cfg['ferme_reference_code'] or cfg['ferme_nom'] or 'FERME000',
     }
 
-    return render_template('admin/etiquette_ferme.html', farm=farm, date_prod=date_prod)
+    return render_template('admin/etiquette_ferme.html',
+        farm=farm, date_prod=date_prod,
+        poids=poids_str, date_expiration=date_expiration)

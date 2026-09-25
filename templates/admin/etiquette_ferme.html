@@ -66,13 +66,16 @@
         <span class="label-txt">📍 Production</span>
         <span class="value-txt">{{ farm.location or '—' }}</span>
       </div>
+
       <div class="info-item">
         <span class="label-txt">📱 WhatsApp</span>
         <span class="value-txt">{{ farm.whatsapp or '—' }}</span>
       </div>
-      <div class="info-item">
+
+
+            <div class="info-item">
         <span class="label-txt">⚖️ Poids net</span>
-        <span class="value-txt">__________ kg</span>
+        <span class="value-txt">{% if poids %}{{ poids }} kg{% else %}__________ kg{% endif %}</span>
       </div>
       <div class="info-item">
         <span class="label-txt">🔢 N° de lot</span>
@@ -84,8 +87,10 @@
       </div>
       <div class="info-item">
         <span class="label-txt">📅 À consommer avant</span>
-        <span class="value-txt">____/____/______</span>
+        <span class="value-txt">{% if date_expiration %}{{ date_expiration.strftime('%d/%m/%Y') }}{% else %}____/____/______{% endif %}</span>
       </div>
+
+
     </div>
 
     <div class="separator"></div>

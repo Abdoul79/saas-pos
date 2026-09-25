@@ -152,10 +152,22 @@
 
       <div class="separator"></div>
 
-      <form action="{{ url_for('super_admin.ferme_etiquette') }}" method="GET" target="_blank" class="print-box">
-        <label>📅 Date de production :</label>
-        <input class="form-control" type="date" name="date" style="max-width:170px;" required>
-        <button type="submit" class="btn btn-primary">🖨 Générer l'étiquette</button>
+        <form action="{{ url_for('super_admin.ferme_etiquette') }}" method="GET" target="_blank" class="print-box" style="flex-direction:column;align-items:stretch;gap:12px;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+          <div>
+            <label style="display:block;margin-bottom:4px;">📅 Date de production *</label>
+            <input class="form-control" type="date" name="date" style="max-width:170px;" required>
+          </div>
+          <div>
+            <label style="display:block;margin-bottom:4px;">⚖️ Poids net (optionnel)</label>
+            <input class="form-control" type="text" name="poids" placeholder="Ex: 1.8" style="max-width:120px;">
+          </div>
+          <div>
+            <label style="display:block;margin-bottom:4px;">📅 À consommer avant (optionnel)</label>
+            <input class="form-control" type="date" name="date_expiration" style="max-width:170px;">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="align-self:flex-start;">🖨 Générer l'étiquette</button>
       </form>
     </div>
   </div>
