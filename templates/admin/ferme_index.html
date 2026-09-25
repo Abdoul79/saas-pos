@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ferme Avicole — Configuration</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 30px;
+      background: #eef1f0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .top-bar {
+      width: 100%; max-width: 640px;
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px;
+    }
+    .top-bar a {
+      color: #1c7c3f; text-decoration: none; font-weight: 600; font-size: 14px;
+    }
+    .panel {
+      width: 100%; max-width: 640px;
+      background: #ffffff; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,.1); border: 1px solid #dcdcdc;
+    }
+    .panel-header {
+      background: linear-gradient(135deg, #1c7c3f, #14532d);
+      color: white; padding: 22px 24px; text-align: center;
+    }
+    .panel-header h1 { margin: 0; font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+    .panel-header p { margin: 6px 0 0; font-size: 13px; opacity: .9; }
+    .panel-body { padding: 24px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 12.5px; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
+    .form-control {
+      width: 100%; border: 1.5px solid #dcdcdc; border-radius: 8px;
+      padding: 10px 12px; font-size: 14px; font-family: inherit; color: #222;
+      background: #fafafa;
+    }
+    .form-control:focus { outline: none; border-color: #1c7c3f; background: #fff; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .logo-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+    .logo-preview { width: 64px; height: 64px; border-radius: 50%; object-fit: contain; background: #f4f7f4; border: 1px solid #dcdcdc; padding: 4px; }
+    .logo-ph { width: 64px; height: 64px; border-radius: 50%; background: #f4f7f4; border: 1px solid #dcdcdc; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+
+    .checkbox-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+    .checkbox-pill {
+      display: flex; align-items: center; gap: 6px;
+      border: 1.5px solid #b9dfc4; background: #e6f4ea; color: #1c7c3f;
+      border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .checkbox-pill input { accent-color: #1c7c3f; }
+
+    .separator { border-top: 1px dashed #ddd; margin: 20px 0; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 11px 22px; border: none; border-radius: 8px;
+      font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none;
+    }
+    .btn-primary { background: #1c7c3f; color: white; }
+    .btn-primary:hover { background: #14532d; }
+    .btn-secondary { background: #eef1f0; color: #333; border: 1.5px solid #dcdcdc; }
+
+    .print-box {
+      margin-top: 18px; padding: 16px; background: #f4f7f4; border-radius: 10px;
+      border: 1px dashed #b9dfc4; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .print-box label { font-size: 13px; font-weight: 600; color: #444; }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <span style="font-weight:800;color:#1c7c3f;">🐔 FERME AVICOLE</span>
+    <a href="{{ url_for('super_admin.dashboard') }}">← Retour au tableau de bord</a>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h1>{{ cfg.ferme_nom or 'Configuration de la ferme' }}</h1>
+      <p>Informations affichées sur les étiquettes de production</p>
+    </div>
+
+    <div class="panel-body">
+      <form method="POST" enctype="multipart/form-data">
+
+        <div class="logo-row">
+          {% if cfg.ferme_logo %}
+          <img src="{{ cfg.ferme_logo }}" class="logo-preview" alt="Logo">
+          {% else %}
+          <div class="logo-ph">🐔</div>
+          {% endif %}
+          <div style="flex:1;">
+            <label class="form-label">Logo de la ferme</label>
+            <input class="form-control" type="file" name="ferme_logo" accept="image/*">
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Nom de la ferme / marque</label>
+            <input class="form-control" name="ferme_nom" value="{{ cfg.ferme_nom }}" placeholder="Ex: Ferme Avicole du Soleil" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Numéro WhatsApp</label>
+            <input class="form-control" type="tel" name="ferme_whatsapp" value="{{ cfg.ferme_whatsapp }}" placeholder="+225 07 XX XX XX">
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Ville / lieu de production</label>
+            <input class="form-control" name="ferme_ville" value="{{ cfg.ferme_ville }}" placeholder="Ex: Bingerville">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Type principal (badge sur l'étiquette)</label>
+            <input class="form-control" name="ferme_type_principal" value="{{ cfg.ferme_type_principal }}" placeholder="Ex: Poulet de chair">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Produits vendus (tags sur l'étiquette)</label>
+          <div class="checkbox-grid">
+            {% for val, label in [('Poulet entier','🐔 Poulet entier'), ('Cuisses','🍗 Cuisses'), ('Ailes','🍖 Ailes'), ('Blancs','🥩 Blancs'), ('Abats','🫀 Abats')] %}
+            <label class="checkbox-pill">
+              <input type="checkbox" name="ferme_types" value="{{ val }}" {% if val in ferme_types_list %}checked{% endif %}>
+              {{ label }}
+            </label>
+            {% endfor %}
+          </div>
+          <input class="form-control" name="ferme_type_autre" placeholder="Autre produit (optionnel)" style="max-width:260px;margin-top:10px;">
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Consigne de conservation</label>
+            <input class="form-control" name="ferme_conservation" value="{{ cfg.ferme_conservation }}" placeholder="Ex: À conserver entre 0°C et 4°C">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Code de référence (code-barres)</label>
+            <input class="form-control" name="ferme_reference_code" value="{{ cfg.ferme_reference_code }}" placeholder="Ex: FERME001">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </form>
+
+      <div class="separator"></div>
+
+      <form action="{{ url_for('super_admin.ferme_etiquette') }}" method="GET" target="_blank" class="print-box">
+        <label>📅 Date de production :</label>
+        <input class="form-control" type="date" name="date" style="max-width:170px;" required>
+        <button type="submit" class="btn btn-primary">🖨 Générer l'étiquette</button>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>

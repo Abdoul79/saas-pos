@@ -402,6 +402,11 @@
         <a href="{{ url_for('super_admin.tenants') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.tenants' %}active{% endif %}">
           <span class="tile-icon">🏢</span><span class="tile-label">Commerçants</span>
         </a>
+
+        <a href="{{ url_for('super_admin.ferme_index') }}" class="navgrid-tile {% if 'ferme' in request.endpoint %}active{% endif %}">
+          <span class="tile-icon">🐔</span><span class="tile-label">Ferme Avicole</span>
+        </a>
+        
       </div>
 
     {% elif current_user.is_activateur %}
@@ -413,6 +418,8 @@
         <a href="{{ url_for('super_admin.tenants') }}" class="navgrid-tile {% if request.endpoint == 'super_admin.tenants' %}active{% endif %}">
           <span class="tile-icon">🏢</span><span class="tile-label">Commerçants</span>
         </a>
+
+        
       </div>
 
     {% elif current_user.is_manager %}

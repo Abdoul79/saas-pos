@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from sqlalchemy import func
 from app import db
 from app.models import Tenant, TenantStatus, User, UserRole, Sale, Paiement, StatutPaiement, Config, LoginMedia
@@ -457,3 +457,67 @@ Upload response= {r.text[:200]}
 Public URL     = {pub}
 ✅ OK si status 200/201
 </pre>"""
+
+# ferme avicole 
+FERME_CONFIG_KEYS = (
+    'ferme_nom', 'ferme_logo', 'ferme_whatsapp', 'ferme_ville',
+    'ferme_type_principal', 'ferme_types', 'ferme_conservation', 'ferme_reference_code'
+)
+
+@super_admin_bp.route('/ferme', methods=['GET', 'POST'])
+@_super_admin_only
+def ferme_index():
+    if request.method == 'POST':
+        Config.set('ferme_nom', request.form.get('ferme_nom', '').strip())
+        Config.set('ferme_whatsapp', request.form.get('ferme_whatsapp', '').strip())
+        Config.set('ferme_ville', request.form.get('ferme_ville', '').strip())
+        Config.set('ferme_type_principal', request.form.get('ferme_type_principal', '').strip())
+        Config.set('ferme_conservation', request.form.get('ferme_conservation', '').strip())
+        Config.set('ferme_reference_code', request.form.get('ferme_reference_code', '').strip())
+
+        types_vente = request.form.getlist('ferme_types')
+        autre_type  = request.form.get('ferme_type_autre', '').strip()
+        if autre_type:
+            types_vente.append(autre_type)
+        Config.set('ferme_types', ','.join(types_vente))
+
+        logo_file = request.files.get('ferme_logo')
+        if logo_file and logo_file.filename:
+            url = upload_image(logo_file, folder='ferme')
+            if url:
+                Config.set('ferme_logo', url)
+
+        db.session.commit()
+        flash('Informations de la ferme mises à jour.', 'success')
+        return redirect(url_for('super_admin.ferme_index'))
+
+    cfg = {k: Config.get(k, '') for k in FERME_CONFIG_KEYS}
+    ferme_types_list = cfg['ferme_types'].split(',') if cfg['ferme_types'] else []
+    return render_template('admin/ferme_index.html', cfg=cfg, ferme_types_list=ferme_types_list)
+
+
+@super_admin_bp.route('/ferme/etiquette')
+@_super_admin_only
+def ferme_etiquette():
+    from datetime import date as date_cls
+    date_str = request.args.get('date', date_cls.today().strftime('%Y-%m-%d'))
+    try:
+        date_prod = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        date_prod = date_cls.today()
+
+    cfg = {k: Config.get(k, '') for k in FERME_CONFIG_KEYS}
+    products_list = [t.strip() for t in cfg['ferme_types'].split(',') if t.strip()]
+
+    farm = {
+        'farm_name'     : cfg['ferme_nom'] or 'Ferme Avicole',
+        'logo'          : cfg['ferme_logo'],
+        'product_type'  : cfg['ferme_type_principal'],
+        'location'      : cfg['ferme_ville'],
+        'whatsapp'      : cfg['ferme_whatsapp'],
+        'conservation'  : cfg['ferme_conservation'],
+        'products'      : products_list,
+        'reference_code': cfg['ferme_reference_code'] or cfg['ferme_nom'] or 'FERME000',
+    }
+
+    return render_template('admin/etiquette_ferme.html', farm=farm, date_prod=date_prod)

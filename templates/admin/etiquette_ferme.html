@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Étiquette - {{ farm.farm_name }}</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 30px;
+      background: #eef1f0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .label {
+      width: 92mm; min-height: 78mm;
+      background: #ffffff; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15); border: 1px solid #dcdcdc;
+    }
+    .label-header {
+      background: linear-gradient(135deg, #1c7c3f, #14532d);
+      color: white; padding: 12px 14px 10px; text-align: center;
+    }
+    .logo { width: 50px; height: 50px; object-fit: contain; background: white; border-radius: 50%; padding: 4px; margin-bottom: 6px; }
+    .farm-name { font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin: 0; }
+    .product-type {
+      display: inline-block; margin-top: 6px;
+      background: rgba(255,255,255,.18); padding: 3px 12px; border-radius: 20px;
+      font-size: 12.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+    }
+    .label-body { padding: 12px 14px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 10.5px; }
+    .info-item { border-left: 3px solid #1c7c3f; padding-left: 6px; }
+    .info-item .label-txt { display: block; color: #666; font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
+    .info-item .value-txt { font-weight: 700; color: #222; }
+    .separator { border-top: 1px dashed #bbb; margin: 10px 0; }
+    .conservation { font-size: 10px; text-align: center; color: #444; background: #f4f7f4; border-radius: 6px; padding: 5px 8px; }
+    .products { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+    .products span { background: #e6f4ea; color: #1c7c3f; border: 1px solid #b9dfc4; font-size: 9.5px; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
+    .barcode-wrap { margin-top: 10px; text-align: center; }
+    .barcode-wrap svg { width: 100%; max-height: 46px; }
+    .footer { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #1c7c3f; padding: 6px 0 10px; }
+    .print-button { margin-top: 20px; padding: 10px 22px; border: none; border-radius: 8px; background: #1c7c3f; color: white; font-weight: 600; cursor: pointer; }
+    @media print {
+      body { background: white; padding: 0; }
+      .print-button { display: none; }
+      .label { box-shadow: none; border: 1.5px solid #222; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="label">
+  <div class="label-header">
+    {% if farm.logo %}
+    <img src="{{ farm.logo }}" class="logo" alt="Logo">
+    {% endif %}
+    <p class="farm-name">{{ farm.farm_name }}</p>
+    <div class="product-type">{{ farm.product_type or "Produit Avicole" }}</div>
+  </div>
+
+  <div class="label-body">
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="label-txt">📍 Production</span>
+        <span class="value-txt">{{ farm.location or '—' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="label-txt">📱 WhatsApp</span>
+        <span class="value-txt">{{ farm.whatsapp or '—' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="label-txt">⚖️ Poids net</span>
+        <span class="value-txt">__________ kg</span>
+      </div>
+      <div class="info-item">
+        <span class="label-txt">🔢 N° de lot</span>
+        <span class="value-txt">_______________</span>
+      </div>
+      <div class="info-item">
+        <span class="label-txt">📅 Emballage</span>
+        <span class="value-txt">{{ date_prod.strftime('%d/%m/%Y') }}</span>
+      </div>
+      <div class="info-item">
+        <span class="label-txt">📅 À consommer avant</span>
+        <span class="value-txt">____/____/______</span>
+      </div>
+    </div>
+
+    <div class="separator"></div>
+
+    <div class="conservation">
+      ❄️ {{ farm.conservation or "À conserver entre 0°C et 4°C" }}
+    </div>
+
+    {% if farm.products %}
+    <div class="products">
+      {% for p in farm.products %}
+      <span>{{ p }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="barcode-wrap">
+      <svg id="barcode"></svg>
+    </div>
+  </div>
+
+  <div class="footer">QUALITÉ • FRAÎCHEUR • PRODUCTION LOCALE</div>
+</div>
+
+<button class="print-button" onclick="window.print()">🖨️ Imprimer</button>
+
+<script>
+  JsBarcode("#barcode", "{{ farm.reference_code }}", {
+    format: "CODE128",
+    displayValue: true,
+    fontSize: 11,
+    height: 40,
+    margin: 4,
+    background: "#ffffff",
+    lineColor: "#222222"
+  });
+</script>
+
+</body>
+</html>
