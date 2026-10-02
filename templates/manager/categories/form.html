@@ -1,18 +1,51 @@
 {% extends "base.html" %}
 {% block title %}{% if category %}Éditer{% else %}Nouvelle{% endif %} Catégorie{% endblock %}
+{% block head %}
+<style>
+  .img-drop { border:2px dashed var(--border); border-radius:10px; padding:1.25rem; text-align:center; cursor:pointer; transition:border-color .2s; position:relative; overflow:hidden; }
+  .img-drop:hover { border-color:var(--accent); background:#f5a62308; }
+  .img-drop input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .img-preview { width:80px; height:80px; object-fit:cover; border-radius:10px; margin-bottom:.5rem; }
+</style>
+{% endblock %}
 {% block content %}
 <div style="max-width:520px;margin:0 auto;">
   <div class="page-title">{% if category %}Modifier « {{ category.nom }} »{% else %}Nouvelle Catégorie{% endif %}</div>
   <div class="card">
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
 
       <div class="form-group">
         <label class="form-label">Nom *</label>
         <input class="form-control" name="nom" value="{{ category.nom if category else '' }}" required autofocus placeholder="ex: Boissons, Épicerie, Hygiène…">
       </div>
 
+      <!-- ── Image de catégorie (prioritaire sur l'emoji) ── -->
       <div class="form-group">
-        <label class="form-label">Icône (emoji)</label>
+        <label class="form-label">Image de la catégorie (optionnel)</label>
+        <div class="img-drop" id="dropZone">
+          <input type="file" name="image" id="imgInput" accept="image/*">
+          {% if category and category.image_url %}
+            <img src="{{ category.image_url }}" class="img-preview" id="imgPreview">
+            <div class="text-muted" style="font-size:.78rem;">Cliquer ou glisser pour remplacer</div>
+          {% else %}
+            <div style="font-size:1.8rem;margin-bottom:.3rem;">🖼</div>
+            <div style="font-size:.84rem;font-weight:500;">Glisser une image ou cliquer</div>
+            <div class="text-muted" style="font-size:.74rem;">PNG, JPG, WEBP — si vide, l'emoji ci-dessous sera utilisé</div>
+          {% endif %}
+        </div>
+        {% if category and category.image_url %}
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.82rem;color:var(--danger);margin-top:.5rem;">
+          <input type="checkbox" name="delete_image" value="1" style="accent-color:var(--danger);">
+          Supprimer l'image (revenir à l'emoji)
+        </label>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Icône de secours (emoji)</label>
+        <div class="text-muted" style="font-size:.75rem;margin-bottom:.5rem;">
+          Utilisée uniquement si aucune image n'est définie ci-dessus.
+        </div>
         <div class="flex gap-2 items-center">
           <input class="form-control" name="icone" id="iconeInput"
                  value="{{ category.icone if category else '📦' }}"
@@ -82,5 +115,28 @@ document.querySelectorAll('.color-radio').forEach(r => {
     swatch.style.boxShadow = `0 0 0 2px ${swatch.dataset.color}`;
   });
 });
+
+// ── Image drop ──────────────────────────────────────────────────────────────
+const imgInput = document.getElementById('imgInput');
+const dropZone = document.getElementById('dropZone');
+imgInput.addEventListener('change', e => showPrev(e.target.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
+dropZone.addEventListener('dragleave', () => dropZone.style.borderColor = '');
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.style.borderColor = '';
+  const f = e.dataTransfer.files[0];
+  if (f) { const dt = new DataTransfer(); dt.items.add(f); imgInput.files = dt.files; showPrev(f); }
+});
+function showPrev(f) {
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    let img = document.getElementById('imgPreview');
+    if (!img) { img = document.createElement('img'); img.id = 'imgPreview'; img.className = 'img-preview'; dropZone.prepend(img); }
+    img.src = e.target.result;
+  };
+  r.readAsDataURL(f);
+}
 </script>
 {% endblock %}
+

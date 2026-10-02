@@ -11,7 +11,11 @@
   {% for c in categories %}
   <div class="card" style="border-left:4px solid {{ c.couleur }};">
     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;">
+      {% if c.image_url %}
+      <img src="{{ c.image_url }}" alt="{{ c.nom }}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);">
+      {% else %}
       <span style="font-size:2rem;line-height:1;">{{ c.icone }}</span>
+      {% endif %}
       <div>
         <div style="font-weight:600;font-size:.95rem;">{{ c.nom }}</div>
         <div class="text-muted" style="font-size:.75rem;">{{ c.product_count }} produit(s)</div>

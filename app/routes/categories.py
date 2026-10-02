@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import Category, Product, UserRole, CATEGORY_COLORS
 from app.utils.decorators import role_required, tenant_active_required
+from app.utils.storage import upload_image, delete_image
 
 categories_bp = Blueprint('categories', __name__)
 
@@ -35,13 +36,20 @@ def create():
         if not nom:
             flash('Le nom est obligatoire.', 'danger')
             return render_template('manager/categories/form.html', colors=CATEGORY_COLORS)
+
+        image_fn = None
+        image_file = request.files.get('image')
+        if image_file and image_file.filename:
+            image_fn = upload_image(image_file, folder='categories')
+
         c = Category(
-            tenant_id   = _tid(),
-            nom         = nom,
-            description = request.form.get('description', '').strip() or None,
-            couleur     = request.form.get('couleur', '#f5a623'),
-            icone       = request.form.get('icone', '📦').strip() or '📦',
-            ordre       = int(request.form.get('ordre', 0) or 0),
+            tenant_id      = _tid(),
+            nom            = nom,
+            description    = request.form.get('description', '').strip() or None,
+            couleur        = request.form.get('couleur', '#f5a623'),
+            icone          = request.form.get('icone', '📦').strip() or '📦',
+            image_filename = image_fn,
+            ordre          = int(request.form.get('ordre', 0) or 0),
         )
         db.session.add(c)
         db.session.commit()
@@ -60,6 +68,22 @@ def edit(cid):
         c.couleur     = request.form.get('couleur', c.couleur)
         c.icone       = request.form.get('icone', c.icone).strip() or '📦'
         c.ordre       = int(request.form.get('ordre', c.ordre) or 0)
+
+        # Nouvelle image — remplace l'ancienne
+        image_file = request.files.get('image')
+        if image_file and image_file.filename:
+            if c.image_filename:
+                try: delete_image(c.image_filename)
+                except Exception: pass
+            c.image_filename = upload_image(image_file, folder='categories')
+
+        # Suppression de l'image (repli sur emoji)
+        if request.form.get('delete_image') == '1':
+            if c.image_filename:
+                try: delete_image(c.image_filename)
+                except Exception: pass
+            c.image_filename = None
+
         db.session.commit()
         flash('Catégorie mise à jour.', 'success')
         return redirect(url_for('categories.index'))
@@ -73,6 +97,9 @@ def delete(cid):
     if c.product_count > 0:
         flash(f'Impossible : {c.product_count} produit(s) utilisent cette catégorie.', 'danger')
         return redirect(url_for('categories.index'))
+    if c.image_filename:
+        try: delete_image(c.image_filename)
+        except Exception: pass
     db.session.delete(c)
     db.session.commit()
     flash(f'Catégorie « {c.nom} » supprimée.', 'info')
@@ -83,4 +110,5 @@ def delete(cid):
 @_mgr
 def api_list():
     cats = Category.query.filter_by(tenant_id=_tid()).order_by(Category.ordre, Category.nom).all()
-    return jsonify([{'id': c.id, 'nom': c.nom, 'couleur': c.couleur, 'icone': c.icone} for c in cats])
+    return jsonify([{'id': c.id, 'nom': c.nom, 'couleur': c.couleur, 'icone': c.icone, 'image_url': c.image_url} for c in cats])
+

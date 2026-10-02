@@ -163,14 +163,15 @@ class Tenant(db.Model):
 class Category(db.Model):
     __tablename__ = 'categories'
 
-    id          = db.Column(db.Integer, primary_key=True)
-    tenant_id   = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
-    nom         = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    couleur     = db.Column(db.String(10), nullable=False, default='#f5a623')  # hex color
-    icone       = db.Column(db.String(10), nullable=True, default='📦')        # emoji
-    ordre       = db.Column(db.Integer, default=0)
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    id             = db.Column(db.Integer, primary_key=True)
+    tenant_id      = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    nom            = db.Column(db.String(100), nullable=False)
+    description    = db.Column(db.Text, nullable=True)
+    couleur        = db.Column(db.String(10), nullable=False, default='#f5a623')  # hex color
+    icone          = db.Column(db.String(10), nullable=True, default='📦')        # emoji (fallback)
+    image_filename = db.Column(db.String(255), nullable=True)                     # image uploadée (prioritaire sur icone)
+    ordre          = db.Column(db.Integer, default=0)
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
 
     tenant   = db.relationship('Tenant',  back_populates='categories')
     products = db.relationship('Product', back_populates='category', lazy='dynamic')
@@ -178,8 +179,20 @@ class Category(db.Model):
     @property
     def product_count(self): return self.products.count()
 
-    def __repr__(self): return f'<Category {self.nom}>'
+    @property
+    def image_url(self):
+        if not self.image_filename:
+            return None
+        if self.image_filename.startswith('http') or self.image_filename.startswith('/static/'):
+            return self.image_filename
+        return f'/static/uploads/categories/{self.image_filename}'
 
+    @property
+    def display_icon(self):
+        """Retourne l'image si elle existe, sinon l'emoji — pratique pour l'affichage générique."""
+        return self.image_url or self.icone or '📦'
+
+    def __repr__(self): return f'<Category {self.nom}>'
 
 # ─────────────────────────────────────────
 # SUPPLIER
