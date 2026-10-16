@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -12,24 +11,83 @@
   {% endif %}
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Thème jour / nuit : appliqué avant le rendu pour éviter le flash -->
+  <script>
+  (function(){
+    var t = localStorage.getItem('theme');
+    if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    window.toggleTheme = function(){
+      var n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', n);
+      localStorage.setItem('theme', n);
+      var b = document.getElementById('themeBtn');
+      if (b) b.textContent = n === 'dark' ? '☀️' : '🌙';
+    };
+    document.addEventListener('DOMContentLoaded', function(){
+      var b = document.getElementById('themeBtn');
+      if (b) b.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    });
+  })();
+  </script>
+
   <style>
-    :root {
-      --bg:       #0d0f14;
-      --surface:  #161a22;
-      --border:   #252b38;
-      --text:     #e8eaf0;
-      --muted:    #7a8099;
-      --accent:   #f5a623;
+    /* ── THÈME JOUR (bleu / blanc) ── */
+    :root, [data-theme="light"] {
+      --bg:       #f3f7fd;
+      --surface:  #ffffff;
+      --border:   #d6e2f3;
+      --text:     #0f2342;
+      --muted:    #5b6f8f;
+      --accent:   #1d4ed8;
       --accent2:  #3b82f6;
-      --danger:   #ef4444;
-      --success:  #22c55e;
-      --warning:  #f59e0b;
+      --danger:   #dc2626;
+      --success:  #16a34a;
+      --warning:  #d97706;
+      --on-accent:#ffffff;
+      --accent-soft:  #1d4ed812;
+      --accent-soft2: #1d4ed820;
+      --overlay:  rgba(243,247,253,.97);
+      --row-border:#e6edf8;
+      --hover:    #1d4ed808;
       --mono:     'Space Mono', monospace;
       --sans:     'DM Sans', sans-serif;
+      color-scheme: light;
     }
+    /* ── THÈME NUIT (bleu foncé) ── */
+    [data-theme="dark"] {
+      --bg:       #07142b;
+      --surface:  #0d2144;
+      --border:   #1b3563;
+      --text:     #eaf2ff;
+      --muted:    #8fa6cc;
+      --accent:   #4d9dff;
+      --accent2:  #7db8ff;
+      --danger:   #f87171;
+      --success:  #4ade80;
+      --warning:  #fbbf24;
+      --on-accent:#06142b;
+      --accent-soft:  #4d9dff1a;
+      --accent-soft2: #4d9dff30;
+      --overlay:  rgba(5,14,32,.97);
+      --row-border:#14294f;
+      --hover:    #ffffff08;
+      color-scheme: dark;
+    }
+
+    /* Lisibilité des badges/alertes en mode jour */
+    [data-theme="light"] .alert-success, [data-theme="light"] .badge-green,
+    [data-theme="light"] .btn-success,   [data-theme="light"] .badge-cashier { color:#15803d; }
+    [data-theme="light"] .alert-danger,  [data-theme="light"] .badge-red,
+    [data-theme="light"] .btn-danger { color:#b91c1c; }
+    [data-theme="light"] .alert-warning, [data-theme="light"] .badge-orange,
+    [data-theme="light"] .badge-activ { color:#b45309; }
+    [data-theme="light"] .alert-info,    [data-theme="light"] .badge-blue,
+    [data-theme="light"] .badge-mgr { color:#0369a1; }
+    [data-theme="light"] .badge-purple,  [data-theme="light"] .badge-admin { color:#6d28d9; }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg);
@@ -38,6 +96,7 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      transition: background .2s, color .2s;
     }
 
     /* ── NAV ── */
@@ -96,7 +155,7 @@
     #navGrid {
       display: none;
       position: fixed; inset: 0; z-index: 9998;
-      background: rgba(10,12,18,.97);
+      background: var(--overlay);
       backdrop-filter: blur(12px);
       flex-direction: column;
       overflow-y: auto;
@@ -106,7 +165,7 @@
       padding: 1.25rem 2rem;
       border-bottom: 1px solid var(--border);
       position: sticky; top: 0;
-      background: rgba(10,12,18,.97);
+      background: var(--overlay);
     }
     .navgrid-title {
       font-family: var(--mono);
@@ -162,13 +221,13 @@
     .navgrid-tile .tile-label { font-size: .8rem; font-weight: 500; text-align: center; padding: 0 .4rem; }
     .navgrid-tile:hover {
       border-color: var(--accent);
-      background: #f5a62312;
+      background: var(--accent-soft);
       transform: translateY(-2px);
     }
     .navgrid-tile:active { transform: scale(.96); }
     .navgrid-tile.active {
       border-color: var(--accent);
-      background: #f5a62320;
+      background: var(--accent-soft2);
     }
     .navgrid-tile.active .tile-icon,
     .navgrid-tile.active .tile-label { color: var(--accent); }
@@ -249,7 +308,7 @@
       text-decoration: none;
       transition: all .15s;
     }
-    .btn-primary   { background: var(--accent);  color: #0d0f14; }
+    .btn-primary   { background: var(--accent);  color: var(--on-accent); }
     .btn-secondary { background: var(--border);  color: var(--text); }
     .btn-danger    { background: #dc262622; color: #f87171; border: 1px solid #dc262655; }
     .btn-success   { background: #16a34a22; color: #4ade80; border: 1px solid #16a34a55; }
@@ -303,10 +362,10 @@
     }
     td {
       padding: .7rem 1rem;
-      border-bottom: 1px solid #1e2330;
+      border-bottom: 1px solid var(--row-border);
       vertical-align: middle;
     }
-    tr:hover td { background: #ffffff05; }
+    tr:hover td { background: var(--hover); }
 
     /* ── STAT CARDS ── */
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
@@ -378,6 +437,8 @@
       Menu
     </button>
 
+    <button id="themeBtn" class="menu-trigger" onclick="toggleTheme()" title="Jour / Nuit" style="padding:.45rem .7rem;">🌙</button>
+
     <button onclick="lockScreen()" title="Verrouiller" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:.85rem;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🔒</button>
   </div>
 </nav>
@@ -406,7 +467,7 @@
         <a href="{{ url_for('super_admin.ferme_index') }}" class="navgrid-tile {% if 'ferme' in request.endpoint %}active{% endif %}">
           <span class="tile-icon">🐔</span><span class="tile-label">Ferme Avicole</span>
         </a>
-        
+
       </div>
 
     {% elif current_user.is_activateur %}
@@ -419,7 +480,6 @@
           <span class="tile-icon">🏢</span><span class="tile-label">Commerçants</span>
         </a>
 
-        
       </div>
 
     {% elif current_user.is_manager %}
@@ -440,7 +500,6 @@
           <span class="tile-icon">📊</span><span class="tile-label">Comptabilité</span>
         </a>
 
-        
       </div>
 
       <div class="navgrid-section-label">Caisse</div>
@@ -453,10 +512,10 @@
           <span class="tile-icon">🏭</span><span class="tile-label">Caisse Gros</span>
         </a>
         {% endif %}
-        <a href="{{ url_for('pos.credit_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.credit_interface' %}active{% endif %}" style="border-color:#eab30844;">
+        <a href="{{ url_for('pos.credit_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.credit_interface' %}active{% endif %}" style="border-color:var(--border);">
           <span class="tile-icon">💳</span><span class="tile-label">Vente à Crédit</span>
         </a>
-        <a href="{{ url_for('pos.fidelite_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.fidelite_interface' %}active{% endif %}" style="border-color:#a78bfa44;">
+        <a href="{{ url_for('pos.fidelite_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.fidelite_interface' %}active{% endif %}" style="border-color:var(--border);">
           <span class="tile-icon">⭐</span><span class="tile-label">Caisse Fidélité</span>
         </a>
         {% if current_user.tenant and current_user.tenant.boutique_en_ligne_active %}
@@ -510,11 +569,11 @@
         </a>
         {% endif %}
 
-        <a href="{{ url_for('pos.fidelite_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.fidelite_interface' %}active{% endif %}" style="border-color:#a78bfa44;">
+        <a href="{{ url_for('pos.fidelite_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.fidelite_interface' %}active{% endif %}" style="border-color:var(--border);">
           <span class="tile-icon">⭐</span><span class="tile-label">Caisse Fidélité</span>
         </a>
 
-        <a href="{{ url_for('pos.credit_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.credit_interface' %}active{% endif %}" style="border-color:#eab30844;">
+        <a href="{{ url_for('pos.credit_interface') }}" class="navgrid-tile {% if request.endpoint == 'pos.credit_interface' %}active{% endif %}" style="border-color:var(--border);">
           <span class="tile-icon">💳</span><span class="tile-label">Vente à Crédit</span>
         </a>
       </div>
@@ -534,7 +593,7 @@
         <a href="{{ url_for('manager.cashier_settings') }}" class="navgrid-tile {% if 'settings' in request.endpoint %}active{% endif %}">
           <span class="tile-icon">⚙️</span><span class="tile-label">Paramètres</span>
         </a>
-       
+
       </div>
     {% endif %}
 
@@ -550,7 +609,7 @@
 
 
 <!-- ── Modal verrouillage écran ── -->
-<div id="lockOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,12,18,.97);backdrop-filter:blur(12px);flex-direction:column;align-items:center;justify-content:center;">
+<div id="lockOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--overlay);backdrop-filter:blur(12px);flex-direction:column;align-items:center;justify-content:center;">
   <div style="text-align:center;max-width:320px;width:90%;">
     <div style="font-size:3rem;margin-bottom:.5rem;">🔒</div>
     <div style="font-family:var(--mono);font-size:1rem;color:var(--accent);margin-bottom:.25rem;">Écran verrouillé</div>
@@ -594,7 +653,7 @@
     font-size:1.2rem;font-weight:600;cursor:pointer;
     transition:all .12s;font-family:var(--mono);
   }
-  .pin-key:hover { border-color:var(--accent);background:#f5a62315;transform:translateY(-1px); }
+  .pin-key:hover { border-color:var(--accent);background:var(--accent-soft);transform:translateY(-1px); }
   .pin-key:active { transform:scale(.95); }
   @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-7px)} 40%,80%{transform:translateX(7px)} }
 </style>
