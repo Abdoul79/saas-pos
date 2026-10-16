@@ -6,7 +6,19 @@
   <title>Connexion — SaaS POS</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root { --bg:#0d0f14; --surface:#161a22; --border:#252b38; --text:#e8eaf0; --muted:#7a8099; --accent:#f5a623; --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif; }
+    :root {
+      --bg:#f3f8ff;
+      --surface:#ffffff;
+      --panel:#e6f1ff;
+      --border:#cfe0f7;
+      --text:#0f2342;
+      --muted:#5b6f8f;
+      --accent:#2563eb;
+      --on-accent:#ffffff;
+      --mono:'Space Mono',monospace;
+      --sans:'DM Sans',sans-serif;
+      color-scheme: light;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg); color: var(--text); font-family: var(--sans);
@@ -14,11 +26,11 @@
       display: flex; flex-direction: column;
     }
     .alerts { position: fixed; top: 1rem; right: 1rem; z-index: 999; }
-    .alert { padding: .75rem 1.25rem; border-radius: 8px; font-size: .85rem; margin-bottom: .5rem; }
-    .alert-danger  { background: #dc262622; border: 1px solid #dc262644; color: #f87171; }
-    .alert-warning { background: #d9770622; border: 1px solid #d9770644; color: #fbbf24; }
-    .alert-info    { background: #0284c722; border: 1px solid #0284c744; color: #38bdf8; }
-    .alert-success { background: #16a34a22; border: 1px solid #16a34a44; color: #4ade80; }
+    .alert { padding: .75rem 1.25rem; border-radius: 8px; font-size: .85rem; margin-bottom: .5rem; background: #fff; }
+    .alert-danger  { background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; }
+    .alert-warning { background: #fef3c7; border: 1px solid #fcd34d; color: #b45309; }
+    .alert-info    { background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; }
+    .alert-success { background: #dcfce7; border: 1px solid #86efac; color: #15803d; }
 
     /* ── Bandeau SaaSPOS pleine largeur ── */
     .brand-header {
@@ -34,7 +46,7 @@
     .brand-header::before {
       content: '▣';
       position: absolute; top: -2.5rem; left: -1.5rem;
-      font-size: 8rem; color: var(--border);
+      font-size: 8rem; color: var(--panel);
       font-family: var(--mono); line-height: 1; pointer-events: none;
     }
     .brand {
@@ -52,7 +64,7 @@
 
     .side-panel {
       width: 42%;
-      background: var(--surface);
+      background: var(--panel);
       border-right: 1px solid var(--border);
       display: flex; flex-direction: column; justify-content: center;
       padding: 3rem 4rem;
@@ -69,24 +81,31 @@
       flex: 1; display: flex; flex-direction: column;
       justify-content: center; align-items: center; padding: 3rem;
     }
-    .form-box { width: 100%; max-width: 380px; }
+    .form-box {
+      width: 100%; max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(37,99,235,.08);
+    }
     .form-title { font-family: var(--mono); font-size: .8rem; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 1.75rem; }
     .form-group { margin-bottom: 1.1rem; }
     .form-label { display: block; font-size: .8rem; font-weight: 500; color: var(--muted); margin-bottom: .35rem; }
     .form-control {
-      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
       border-radius: 8px; padding: .7rem .9rem; color: var(--text);
-      font-family: var(--sans); font-size: .875rem; transition: border-color .15s;
+      font-family: var(--sans); font-size: .875rem; transition: border-color .15s, box-shadow .15s;
     }
-    .form-control:focus { outline: none; border-color: var(--accent); }
+    .form-control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
     .btn-primary {
       width: 100%; padding: .75rem;
-      background: var(--accent); color: #0d0f14;
+      background: var(--accent); color: var(--on-accent);
       border: none; border-radius: 8px; font-family: var(--sans);
       font-size: .9rem; font-weight: 600; cursor: pointer; transition: opacity .15s;
       margin-top: .5rem;
     }
-    .btn-primary:hover { opacity: .88; }
+    .btn-primary:hover { opacity: .9; }
     .link-row { text-align: center; margin-top: 1.5rem; font-size: .82rem; color: var(--muted); }
     .link-row a { color: var(--accent); text-decoration: none; }
     .link-row a:hover { text-decoration: underline; }
@@ -98,7 +117,7 @@
       border-radius: 12px;
       overflow: hidden;
       border: 1px solid var(--border);
-      background: var(--bg);
+      background: var(--surface);
       aspect-ratio: 16 / 10;
       max-height: 260px;
     }
@@ -118,10 +137,17 @@
     }
     .media-dot {
       width: 6px; height: 6px; border-radius: 50%;
-      background: rgba(255,255,255,.35);
+      background: rgba(255,255,255,.7);
       transition: background .2s;
     }
     .media-dot.active { background: var(--accent); }
+
+    @media (max-width: 800px) {
+      .body-split { flex-direction: column; }
+      .side-panel { width: 100%; padding: 2rem 1.5rem; border-right: none; border-bottom: 1px solid var(--border); }
+      .brand-header { padding: 1.25rem 1.5rem; }
+      .form-panel { padding: 2rem 1.25rem; }
+    }
   </style>
 </head>
 <body>
@@ -218,4 +244,3 @@
 
 </body>
 </html>
-
