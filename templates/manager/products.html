@@ -2,6 +2,7 @@
 {% block title %}Stock Central — SaaS POS{% endblock %}
 {% block head %}
 <style>
+  
   /* ── Badges cliquables ─── */
   .stock-btn {
     display:inline-flex;align-items:center;gap:.3rem;
@@ -15,6 +16,25 @@
     padding:.05rem .25rem;
   }
   .stock-btn:hover .plus-icon { opacity:1; }
+
+  /* ── En-tête de tableau fixe ─── */
+.card .table-wrap {
+  max-height: calc(100vh - 230px);   /* ajustez selon la hauteur de votre header/filtres */
+  overflow: auto;                    /* scroll vertical + horizontal dans le conteneur */
+}
+
+.card .table-wrap table {
+  border-collapse: separate;         /* nécessaire pour que sticky + bordures fonctionnent */
+  border-spacing: 0;
+}
+
+.card .table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);        /* fond opaque, sinon les lignes passent derrière */
+  box-shadow: 0 1px 0 var(--border); /* remplace la bordure du bas */
+}
 
   /* ── Modal overlay ─── */
   .modal-overlay {
